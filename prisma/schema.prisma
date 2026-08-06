@@ -1,0 +1,240 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  HR
+  MANAGER
+  EMPLOYEE
+}
+
+enum WorkflowStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+}
+
+enum WorkflowRunStatus {
+  RUNNING
+  SUCCESS
+  FAILED
+}
+
+enum ReportType {
+  EMPLOYEE
+  WORKFLOW
+  SALES
+  HR
+  AI_USAGE
+}
+
+enum ChatRole {
+  USER
+  ASSISTANT
+}
+
+enum NotificationType {
+  EMAIL
+  SMS
+  PUSH
+  SLACK
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  name         String
+  role         Role     @default(EMPLOYEE)
+  createdAt    DateTime @default(now()) @map("created_at")
+  lastLogin    DateTime? @map("last_login")
+
+  sessions             Session[]
+  activityLogs         ActivityLog[]
+  workflows            Workflow[]
+  documents            Document[]
+  reports              Report[]
+  chatMessages         ChatMessage[]
+  marketplaceTemplates MarketplaceTemplate[]
+  notifications        Notification[]
+  apiConnections       ApiConnection[]
+
+  @@map("users")
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  token     String
+  expiresAt DateTime @map("expires_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@map("sessions")
+}
+
+model ActivityLog {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  action    String
+  meta      Json
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("activity_logs")
+}
+
+model Workflow {
+  id        String         @id @default(uuid())
+  userId    String         @map("user_id")
+  name      String
+  nodes     Json
+  edges     Json
+  status    WorkflowStatus @default(DRAFT)
+  createdAt DateTime       @default(now()) @map("created_at")
+  updatedAt DateTime       @updatedAt @map("updated_at")
+
+  user           User            @relation(fields: [userId], references: [id])
+  runs           WorkflowRun[]
+  scheduledJobs  ScheduledJob[]
+
+  @@map("workflows")
+}
+
+model WorkflowRun {
+  id         String            @id @default(uuid())
+  workflowId String            @map("workflow_id")
+  status     WorkflowRunStatus @default(RUNNING)
+  input      Json
+  output     Json?
+  error      String?
+  startedAt  DateTime          @default(now()) @map("started_at")
+  finishedAt DateTime?         @map("finished_at")
+
+  workflow Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  @@index([workflowId])
+  @@map("workflow_runs")
+}
+
+model Document {
+  id            String   @id @default(uuid())
+  userId        String   @map("user_id")
+  fileName      String   @map("file_name")
+  fileUrl       String   @map("file_url")
+  fileType      String   @map("file_type")
+  extractedText String?  @map("extracted_text")
+  aiSummary     String?  @map("ai_summary")
+  tags          String[]
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  user    User     @relation(fields: [userId], references: [id])
+  resumes Resume[]
+
+  @@index([userId])
+  @@map("documents")
+}
+
+model Resume {
+  id            String   @id @default(uuid())
+  documentId    String   @map("document_id")
+  candidateName String   @map("candidate_name")
+  skills        String[]
+  jdMatchScore  Float    @map("jd_match_score")
+  ranking       Int
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([documentId])
+  @@map("resumes")
+}
+
+model Report {
+  id          String     @id @default(uuid())
+  userId      String     @map("user_id")
+  type        ReportType
+  fileUrl     String     @map("file_url")
+  generatedAt DateTime   @default(now()) @map("generated_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("reports")
+}
+
+model ChatMessage {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  role      ChatRole
+  content   String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("chat_messages")
+}
+
+model MarketplaceTemplate {
+  id           String @id @default(uuid())
+  name         String
+  description  String
+  category     String
+  workflowJson Json   @map("workflow_json")
+  createdBy    String @map("created_by")
+
+  creator User @relation(fields: [createdBy], references: [id])
+
+  @@map("marketplace_templates")
+}
+
+model Notification {
+  id        String              @id @default(uuid())
+  userId    String              @map("user_id")
+  type      NotificationType
+  message   String
+  status    NotificationStatus  @default(PENDING)
+  createdAt DateTime            @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, status])
+  @@map("notifications")
+}
+
+model ScheduledJob {
+  id         String   @id @default(uuid())
+  workflowId String   @map("workflow_id")
+  cronExpr   String   @map("cron_expr")
+  nextRun    DateTime @map("next_run")
+  isActive   Boolean  @default(true) @map("is_active")
+
+  workflow Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+
+  @@map("scheduled_jobs")
+}
+
+model ApiConnection {
+  id       String  @id @default(uuid())
+  userId   String  @map("user_id")
+  provider String
+  config   Json
+  isActive Boolean @default(true) @map("is_active")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("api_connections")
+}

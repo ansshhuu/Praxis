@@ -1,6 +1,8 @@
 'use client'
 
 import { Sparkles } from 'lucide-react'
+import { signIn } from 'next-auth/react'
+import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 
 import { Button } from '@/components/ui/button'
@@ -9,26 +11,32 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 
 export default function LoginPage() {
+  const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError('')
     setIsLoading(true)
 
-    // Simulate auth check — swap for real API call later
-    setTimeout(() => {
-      setIsLoading(false)
-      if (email !== 'admin@eawmp.ai' || password !== 'password') {
-        setError('Invalid email or password. Please try again.')
-      } else {
-        // redirect would happen here
-        window.location.href = '/'
-      }
-    }, 900)
+    const result = await signIn('credentials', {
+      email,
+      password,
+      redirect: false,
+    })
+
+    setIsLoading(false)
+
+    if (!result || result.error) {
+      setError('Invalid email or password. Please try again.')
+      return
+    }
+
+    router.push('/')
+    router.refresh()
   }
 
   return (
