@@ -26,6 +26,13 @@ enum WorkflowRunStatus {
   FAILED
 }
 
+enum DocumentStatus {
+  PENDING
+  PROCESSING
+  PROCESSED
+  FAILED
+}
+
 enum ReportType {
   EMPLOYEE
   WORKFLOW
@@ -142,6 +149,14 @@ model Document {
   tags          String[]
   createdAt     DateTime @default(now()) @map("created_at")
 
+  /// Object key inside the "documents" storage bucket — kept so delete and
+  /// signed-URL generation don't have to parse it back out of fileUrl.
+  storagePath String?        @map("storage_path")
+  fileSize    Int?           @map("file_size")
+  status      DocumentStatus @default(PENDING)
+  /// Why extraction/summarisation failed, surfaced to the UI on FAILED.
+  statusMessage String?      @map("status_message")
+
   user    User     @relation(fields: [userId], references: [id])
   resumes Resume[]
 
@@ -158,9 +173,28 @@ model Resume {
   ranking       Int
   createdAt     DateTime @default(now()) @map("created_at")
 
+  /// Groups every candidate scored in one "Screen Candidates" request, so
+  /// rankings from separate screenings don't interleave in the results table.
+  screeningId String @map("screening_id")
+  /// The JD this candidate was scored against — kept so interview questions
+  /// can be generated later without asking the user to paste it again.
+  jobDescription String @map("job_description")
+
+  // Fields below are all filled by the same scoring call, so they cost no
+  // extra AI requests. Nullable: the model may not find them in a resume.
+  email           String?
+  summary         String?
+  currentRole     String?  @map("current_role")
+  education       String?
+  yearsExperience Float?   @map("years_experience")
+  skillsMissing   String[] @map("skills_missing")
+  /// Cached so re-opening a candidate doesn't re-spend an AI call.
+  interviewQuestions String[] @map("interview_questions")
+
   document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
 
   @@index([documentId])
+  @@index([screeningId])
   @@map("resumes")
 }
 

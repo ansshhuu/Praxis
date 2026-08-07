@@ -14,54 +14,65 @@ import {
 } from './node-catalog'
 import type { WorkflowNodeData } from './workflow-node'
 
+/**
+ * `key` is the property name written to `node.data.config` — it is the
+ * contract with the execution engine (`lib/workflows/engine.ts`), which reads
+ * config by these exact names. Renaming one here breaks that node at runtime.
+ */
 type Field =
-  | { kind: 'text'; label: string; placeholder?: string; value?: string }
-  | { kind: 'textarea'; label: string; placeholder?: string; value?: string }
-  | { kind: 'select'; label: string; options: string[]; value?: string }
+  | { kind: 'text'; key: string; label: string; placeholder?: string; value?: string }
+  | { kind: 'textarea'; key: string; label: string; placeholder?: string; value?: string }
+  | { kind: 'select'; key: string; label: string; options: string[]; value?: string }
 
 const fieldsByType: Partial<Record<NodeTypeKey, Field[]>> = {
   'email-trigger': [
-    { kind: 'text', label: 'Mailbox', value: 'support@eawmp.io' },
-    { kind: 'select', label: 'Folder', options: ['Inbox', 'Archive', 'Spam'] },
+    { kind: 'text', key: 'mailbox', label: 'Mailbox', value: 'support@eawmp.io' },
+    { kind: 'select', key: 'folder', label: 'Folder', options: ['Inbox', 'Archive', 'Spam'] },
   ],
   'schedule-trigger': [
     {
       kind: 'select',
+      key: 'frequency',
       label: 'Frequency',
       options: ['Every hour', 'Daily', 'Weekly', 'Monthly'],
     },
-    { kind: 'text', label: 'Run at', value: '09:00' },
+    { kind: 'text', key: 'runAt', label: 'Run at', value: '09:00' },
   ],
   'webhook-trigger': [
     {
       kind: 'text',
+      key: 'endpointUrl',
       label: 'Endpoint URL',
       value: 'https://api.eawmp.io/hooks/wf_2f9a',
     },
-    { kind: 'select', label: 'Method', options: ['POST', 'GET', 'PUT'] },
+    { kind: 'select', key: 'method', label: 'Method', options: ['POST', 'GET', 'PUT'] },
   ],
   'ai-classify': [
     {
       kind: 'select',
+      key: 'model',
       label: 'Model',
       options: ['GPT-4o', 'Claude 3.5 Sonnet', 'Gemini 1.5 Pro'],
     },
     {
       kind: 'textarea',
+      key: 'prompt',
       label: 'Prompt',
       value:
         'Classify the incoming email into one of: Billing, Support, Sales, Other.',
     },
-    { kind: 'text', label: 'Categories', value: 'Billing, Support, Sales' },
+    { kind: 'text', key: 'categories', label: 'Categories', value: 'Billing, Support, Sales' },
   ],
   'extract-data': [
     {
       kind: 'select',
+      key: 'model',
       label: 'Model',
       options: ['GPT-4o', 'Claude 3.5 Sonnet', 'Gemini 1.5 Pro'],
     },
     {
       kind: 'textarea',
+      key: 'schema',
       label: 'Schema (JSON)',
       value: '{\n  "name": "string",\n  "amount": "number"\n}',
     },
@@ -69,11 +80,13 @@ const fieldsByType: Partial<Record<NodeTypeKey, Field[]>> = {
   'save-db': [
     {
       kind: 'select',
+      key: 'table',
       label: 'Table',
       options: ['tickets', 'invoices', 'customers'],
     },
     {
       kind: 'textarea',
+      key: 'fieldMapping',
       label: 'Field mapping',
       value: 'category -> tickets.type\nbody -> tickets.summary',
     },
@@ -81,57 +94,90 @@ const fieldsByType: Partial<Record<NodeTypeKey, Field[]>> = {
   'generate-report': [
     {
       kind: 'select',
+      key: 'template',
       label: 'Template',
       options: ['Weekly Summary', 'Executive Brief', 'Raw Export'],
     },
-    { kind: 'select', label: 'Format', options: ['PDF', 'CSV', 'HTML'] },
+    { kind: 'select', key: 'format', label: 'Format', options: ['PDF', 'CSV', 'HTML'] },
   ],
   notify: [
     {
       kind: 'select',
+      key: 'channel',
       label: 'Channel',
       options: ['#ops-alerts', '#support', 'In-app'],
     },
     {
       kind: 'textarea',
+      key: 'message',
       label: 'Message',
       value: 'New {{category}} ticket routed and saved.',
     },
   ],
   'api-call': [
-    { kind: 'select', label: 'Method', options: ['GET', 'POST', 'PUT', 'DELETE'] },
-    { kind: 'text', label: 'URL', value: 'https://api.example.com/v1/records' },
-    { kind: 'textarea', label: 'Headers', value: '{\n  "Authorization": "Bearer •••"\n}' },
-  ],
-  'email-action': [
-    { kind: 'text', label: 'To', value: '{{customer.email}}' },
-    { kind: 'text', label: 'Subject', value: 'We received your request' },
+    { kind: 'select', key: 'method', label: 'Method', options: ['GET', 'POST', 'PUT', 'DELETE'] },
+    { kind: 'text', key: 'url', label: 'URL', value: 'https://api.example.com/v1/records' },
     {
       kind: 'textarea',
+      key: 'headers',
+      label: 'Headers',
+      value: '{\n  "Authorization": "Bearer •••"\n}',
+    },
+  ],
+  'email-action': [
+    { kind: 'text', key: 'to', label: 'To', value: '{{customer.email}}' },
+    { kind: 'text', key: 'subject', label: 'Subject', value: 'We received your request' },
+    {
+      kind: 'textarea',
+      key: 'body',
       label: 'Body',
       value: 'Hi {{customer.name}}, thanks for reaching out…',
     },
   ],
   condition: [
-    { kind: 'text', label: 'Field', value: '{{classification}}' },
+    { kind: 'text', key: 'field', label: 'Field', value: '{{classification}}' },
     {
       kind: 'select',
+      key: 'operator',
       label: 'Operator',
       options: ['equals', 'not equals', 'contains', 'greater than'],
     },
-    { kind: 'text', label: 'Value', value: 'Billing' },
+    { kind: 'text', key: 'value', label: 'Value', value: 'Billing' },
   ],
   loop: [
-    { kind: 'text', label: 'Collection', value: '{{items}}' },
-    { kind: 'text', label: 'Max iterations', value: '50' },
+    { kind: 'text', key: 'collection', label: 'Collection', value: '{{items}}' },
+    { kind: 'text', key: 'maxIterations', label: 'Max iterations', value: '50' },
   ],
   delay: [
-    { kind: 'text', label: 'Duration', value: '5' },
-    { kind: 'select', label: 'Unit', options: ['Seconds', 'Minutes', 'Hours'] },
+    { kind: 'text', key: 'duration', label: 'Duration', value: '5' },
+    { kind: 'select', key: 'unit', label: 'Unit', options: ['Seconds', 'Minutes', 'Hours'] },
   ],
 }
 
-function ConfigField({ field }: { field: Field }) {
+/** The value a field shows before the user edits anything. */
+function fieldDefault(field: Field): string {
+  if (field.value !== undefined) return field.value
+  return field.kind === 'select' ? field.options[0] : ''
+}
+
+/**
+ * Seed config for a freshly dropped node, so what the drawer displays is what
+ * the engine actually receives — even if the user never opens the drawer.
+ */
+export function defaultConfigFor(typeKey: NodeTypeKey): Record<string, string> {
+  const fields = fieldsByType[typeKey] ?? []
+  return Object.fromEntries(fields.map((field) => [field.key, fieldDefault(field)]))
+}
+
+function ConfigField({
+  field,
+  value,
+  onChange,
+}: {
+  field: Field
+  value: string
+  onChange: (value: string) => void
+}) {
   const id = `field-${field.label.replace(/\s+/g, '-').toLowerCase()}`
 
   if (field.kind === 'textarea') {
@@ -141,7 +187,8 @@ function ConfigField({ field }: { field: Field }) {
         <Textarea
           id={id}
           rows={4}
-          defaultValue={field.value}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
           placeholder={field.placeholder}
           className="resize-none font-mono text-xs"
         />
@@ -155,7 +202,8 @@ function ConfigField({ field }: { field: Field }) {
         <Label htmlFor={id}>{field.label}</Label>
         <select
           id={id}
-          defaultValue={field.value ?? field.options[0]}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
           className="h-9 w-full rounded-lg border border-input bg-transparent px-3 text-sm text-foreground outline-none transition-colors focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
         >
           {field.options.map((opt) => (
@@ -171,7 +219,12 @@ function ConfigField({ field }: { field: Field }) {
   return (
     <div className="flex flex-col gap-1.5">
       <Label htmlFor={id}>{field.label}</Label>
-      <Input id={id} defaultValue={field.value} placeholder={field.placeholder} />
+      <Input
+        id={id}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={field.placeholder}
+      />
     </div>
   )
 }
@@ -181,6 +234,8 @@ type NodeConfigDrawerProps = {
   data: WorkflowNodeData | null
   onClose: () => void
   onDelete: (id: string) => void
+  /** Writes a single config key back onto the node in React Flow state. */
+  onConfigChange: (id: string, key: string, value: string) => void
 }
 
 export function NodeConfigDrawer({
@@ -188,11 +243,13 @@ export function NodeConfigDrawer({
   data,
   onClose,
   onDelete,
+  onConfigChange,
 }: NodeConfigDrawerProps) {
   const open = Boolean(nodeId && data)
   const def = data ? nodeTypesByKey[data.typeKey] : null
   const style = def ? categoryStyles[def.category] : null
   const fields = data ? fieldsByType[data.typeKey] ?? [] : []
+  const config = data?.config ?? {}
 
   return (
     <div
@@ -237,7 +294,12 @@ export function NodeConfigDrawer({
           <div className="flex flex-1 flex-col gap-4 overflow-y-auto px-4 py-4">
             <p className="text-xs text-muted-foreground">{def.description}</p>
             {fields.map((field) => (
-              <ConfigField key={field.label} field={field} />
+              <ConfigField
+                key={field.key}
+                field={field}
+                value={config[field.key] ?? fieldDefault(field)}
+                onChange={(value) => nodeId && onConfigChange(nodeId, field.key, value)}
+              />
             ))}
           </div>
 

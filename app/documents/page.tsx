@@ -14,10 +14,9 @@ import {
   Upload,
   X,
 } from 'lucide-react'
-import { useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { DashboardShell } from '@/components/dashboard/dashboard-shell'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -30,15 +29,55 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { cn } from '@/lib/utils'
-import { getDocumentById, getDocuments, type Document, type DocumentStatus, type DocumentType } from '@/lib/mock-data/documents'
 
 // ─── Types & helpers ──────────────────────────────────────────────────────────
+
+type DocumentStatus = 'Processed' | 'Processing' | 'Failed' | 'Pending'
+
+/** Wire format returned by /api/documents. */
+interface ApiDocument {
+  id: string
+  fileName: string
+  fileType: string
+  displayType: string
+  size: string
+  createdAt: string
+  status: 'PENDING' | 'PROCESSING' | 'PROCESSED' | 'FAILED'
+  statusMessage: string | null
+  hasSummary: boolean
+}
+
+interface ApiDocumentDetail extends ApiDocument {
+  fileUrl: string
+  extractedText: string | null
+  aiSummary: string | null
+}
+
+const statusLabels: Record<ApiDocument['status'], DocumentStatus> = {
+  PENDING: 'Pending',
+  PROCESSING: 'Processing',
+  PROCESSED: 'Processed',
+  FAILED: 'Failed',
+}
 
 const statusStyles: Record<DocumentStatus, string> = {
   Processed: 'bg-success/10 text-success',
   Processing: 'bg-warning/15 text-warning',
   Failed: 'bg-destructive/10 text-destructive',
   Pending: 'bg-muted text-muted-foreground',
+}
+
+function formatUploadDate(iso: string): string {
+  return new Date(iso).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  })
+}
+
+async function readError(response: Response, fallback: string): Promise<string> {
+  const body = await response.json().catch(() => null)
+  return (body as { error?: string } | null)?.error ?? fallback
 }
 
 function StatusBadge({ status }: { status: DocumentStatus }) {
@@ -63,19 +102,24 @@ function StatusBadge({ status }: { status: DocumentStatus }) {
   )
 }
 
-function DocTypeIcon({ type }: { type: DocumentType }) {
-  const icons: Record<DocumentType, React.ReactNode> = {
+function DocTypeIcon({ type }: { type: string }) {
+  const icons: Record<string, React.ReactNode> = {
     PDF: <FileText className="size-4 text-red-500" />,
+    DOC: <FileType className="size-4 text-blue-500" />,
     DOCX: <FileType className="size-4 text-blue-500" />,
+    PPT: <FileType className="size-4 text-orange-500" />,
+    PPTX: <FileType className="size-4 text-orange-500" />,
+    XLS: <FileSpreadsheet className="size-4 text-green-500" />,
     XLSX: <FileSpreadsheet className="size-4 text-green-500" />,
     CSV: <FileSpreadsheet className="size-4 text-emerald-500" />,
     TXT: <FileText className="size-4 text-muted-foreground" />,
     PNG: <Image className="size-4 text-purple-500" />,
     JPG: <Image className="size-4 text-pink-500" />,
+    JPEG: <Image className="size-4 text-pink-500" />,
   }
   return (
     <span className="flex items-center gap-1.5">
-      {icons[type]}
+      {icons[type] ?? <FileText className="size-4 text-muted-foreground" />}
       <span className="text-xs font-medium text-muted-foreground">{type}</span>
     </span>
   )
@@ -83,9 +127,67 @@ function DocTypeIcon({ type }: { type: DocumentType }) {
 
 // ─── Upload Modal ─────────────────────────────────────────────────────────────
 
-function UploadModal({ onClose }: { onClose: () => void }) {
+function UploadModal({
+  onClose,
+  onUploaded,
+}: {
+  onClose: () => void
+  /** Fires once per file, right after its record exists (before processing). */
+  onUploaded: (doc: ApiDocument, processing: Promise<void>) => void
+}) {
   const [isDragging, setIsDragging] = useState(false)
+  const [files, setFiles] = useState<File[]>([])
+  const [isUploading, setIsUploading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+
+  function addFiles(list: FileList | null) {
+    if (!list?.length) return
+    setError(null)
+    setFiles(Array.from(list))
+  }
+
+  /**
+   * Two-step: upload returns as soon as the file is stored, then processing
+   * (extraction + summary) runs separately so a slow OCR never blocks the
+   * modal from closing.
+   */
+  async function handleUpload() {
+    if (files.length === 0 || isUploading) return
+    setIsUploading(true)
+    setError(null)
+
+    try {
+      for (const file of files) {
+        const form = new FormData()
+        form.append('file', file)
+
+        const response = await fetch('/api/documents/upload', {
+          method: 'POST',
+          body: form,
+        })
+        if (!response.ok) {
+          throw new Error(await readError(response, `Upload failed for ${file.name}`))
+        }
+
+        const { document } = (await response.json()) as { document: ApiDocument }
+
+        const processing = fetch(`/api/documents/${document.id}/process`, {
+          method: 'POST',
+        }).then(() => undefined)
+        // Never let a rejected processing promise surface as unhandled — the
+        // caller re-reads status from the server either way.
+        processing.catch(() => {})
+
+        onUploaded(document, processing)
+      }
+      onClose()
+    } catch (uploadError) {
+      setError((uploadError as Error).message)
+    } finally {
+      setIsUploading(false)
+    }
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -102,7 +204,7 @@ function UploadModal({ onClose }: { onClose: () => void }) {
           id="upload-dropzone"
           onDragOver={(e) => { e.preventDefault(); setIsDragging(true) }}
           onDragLeave={() => setIsDragging(false)}
-          onDrop={(e) => { e.preventDefault(); setIsDragging(false) }}
+          onDrop={(e) => { e.preventDefault(); setIsDragging(false); addFiles(e.dataTransfer.files) }}
           onClick={() => inputRef.current?.click()}
           className={cn(
             'flex cursor-pointer flex-col items-center gap-3 rounded-xl border-2 border-dashed py-12 transition-colors',
@@ -115,15 +217,38 @@ function UploadModal({ onClose }: { onClose: () => void }) {
             <Upload className="size-6" />
           </div>
           <div className="text-center">
-            <p className="text-sm font-medium text-foreground">Drop files here or click to browse</p>
+            <p className="text-sm font-medium text-foreground">
+              {files.length === 0
+                ? 'Drop files here or click to browse'
+                : files.length === 1
+                  ? files[0].name
+                  : `${files.length} files selected`}
+            </p>
             <p className="mt-1 text-xs text-muted-foreground">PDF, DOCX, XLSX, CSV, TXT, PNG — max 50 MB</p>
           </div>
-          <input ref={inputRef} type="file" className="hidden" multiple accept=".pdf,.docx,.xlsx,.csv,.txt,.png,.jpg" />
+          <input
+            ref={inputRef}
+            type="file"
+            className="hidden"
+            multiple
+            accept=".pdf,.docx,.xlsx,.csv,.txt,.png,.jpg"
+            onChange={(e) => addFiles(e.target.files)}
+          />
         </div>
 
+        {error && <p className="mt-3 text-xs text-destructive">{error}</p>}
+
         <div className="mt-4 flex gap-2">
-          <Button variant="outline" className="flex-1" onClick={onClose}>Cancel</Button>
-          <Button className="flex-1" id="confirm-upload-button">Upload</Button>
+          <Button variant="outline" className="flex-1" onClick={onClose} disabled={isUploading}>Cancel</Button>
+          <Button
+            className="flex-1"
+            id="confirm-upload-button"
+            onClick={handleUpload}
+            disabled={isUploading || files.length === 0}
+          >
+            {isUploading && <Loader2 className="size-4 animate-spin" />}
+            {isUploading ? 'Uploading…' : 'Upload'}
+          </Button>
         </div>
       </div>
     </div>
@@ -134,31 +259,82 @@ function UploadModal({ onClose }: { onClose: () => void }) {
 
 interface ChatMsg { id: string; role: 'user' | 'assistant'; content: string }
 
-function DocumentDetailView({ doc, onBack }: { doc: Document; onBack: () => void }) {
+function DocumentDetailView({
+  documentId,
+  summary,
+  onBack,
+}: {
+  documentId: string
+  /** List-row data, shown until the detail request resolves. */
+  summary: ApiDocument
+  onBack: () => void
+}) {
+  const [doc, setDoc] = useState<ApiDocumentDetail | null>(null)
   const [messages, setMessages] = useState<ChatMsg[]>([])
   const [inputValue, setInputValue] = useState('')
   const [isAsking, setIsAsking] = useState(false)
 
-  function sendQuestion(e: React.FormEvent) {
+  const status = statusLabels[doc?.status ?? summary.status]
+  const isProcessing = status === 'Processing' || status === 'Pending'
+
+  // Re-fetch while the document is still processing so extracted text and the
+  // summary appear as soon as the server finishes.
+  useEffect(() => {
+    let cancelled = false
+
+    async function load() {
+      try {
+        const response = await fetch(`/api/documents/${documentId}`)
+        if (!response.ok || cancelled) return
+        const { document } = (await response.json()) as { document: ApiDocumentDetail }
+        if (!cancelled) setDoc(document)
+      } catch {
+        // Leave the list-row data in place; the poll will try again.
+      }
+    }
+
+    void load()
+    const interval = isProcessing ? setInterval(load, 3000) : null
+
+    return () => {
+      cancelled = true
+      if (interval) clearInterval(interval)
+    }
+  }, [documentId, isProcessing])
+
+  async function sendQuestion(e: React.FormEvent) {
     e.preventDefault()
-    if (!inputValue.trim()) return
-    const userMsg: ChatMsg = { id: `u-${Date.now()}`, role: 'user', content: inputValue }
-    setMessages((prev) => [...prev, userMsg])
+    const question = inputValue.trim()
+    if (!question || isAsking) return
+
+    setMessages((prev) => [...prev, { id: `u-${Date.now()}`, role: 'user', content: question }])
     setInputValue('')
     setIsAsking(true)
-    // Simulate AI response
-    setTimeout(() => {
-      const aiMsg: ChatMsg = {
-        id: `a-${Date.now()}`,
-        role: 'assistant',
-        content: `Based on **${doc.name}**, here is what I found: This is a mock AI answer to your question about the document. In production, this would call the AI API with the document context and your query to provide a factual, grounded answer.`,
-      }
-      setMessages((prev) => [...prev, aiMsg])
+
+    try {
+      const response = await fetch(`/api/documents/${documentId}/ask`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question }),
+      })
+      const content = response.ok
+        ? ((await response.json()) as { answer: string }).answer
+        : await readError(response, 'The assistant could not answer that.')
+
+      setMessages((prev) => [...prev, { id: `a-${Date.now()}`, role: 'assistant', content }])
+    } catch (error) {
+      setMessages((prev) => [
+        ...prev,
+        { id: `a-${Date.now()}`, role: 'assistant', content: (error as Error).message },
+      ])
+    } finally {
       setIsAsking(false)
-    }, 1200)
+    }
   }
 
-  const isProcessing = doc.status === 'Processing' || doc.status === 'Pending'
+  const extractedText = doc?.extractedText ?? null
+  const aiSummary = doc?.aiSummary ?? null
+  const statusMessage = doc?.statusMessage ?? summary.statusMessage
 
   return (
     <div className="flex flex-col gap-4">
@@ -167,11 +343,13 @@ function DocumentDetailView({ doc, onBack }: { doc: Document; onBack: () => void
           ← Back
         </Button>
         <div>
-          <h2 className="text-lg font-semibold text-foreground">{doc.name}</h2>
-          <p className="text-sm text-muted-foreground">{doc.uploadDate} · {doc.size}</p>
+          <h2 className="text-lg font-semibold text-foreground">{doc?.fileName ?? summary.fileName}</h2>
+          <p className="text-sm text-muted-foreground">
+            {formatUploadDate(doc?.createdAt ?? summary.createdAt)} · {doc?.size ?? summary.size}
+          </p>
         </div>
         <div className="ml-auto">
-          <StatusBadge status={doc.status} />
+          <StatusBadge status={status} />
         </div>
       </div>
 
@@ -193,14 +371,19 @@ function DocumentDetailView({ doc, onBack }: { doc: Document; onBack: () => void
                   <Skeleton key={i} className={cn('h-4', i % 3 === 2 ? 'w-3/4' : 'w-full')} />
                 ))}
               </div>
-            ) : doc.ocrText ? (
+            ) : extractedText ? (
               <pre className="whitespace-pre-wrap font-mono text-xs leading-relaxed text-foreground/80 max-h-80 overflow-y-auto">
-                {doc.ocrText}
+                {extractedText}
               </pre>
             ) : (
               <div className="flex flex-col items-center gap-2 py-8 text-center text-muted-foreground">
                 <FileText className="size-8 opacity-30" />
-                <p className="text-sm">No text could be extracted from this document.</p>
+                <p className="text-sm">
+                  {status === 'Failed'
+                    ? 'Text extraction failed for this document.'
+                    : 'No text could be extracted from this document.'}
+                </p>
+                {statusMessage && <p className="max-w-md text-xs">{statusMessage}</p>}
               </div>
             )}
           </CardContent>
@@ -225,8 +408,8 @@ function DocumentDetailView({ doc, onBack }: { doc: Document; onBack: () => void
                     <Skeleton key={i} className={cn('h-4', i === 2 ? 'w-2/3' : 'w-full')} />
                   ))}
                 </div>
-              ) : doc.aiSummary ? (
-                <p className="text-sm leading-relaxed text-foreground/80">{doc.aiSummary}</p>
+              ) : aiSummary ? (
+                <p className="text-sm leading-relaxed text-foreground/80">{aiSummary}</p>
               ) : (
                 <p className="text-sm text-muted-foreground">Summary not available.</p>
               )}
@@ -293,17 +476,61 @@ function DocumentDetailView({ doc, onBack }: { doc: Document; onBack: () => void
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function DocumentsPage() {
-  const documents = getDocuments()
+  const [documents, setDocuments] = useState<ApiDocument[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [selectedDocId, setSelectedDocId] = useState<string | null>(null)
   const [showUpload, setShowUpload] = useState(false)
 
-  const selectedDoc = selectedDocId ? getDocumentById(selectedDocId) : null
+  const refresh = useCallback(async () => {
+    try {
+      const response = await fetch('/api/documents')
+      if (!response.ok) {
+        setLoadError(await readError(response, 'Could not load documents'))
+        return
+      }
+      const { documents: rows } = (await response.json()) as { documents: ApiDocument[] }
+      setDocuments(rows)
+      setLoadError(null)
+    } catch (error) {
+      setLoadError((error as Error).message)
+    } finally {
+      setIsLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    void refresh()
+  }, [refresh])
+
+  /**
+   * Show the new row straight away as Processing, then re-read it from the
+   * server once the process request settles.
+   */
+  const handleUploaded = useCallback(
+    (doc: ApiDocument, processing: Promise<void>) => {
+      setDocuments((prev) => [{ ...doc, status: 'PROCESSING' }, ...prev])
+      void processing.finally(() => {
+        void refresh()
+      })
+    },
+    [refresh],
+  )
+
+  const selectedDoc = documents.find((doc) => doc.id === selectedDocId) ?? null
 
   return (
     <DashboardShell>
       <div className="mx-auto flex max-w-7xl flex-col gap-6">
         {selectedDoc ? (
-          <DocumentDetailView doc={selectedDoc} onBack={() => setSelectedDocId(null)} />
+          <DocumentDetailView
+            documentId={selectedDoc.id}
+            summary={selectedDoc}
+            onBack={() => {
+              setSelectedDocId(null)
+              void refresh()
+            }}
+          />
         ) : (
           <>
             <div className="flex items-center justify-between">
@@ -319,16 +546,27 @@ export default function DocumentsPage() {
               </Button>
             </div>
 
-            {documents.length === 0 ? (
+            {isLoading ? (
+              <Card className="shadow-sm">
+                <div className="flex flex-col gap-3 p-6">
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <Skeleton key={i} className="h-10 w-full" />
+                  ))}
+                </div>
+              </Card>
+            ) : documents.length === 0 ? (
               <Card className="shadow-sm">
                 <div className="flex flex-col items-center justify-center gap-4 px-6 py-16 text-center">
                   <div className="flex size-14 items-center justify-center rounded-full bg-accent text-accent-foreground">
                     <Inbox className="size-7" />
                   </div>
                   <div className="space-y-1">
-                    <p className="text-base font-medium">No documents yet</p>
+                    <p className="text-base font-medium">
+                      {loadError ? 'Could not load documents' : 'No documents yet'}
+                    </p>
                     <p className="mx-auto max-w-sm text-sm text-muted-foreground">
-                      Upload your first document to get started with AI-powered processing.
+                      {loadError ??
+                        'Upload your first document to get started with AI-powered processing.'}
                     </p>
                   </div>
                   <Button onClick={() => setShowUpload(true)}>
@@ -362,11 +600,11 @@ export default function DocumentsPage() {
                           onClick={() => setSelectedDocId(doc.id)}
                           id={`doc-row-${doc.id}`}
                         >
-                          <TableCell className="font-medium text-foreground">{doc.name}</TableCell>
-                          <TableCell><DocTypeIcon type={doc.type} /></TableCell>
-                          <TableCell className="text-muted-foreground">{doc.uploadDate}</TableCell>
+                          <TableCell className="font-medium text-foreground">{doc.fileName}</TableCell>
+                          <TableCell><DocTypeIcon type={doc.displayType} /></TableCell>
+                          <TableCell className="text-muted-foreground">{formatUploadDate(doc.createdAt)}</TableCell>
                           <TableCell className="text-muted-foreground tabular-nums">{doc.size}</TableCell>
-                          <TableCell><StatusBadge status={doc.status} /></TableCell>
+                          <TableCell><StatusBadge status={statusLabels[doc.status]} /></TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -378,7 +616,7 @@ export default function DocumentsPage() {
         )}
       </div>
 
-      {showUpload && <UploadModal onClose={() => setShowUpload(false)} />}
+      {showUpload && <UploadModal onClose={() => setShowUpload(false)} onUploaded={handleUploaded} />}
     </DashboardShell>
   )
 }

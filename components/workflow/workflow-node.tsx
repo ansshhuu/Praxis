@@ -14,6 +14,8 @@ export type WorkflowNodeData = {
   typeKey: NodeTypeKey
   label: string
   status?: 'idle' | 'running' | 'done'
+  /** Per-node settings from the config drawer; read by the execution engine. */
+  config?: Record<string, string>
 }
 
 export function WorkflowNode({ data, selected }: NodeProps) {

@@ -9,7 +9,7 @@ import {
   Cloud,
   HardDrive,
   Link,
-  LinkOff,
+  Link2Off,
   MessageCircle,
   Send,
   Users,
@@ -213,7 +213,7 @@ function ApiConnectionsTab() {
                     className="gap-1.5"
                   >
                     {conn.status === 'Connected' ? (
-                      <><LinkOff className="size-3" /> Disconnect</>
+                      <><Link2Off className="size-3" /> Disconnect</>
                     ) : (
                       <><Link className="size-3" /> Connect</>
                     )}

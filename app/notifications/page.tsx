@@ -5,7 +5,6 @@ import {
   Mail,
   MessageSquare,
   Phone,
-  Slack,
 } from 'lucide-react'
 import { useState } from 'react'
 

@@ -18,6 +18,8 @@ import {
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import {
+  History,
+  Loader2,
   Maximize,
   MonitorPlay,
   MoveLeft,
@@ -39,20 +41,39 @@ import {
   nodeTypesByKey,
   type NodeTypeKey,
 } from './node-catalog'
-import { NodeConfigDrawer } from './node-config-drawer'
-import { NodePalette } from './node-palette'
+import { NodeConfigDrawer, defaultConfigFor } from './node-config-drawer'
+import { PaletteSidebar } from './palette-sidebar'
+import { RunHistory } from './run-history'
+import { RunToast, type Toast } from './run-toast'
 import { WorkflowNode, type WorkflowNodeData } from './workflow-node'
 
 const rfNodeTypes = { workflow: WorkflowNode }
 
-const initialNodes: Node[] = [
+/**
+ * Guarantee every node carries a full `data.config`. Without this the engine
+ * would run on empty config for any node the user never opened the drawer on
+ * — e.g. a Condition would compare "" to "" and always take the true branch.
+ * Existing keys always win, so saved edits survive a reload.
+ */
+function withConfigDefaults(nodes: Node[]): Node[] {
+  return nodes.map((node) => {
+    const data = node.data as WorkflowNodeData
+    if (!data?.typeKey || !nodeTypesByKey[data.typeKey]) return node
+    return {
+      ...node,
+      data: { ...data, config: { ...defaultConfigFor(data.typeKey), ...(data.config ?? {}) } },
+    }
+  })
+}
+
+const initialNodes: Node[] = withConfigDefaults([
   { id: 'n1', type: 'workflow', position: { x: 0, y: 170 }, data: { typeKey: 'email-trigger', label: 'Email Trigger' } },
   { id: 'n2', type: 'workflow', position: { x: 290, y: 170 }, data: { typeKey: 'ai-classify', label: 'AI Classify' } },
   { id: 'n3', type: 'workflow', position: { x: 580, y: 170 }, data: { typeKey: 'condition', label: 'Condition' } },
   { id: 'n4', type: 'workflow', position: { x: 880, y: 60 }, data: { typeKey: 'save-db', label: 'Save to DB' } },
   { id: 'n5', type: 'workflow', position: { x: 1170, y: 60 }, data: { typeKey: 'notify', label: 'Notify' } },
   { id: 'n6', type: 'workflow', position: { x: 880, y: 300 }, data: { typeKey: 'email-action', label: 'Escalate via Email' } },
-]
+])
 
 const edgeBase = {
   type: 'default',
@@ -86,6 +107,26 @@ const initialEdges: Edge[] = [
 
 type Snapshot = { nodes: Node[]; edges: Edge[] }
 
+type WorkflowStatus = 'DRAFT' | 'ACTIVE' | 'PAUSED'
+
+const statusLabels: Record<WorkflowStatus, string> = {
+  DRAFT: 'Draft',
+  ACTIVE: 'Active',
+  PAUSED: 'Paused',
+}
+
+/** Drop transient run-animation state before persisting the graph. */
+function serializeNodes(nodes: Node[]) {
+  return nodes.map(({ id, type, position, data }) => {
+    const { status: _status, ...rest } = (data ?? {}) as WorkflowNodeData
+    return { id, type, position, data: rest }
+  })
+}
+
+function serializeEdges(edges: Edge[]) {
+  return edges.map(({ animated: _animated, ...edge }) => edge)
+}
+
 function ToolbarButton({
   label,
   onClick,
@@ -116,10 +157,20 @@ function Flow() {
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [running, setRunning] = useState(false)
-  const [status, setStatus] = useState<'Draft' | 'Active'>('Draft')
+  const [animating, setAnimating] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [status, setStatus] = useState<WorkflowStatus>('DRAFT')
   const [name, setName] = useState('Untitled Workflow')
   const [past, setPast] = useState<Snapshot[]>([])
   const [future, setFuture] = useState<Snapshot[]>([])
+  const [workflowId, setWorkflowId] = useState<string | null>(null)
+  const [historyOpen, setHistoryOpen] = useState(false)
+  const [historyToken, setHistoryToken] = useState(0)
+  const [toast, setToast] = useState<Toast | null>(null)
+
+  const showToast = useCallback((kind: Toast['kind'], message: string) => {
+    setToast({ id: Date.now(), kind, message })
+  }, [])
 
   const { screenToFlowPosition, zoomIn, zoomOut, fitView } = useReactFlow()
   const wrapperRef = useRef<HTMLDivElement>(null)
@@ -184,11 +235,25 @@ function Flow() {
           id: `n-${Date.now()}`,
           type: 'workflow',
           position,
-          data: { typeKey: key, label: def.label },
+          data: { typeKey: key, label: def.label, config: defaultConfigFor(key) },
         }),
       )
     },
     [screenToFlowPosition, commit, setNodes],
+  )
+
+  /** Persist a drawer edit onto the node so Save/Run send it to the server. */
+  const updateNodeConfig = useCallback(
+    (id: string, key: string, value: string) => {
+      setNodes((nds) =>
+        nds.map((n) => {
+          if (n.id !== id) return n
+          const data = n.data as WorkflowNodeData
+          return { ...n, data: { ...data, config: { ...(data.config ?? {}), [key]: value } } }
+        }),
+      )
+    },
+    [setNodes],
   )
 
   const deleteNode = useCallback(
@@ -201,12 +266,120 @@ function Flow() {
     [commit, setNodes, setEdges],
   )
 
+  // Load the user's most recently updated workflow into the canvas. When the
+  // account has none, the canvas keeps its starter graph and the first Save
+  // creates a new record.
+  useEffect(() => {
+    let cancelled = false
+
+    async function loadLatest() {
+      try {
+        const listResponse = await fetch('/api/workflows')
+        if (!listResponse.ok) return
+        const { workflows } = await listResponse.json()
+        const latest = workflows?.[0]
+        if (!latest || cancelled) return
+
+        const response = await fetch(`/api/workflows/${latest.id}`)
+        if (!response.ok || cancelled) return
+        const { workflow } = await response.json()
+
+        setWorkflowId(workflow.id)
+        setName(workflow.name)
+        setStatus(workflow.status as WorkflowStatus)
+        if (Array.isArray(workflow.nodes) && workflow.nodes.length > 0) {
+          // Backfills config on graphs saved before the drawer was wired up.
+          setNodes(withConfigDefaults(workflow.nodes as Node[]))
+          setEdges((Array.isArray(workflow.edges) ? workflow.edges : []) as Edge[])
+        }
+      } catch {
+        // Offline / unauthenticated — leave the starter graph in place.
+      }
+    }
+
+    void loadLatest()
+    return () => {
+      cancelled = true
+    }
+  }, [setNodes, setEdges])
+
+  /** POST when the workflow has never been saved, PATCH afterwards. */
+  const persist = useCallback(
+    async (overrides: { status?: WorkflowStatus } = {}) => {
+      const payload = {
+        name: name.trim() || 'Untitled Workflow',
+        nodes: serializeNodes(nodesRef.current),
+        edges: serializeEdges(edgesRef.current),
+        ...overrides,
+      }
+
+      const response = await fetch(
+        workflowId ? `/api/workflows/${workflowId}` : '/api/workflows',
+        {
+          method: workflowId ? 'PATCH' : 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        },
+      )
+
+      const body = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        throw new Error(body.error ?? 'Failed to save workflow')
+      }
+
+      setWorkflowId(body.workflow.id)
+      setStatus(body.workflow.status as WorkflowStatus)
+      return body.workflow.id as string
+    },
+    [name, workflowId],
+  )
+
+  const handleSave = useCallback(async () => {
+    setSaving(true)
+    try {
+      await persist({ status: status === 'DRAFT' ? 'ACTIVE' : status })
+      showToast('success', 'Workflow saved')
+    } catch (error) {
+      showToast('error', (error as Error).message)
+    } finally {
+      setSaving(false)
+    }
+  }, [persist, showToast, status])
+
+  const handleRun = useCallback(async () => {
+    if (running) return
+    setRunning(true)
+    setAnimating(true)
+    try {
+      // Persist first so the run executes the graph currently on the canvas.
+      const id = await persist()
+
+      const response = await fetch(`/api/workflows/${id}/run`, { method: 'POST' })
+      const body = await response.json().catch(() => ({}))
+
+      if (!response.ok) {
+        throw new Error(body.error ?? 'Workflow run failed')
+      }
+
+      const stepCount = body.steps?.length ?? 0
+      showToast(
+        'success',
+        `Run completed — ${stepCount} node${stepCount === 1 ? '' : 's'} executed, ${body.aiCalls ?? 0} AI call${body.aiCalls === 1 ? '' : 's'}`,
+      )
+    } catch (error) {
+      showToast('error', (error as Error).message)
+    } finally {
+      setRunning(false)
+      setHistoryToken((token) => token + 1)
+    }
+  }, [persist, running, showToast])
+
   // Sequential "running" animation across the nodes.
   useEffect(() => {
-    if (!running) return
+    if (!animating) return
     const order = nodesRef.current.map((n) => n.id)
     if (order.length === 0) {
-      setRunning(false)
+      setAnimating(false)
       return
     }
     let i = 0
@@ -230,8 +403,7 @@ function Flow() {
           nds.map((n) => ({ ...n, data: { ...n.data, status: 'done' } })),
         )
         window.setTimeout(() => {
-          setRunning(false)
-          setStatus('Active')
+          setAnimating(false)
           setEdges((eds) => eds.map((e) => ({ ...e, animated: false })))
           setNodes((nds) =>
             nds.map((n) => ({ ...n, data: { ...n.data, status: 'idle' } })),
@@ -242,7 +414,7 @@ function Flow() {
       paint()
     }, 850)
     return () => clearInterval(interval)
-  }, [running, setNodes, setEdges])
+  }, [animating, setNodes, setEdges])
 
   const selectedNode = nodes.find((n) => n.id === selectedId) ?? null
   const isEmpty = nodes.length === 0
@@ -270,7 +442,7 @@ function Flow() {
           variant="outline"
           className={cn(
             'gap-1.5',
-            status === 'Active'
+            status === 'ACTIVE'
               ? 'border-[#16a34a]/30 bg-[#16a34a]/10 text-[#16a34a]'
               : 'text-muted-foreground',
           )}
@@ -278,36 +450,49 @@ function Flow() {
           <span
             className={cn(
               'size-1.5 rounded-full',
-              status === 'Active' ? 'bg-[#16a34a]' : 'bg-muted-foreground',
+              status === 'ACTIVE' ? 'bg-[#16a34a]' : 'bg-muted-foreground',
             )}
           />
-          {status}
+          {statusLabels[status]}
         </Badge>
 
         <div className="ml-auto flex items-center gap-2">
           <Button
-            variant="outline"
-            onClick={() => !running && setRunning(true)}
-            disabled={running}
+            variant="ghost"
+            onClick={() => {
+              setSelectedId(null)
+              setHistoryOpen((open) => !open)
+            }}
+            aria-pressed={historyOpen}
           >
-            <Play className="size-4" />
+            <History className="size-4" />
+            History
+          </Button>
+          <Button variant="outline" onClick={handleRun} disabled={running}>
+            {running ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <Play className="size-4" />
+            )}
             {running ? 'Running…' : 'Run'}
           </Button>
-          <Button onClick={() => setStatus('Active')}>
-            <Save className="size-4" />
-            Save
+          <Button onClick={handleSave} disabled={saving}>
+            {saving ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <Save className="size-4" />
+            )}
+            {saving ? 'Saving…' : 'Save'}
           </Button>
         </div>
       </div>
 
       {/* Builder area */}
       <div className="flex min-h-0 flex-1">
-        {/* Palette */}
-        <div className="w-56 shrink-0">
-          <NodePalette />
-        </div>
+        {/* Palette (resizable + collapsible; width persisted in localStorage) */}
+        <PaletteSidebar />
 
-        {/* Canvas */}
+        {/* Canvas — flex-1 so it reclaims whatever the palette gives up */}
         <div className="relative min-w-0 flex-1" ref={wrapperRef}>
           <ReactFlow
             nodes={nodes}
@@ -315,7 +500,10 @@ function Flow() {
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
-            onNodeClick={(_, node) => setSelectedId(node.id)}
+            onNodeClick={(_, node) => {
+              setHistoryOpen(false)
+              setSelectedId(node.id)
+            }}
             onPaneClick={() => setSelectedId(null)}
             onDrop={onDrop}
             onDragOver={onDragOver}
@@ -385,7 +573,18 @@ function Flow() {
             data={(selectedNode?.data as WorkflowNodeData) ?? null}
             onClose={() => setSelectedId(null)}
             onDelete={deleteNode}
+            onConfigChange={updateNodeConfig}
           />
+
+          {/* Execution history (overlay — canvas layout untouched) */}
+          <RunHistory
+            workflowId={workflowId}
+            open={historyOpen}
+            refreshToken={historyToken}
+            onClose={() => setHistoryOpen(false)}
+          />
+
+          <RunToast toast={toast} onDismiss={() => setToast(null)} />
         </div>
       </div>
     </div>

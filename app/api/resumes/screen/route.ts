@@ -1,0 +1,215 @@
+import { NextResponse } from 'next/server'
+
+import { getCurrentUserId } from '@/lib/auth/session'
+import { prisma } from '@/lib/db/prisma'
+import { extractText } from '@/lib/documents/extract'
+import { ScoringError, scoreResumes, type ResumeInput } from '@/lib/resumes/scoring'
+import { toCandidateSummary } from '@/lib/resumes/serialize'
+import { createReadUrl, uploadDocument } from '@/lib/storage/supabase'
+
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
+/** Upload + extraction + one or more AI batches; well past the default budget. */
+export const maxDuration = 300
+
+const MAX_FILE_BYTES = 25 * 1024 * 1024
+const MAX_RESUMES = 20
+const MIN_JD_CHARS = 20
+
+/** Resumes are documents, so extraction support is the same set. */
+const ALLOWED_EXTENSIONS = new Set(['pdf', 'docx', 'doc', 'txt'])
+
+/** Below this a resume has no usable content to score. */
+const MIN_TEXT_CHARS = 40
+
+function extensionOf(name: string): string {
+  const parts = name.toLowerCase().split('.')
+  return parts.length > 1 ? parts[parts.length - 1] : ''
+}
+
+type Skipped = { fileName: string; reason: string }
+
+/**
+ * POST /api/resumes/screen — multipart form with one or more `resumes` files
+ * and a `jobDescription` text field.
+ *
+ * Each file is stored, recorded in `documents`, and extracted; all extracted
+ * texts then go to the AI router in as few batched calls as the character
+ * budget allows (usually exactly one).
+ */
+export async function POST(request: Request) {
+  const userId = await getCurrentUserId()
+  if (!userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  let form: FormData
+  try {
+    form = await request.formData()
+  } catch {
+    return NextResponse.json(
+      { error: 'Expected multipart/form-data with "resumes" files and a "jobDescription" field' },
+      { status: 400 },
+    )
+  }
+
+  const jobDescription = String(form.get('jobDescription') ?? '').trim()
+  if (jobDescription.length < MIN_JD_CHARS) {
+    return NextResponse.json(
+      { error: 'Please provide a job description of at least 20 characters' },
+      { status: 400 },
+    )
+  }
+
+  const files = form
+    .getAll('resumes')
+    .filter((entry): entry is File => entry instanceof File && entry.size > 0)
+
+  if (files.length === 0) {
+    return NextResponse.json({ error: 'No resume files provided' }, { status: 400 })
+  }
+  if (files.length > MAX_RESUMES) {
+    return NextResponse.json(
+      { error: `Please screen at most ${MAX_RESUMES} resumes at a time` },
+      { status: 413 },
+    )
+  }
+
+  // ── Store + extract each resume ────────────────────────────────────────────
+  const inputs: ResumeInput[] = []
+  const skipped: Skipped[] = []
+  const documentIds: string[] = []
+
+  for (const file of files) {
+    const extension = extensionOf(file.name)
+
+    if (file.size > MAX_FILE_BYTES) {
+      skipped.push({ fileName: file.name, reason: 'Larger than the 25 MB limit' })
+      continue
+    }
+    if (!ALLOWED_EXTENSIONS.has(extension)) {
+      skipped.push({ fileName: file.name, reason: `Unsupported file type ".${extension || 'unknown'}"` })
+      continue
+    }
+
+    let documentId: string | null = null
+    try {
+      const stored = await uploadDocument(userId, file, 'resumes')
+      const document = await prisma.document.create({
+        data: {
+          userId,
+          fileName: file.name,
+          fileUrl: stored.publicUrl,
+          storagePath: stored.path,
+          fileType: extension,
+          fileSize: file.size,
+          status: 'PROCESSING',
+          tags: ['resume'],
+        },
+      })
+      documentId = document.id
+      documentIds.push(document.id)
+
+      const text = await extractText(await createReadUrl(stored.path), extension)
+
+      if (text.trim().length < MIN_TEXT_CHARS) {
+        await prisma.document.update({
+          where: { id: document.id },
+          data: {
+            status: 'FAILED',
+            statusMessage: 'No readable text found in this resume.',
+          },
+        })
+        skipped.push({ fileName: file.name, reason: 'No readable text could be extracted' })
+        continue
+      }
+
+      await prisma.document.update({
+        where: { id: document.id },
+        data: { extractedText: text, status: 'PROCESSED', statusMessage: null },
+      })
+
+      inputs.push({ key: document.id, fileName: file.name, text })
+    } catch (error) {
+      console.error(`[resumes/screen] failed to prepare ${file.name}:`, error)
+      if (documentId) {
+        await prisma.document
+          .update({
+            where: { id: documentId },
+            data: { status: 'FAILED', statusMessage: (error as Error).message.slice(0, 500) },
+          })
+          .catch(() => {})
+      }
+      skipped.push({ fileName: file.name, reason: (error as Error).message })
+    }
+  }
+
+  if (inputs.length === 0) {
+    return NextResponse.json(
+      {
+        error: 'None of the uploaded files could be read. Screening was not run.',
+        skipped,
+      },
+      { status: 422 },
+    )
+  }
+
+  // ── Score (batched AI calls) ───────────────────────────────────────────────
+  let scored
+  try {
+    scored = await scoreResumes(jobDescription, inputs)
+  } catch (error) {
+    console.error('[resumes/screen] scoring failed:', error)
+    // Documents stay saved and extracted; only the scoring pass failed, so the
+    // client can retry without re-uploading.
+    return NextResponse.json(
+      {
+        error:
+          error instanceof ScoringError
+            ? error.message
+            : `Screening failed: ${(error as Error).message}`,
+        documentIds,
+        skipped,
+      },
+      { status: 502 },
+    )
+  }
+
+  // ── Persist the ranked list ────────────────────────────────────────────────
+  const screeningId = crypto.randomUUID()
+
+  await prisma.resume.createMany({
+    data: scored.map((candidate, index) => ({
+      documentId: candidate.key,
+      screeningId,
+      jobDescription,
+      candidateName: candidate.candidateName,
+      email: candidate.email,
+      skills: candidate.skills,
+      skillsMissing: candidate.skillsMissing,
+      jdMatchScore: candidate.jdMatchScore,
+      // Assigned here, after merging every batch, so ranks are global.
+      ranking: index + 1,
+      yearsExperience: candidate.yearsExperience,
+      currentRole: candidate.currentRole,
+      education: candidate.education,
+      summary: candidate.summary,
+      interviewQuestions: [],
+    })),
+  })
+
+  const candidates = await prisma.resume.findMany({
+    where: { screeningId },
+    orderBy: { ranking: 'asc' },
+    include: { document: { select: { fileName: true, fileUrl: true, extractedText: true } } },
+  })
+
+  return NextResponse.json(
+    {
+      screeningId,
+      candidates: candidates.map(toCandidateSummary),
+      skipped,
+    },
+    { status: 201 },
+  )
+}

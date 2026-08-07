@@ -211,7 +211,7 @@ function StorageGauge() {
                 <Cell fill={INDIGO} />
                 <Cell fill="hsl(var(--muted))" />
               </Pie>
-              <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => [`${v} GB`, '']} />
+              <Tooltip contentStyle={tooltipStyle} formatter={(v) => [`${v} GB`, '']} />
             </PieChart>
           </ResponsiveContainer>
           <div className="absolute flex flex-col items-center">
