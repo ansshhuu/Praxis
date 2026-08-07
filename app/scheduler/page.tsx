@@ -1,7 +1,7 @@
 'use client'
 
-import { CalendarClock, Loader2, Pause, Play, Plus, X } from 'lucide-react'
-import { useState } from 'react'
+import { Loader2, Pause, Play, Plus, X } from 'lucide-react'
+import { useEffect, useState } from 'react'
 
 import { DashboardShell } from '@/components/dashboard/dashboard-shell'
 import { Button } from '@/components/ui/button'
@@ -15,7 +15,42 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { cn } from '@/lib/utils'
-import { getScheduledJobs, type JobStatus, type ScheduledJob } from '@/lib/mock-data/scheduler'
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+/** Wire format returned by /api/scheduler/jobs. */
+interface ScheduledJob {
+  id: string
+  workflowId: string
+  workflowName: string
+  cronExpr: string
+  cronReadable: string
+  nextRun: string
+  lastRun: string | null
+  isActive: boolean
+  triggeredBy: string
+}
+
+interface WorkflowOption {
+  id: string
+  name: string
+}
+
+function formatRunTime(iso: string | null): string {
+  if (!iso) return '—'
+  return new Date(iso).toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+async function readError(response: Response, fallback: string): Promise<string> {
+  const body = await response.json().catch(() => null)
+  return (body as { error?: string } | null)?.error ?? fallback
+}
 
 // ─── Toggle Switch ─────────────────────────────────────────────────────────────
 
@@ -44,14 +79,67 @@ function StatusToggle({ active, onChange, id }: { active: boolean; onChange: (v:
 
 // ─── New Job Modal ─────────────────────────────────────────────────────────────
 
-function NewJobModal({ onClose }: { onClose: () => void }) {
-  const [workflowName, setWorkflowName] = useState('')
+function NewJobModal({
+  onClose,
+  onCreated,
+}: {
+  onClose: () => void
+  onCreated: (job: ScheduledJob) => void
+}) {
+  const [workflows, setWorkflows] = useState<WorkflowOption[]>([])
+  const [workflowId, setWorkflowId] = useState('')
   const [cronExpr, setCronExpr] = useState('')
   const [isSaving, setIsSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  function handleSave() {
+  // A schedule points at a workflow by id, so the picker is populated from the
+  // user's own workflows rather than accepting a free-text name.
+  useEffect(() => {
+    let cancelled = false
+
+    async function load() {
+      try {
+        const response = await fetch('/api/workflows')
+        if (!response.ok) throw new Error(await readError(response, 'Could not load workflows.'))
+        const { workflows: rows } = (await response.json()) as { workflows: WorkflowOption[] }
+        if (cancelled) return
+        setWorkflows(rows)
+        setWorkflowId((current) => current || rows[0]?.id || '')
+      } catch (loadError) {
+        if (!cancelled) setError((loadError as Error).message)
+      }
+    }
+
+    void load()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  async function handleSave() {
+    if (isSaving) return
     setIsSaving(true)
-    setTimeout(() => { setIsSaving(false); onClose() }, 1000)
+    setError(null)
+
+    try {
+      const response = await fetch('/api/scheduler/jobs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ workflow_id: workflowId, cron_expr: cronExpr.trim() }),
+      })
+
+      if (!response.ok) {
+        throw new Error(await readError(response, 'Could not save the job.'))
+      }
+
+      const { job } = (await response.json()) as { job: ScheduledJob }
+      onCreated(job)
+      onClose()
+    } catch (saveError) {
+      setError((saveError as Error).message)
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   return (
@@ -67,14 +155,23 @@ function NewJobModal({ onClose }: { onClose: () => void }) {
 
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium" htmlFor="new-job-workflow">Workflow Name</label>
-            <input
+            <label className="text-sm font-medium" htmlFor="new-job-workflow">Workflow</label>
+            <select
               id="new-job-workflow"
-              value={workflowName}
-              onChange={(e) => setWorkflowName(e.target.value)}
-              placeholder="e.g. Invoice Processing"
-              className="rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none placeholder:text-muted-foreground focus:ring-2 focus:ring-ring"
-            />
+              value={workflowId}
+              onChange={(e) => setWorkflowId(e.target.value)}
+              className="rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+            >
+              {workflows.length === 0 ? (
+                <option value="">No workflows available</option>
+              ) : (
+                workflows.map((workflow) => (
+                  <option key={workflow.id} value={workflow.id}>
+                    {workflow.name}
+                  </option>
+                ))
+              )}
+            </select>
           </div>
 
           <div className="flex flex-col gap-1.5">
@@ -116,12 +213,14 @@ function NewJobModal({ onClose }: { onClose: () => void }) {
           </div>
         </div>
 
+        {error && <p className="mt-4 text-xs text-destructive">{error}</p>}
+
         <div className="mt-5 flex gap-2">
-          <Button variant="outline" className="flex-1" onClick={onClose}>Cancel</Button>
+          <Button variant="outline" className="flex-1" onClick={onClose} disabled={isSaving}>Cancel</Button>
           <Button
             className="flex-1"
-            onClick={handleSave}
-            disabled={isSaving || !workflowName.trim() || !cronExpr.trim()}
+            onClick={() => void handleSave()}
+            disabled={isSaving || !workflowId || !cronExpr.trim()}
             id="save-new-job-button"
           >
             {isSaving ? <><Loader2 className="size-4 animate-spin" /> Saving…</> : 'Save Job'}
@@ -135,16 +234,50 @@ function NewJobModal({ onClose }: { onClose: () => void }) {
 // ─── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function SchedulerPage() {
-  const initial = getScheduledJobs()
-  const [jobs, setJobs] = useState(initial)
+  const [jobs, setJobs] = useState<ScheduledJob[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [showModal, setShowModal] = useState(false)
 
-  function toggleJob(id: string) {
-    setJobs((prev) =>
-      prev.map((j) =>
-        j.id === id ? { ...j, status: (j.status === 'Active' ? 'Paused' : 'Active') as JobStatus } : j,
-      ),
-    )
+  useEffect(() => {
+    let cancelled = false
+
+    async function load() {
+      try {
+        const response = await fetch('/api/scheduler/jobs')
+        if (!response.ok) throw new Error(await readError(response, 'Could not load scheduled jobs.'))
+        const { jobs: rows } = (await response.json()) as { jobs: ScheduledJob[] }
+        if (!cancelled) setJobs(rows)
+      } catch (loadError) {
+        if (!cancelled) setError((loadError as Error).message)
+      } finally {
+        if (!cancelled) setIsLoading(false)
+      }
+    }
+
+    void load()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  async function toggleJob(id: string) {
+    const previous = jobs
+    // Flip immediately so the switch feels responsive, then reconcile with the
+    // server's copy — or roll back if the request fails.
+    setJobs((prev) => prev.map((job) => (job.id === id ? { ...job, isActive: !job.isActive } : job)))
+    setError(null)
+
+    try {
+      const response = await fetch(`/api/scheduler/jobs/${id}`, { method: 'PATCH' })
+      if (!response.ok) throw new Error(await readError(response, 'Could not update the job.'))
+
+      const { job } = (await response.json()) as { job: ScheduledJob }
+      setJobs((prev) => prev.map((existing) => (existing.id === id ? job : existing)))
+    } catch (toggleError) {
+      setJobs(previous)
+      setError((toggleError as Error).message)
+    }
   }
 
   return (
@@ -166,7 +299,12 @@ export default function SchedulerPage() {
         <Card className="shadow-sm">
           <CardHeader>
             <CardTitle>Scheduled Jobs</CardTitle>
-            <CardDescription>{jobs.length} jobs configured — {jobs.filter((j) => j.status === 'Active').length} active</CardDescription>
+            <CardDescription>
+              {error ??
+                (isLoading
+                  ? 'Loading…'
+                  : `${jobs.length} jobs configured — ${jobs.filter((job) => job.isActive).length} active`)}
+            </CardDescription>
           </CardHeader>
           <div className="overflow-x-auto">
             <Table>
@@ -188,21 +326,21 @@ export default function SchedulerPage() {
                     <TableCell className="text-sm text-muted-foreground">{job.cronReadable}</TableCell>
                     <TableCell>
                       <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs text-foreground">
-                        {job.cronExpression}
+                        {job.cronExpr}
                       </span>
                     </TableCell>
-                    <TableCell className="text-sm text-muted-foreground tabular-nums">{job.nextRun}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground tabular-nums">{job.lastRun}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground tabular-nums">{formatRunTime(job.nextRun)}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground tabular-nums">{formatRunTime(job.lastRun)}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">{job.triggeredBy}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <StatusToggle
-                          active={job.status === 'Active'}
-                          onChange={() => toggleJob(job.id)}
+                          active={job.isActive}
+                          onChange={() => void toggleJob(job.id)}
                           id={`toggle-job-${job.id}`}
                         />
                         <span className="text-xs text-muted-foreground">
-                          {job.status === 'Active' ? (
+                          {job.isActive ? (
                             <span className="flex items-center gap-1 text-success"><Play className="size-3" /> Active</span>
                           ) : (
                             <span className="flex items-center gap-1 text-muted-foreground"><Pause className="size-3" /> Paused</span>
@@ -212,13 +350,25 @@ export default function SchedulerPage() {
                     </TableCell>
                   </TableRow>
                 ))}
+                {!isLoading && jobs.length === 0 && (
+                  <TableRow className="hover:bg-transparent">
+                    <TableCell colSpan={7} className="py-10 text-center text-sm text-muted-foreground">
+                      No scheduled jobs yet — create one to get started.
+                    </TableCell>
+                  </TableRow>
+                )}
               </TableBody>
             </Table>
           </div>
         </Card>
       </div>
 
-      {showModal && <NewJobModal onClose={() => setShowModal(false)} />}
+      {showModal && (
+        <NewJobModal
+          onClose={() => setShowModal(false)}
+          onCreated={(job) => setJobs((prev) => [...prev, job])}
+        />
+      )}
     </DashboardShell>
   )
 }

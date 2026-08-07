@@ -1,0 +1,112 @@
+/**
+ * Cron expression handling for the Scheduler module.
+ *
+ * There is deliberately no background runner behind these schedules — the
+ * module stores the schedule records and computes `next_run` so the UI can
+ * show when a job *would* fire. Nothing in the app executes jobs on a timer.
+ */
+
+import { CronExpressionParser } from 'cron-parser'
+
+/**
+ * cron-parser also accepts a 6-field form (leading seconds) and a 7-field form
+ * with a year. The UI documents "standard 5-field cron", so anything else is
+ * rejected here rather than silently parsed as a different schedule than the
+ * user typed.
+ */
+const CRON_FIELD_COUNT = 5
+
+export type CronValidation =
+  | { ok: true; nextRun: Date }
+  | { ok: false; error: string }
+
+/**
+ * Validates a 5-field cron expression and computes its next fire time.
+ *
+ * Returns a result object rather than throwing so routes can turn a bad
+ * expression into a 400 with the parser's own message, which names the
+ * offending field.
+ */
+export function validateCron(expression: string, from: Date = new Date()): CronValidation {
+  const expr = expression.trim().replace(/\s+/g, ' ')
+
+  if (!expr) {
+    return { ok: false, error: 'cron_expr is required' }
+  }
+
+  const fields = expr.split(' ')
+  if (fields.length !== CRON_FIELD_COUNT) {
+    return {
+      ok: false,
+      error: `cron_expr must have exactly ${CRON_FIELD_COUNT} fields (minute hour day-of-month month day-of-week), got ${fields.length}`,
+    }
+  }
+
+  try {
+    const interval = CronExpressionParser.parse(expr, { currentDate: from })
+    return { ok: true, nextRun: interval.next().toDate() }
+  } catch (error) {
+    return { ok: false, error: `Invalid cron expression: ${(error as Error).message}` }
+  }
+}
+
+/**
+ * Next fire time for an expression already known to be valid (i.e. one read
+ * back out of the database). Falls back to `from` if the stored expression
+ * somehow no longer parses, so a listing can never 500 on one bad row.
+ */
+export function nextRunFor(expression: string, from: Date = new Date()): Date {
+  const result = validateCron(expression, from)
+  return result.ok ? result.nextRun : from
+}
+
+const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+
+function formatTime(minute: string, hour: string): string {
+  const h = Number(hour)
+  const m = Number(minute)
+  const suffix = h < 12 ? 'AM' : 'PM'
+  const hour12 = h % 12 === 0 ? 12 : h % 12
+  return `${hour12}:${String(m).padStart(2, '0')} ${suffix}`
+}
+
+/**
+ * Best-effort English rendering of the common schedules the UI offers as
+ * presets. Anything outside those shapes falls back to the raw expression —
+ * a wrong description would be worse than showing the cron itself.
+ */
+export function describeCron(expression: string): string {
+  const [minute, hour, dom, month, dow] = expression.trim().split(/\s+/)
+  if (!dow) return expression
+
+  const everyMinutes = minute?.match(/^\*\/(\d+)$/)
+  if (everyMinutes && hour === '*' && dom === '*' && month === '*' && dow === '*') {
+    return `Every ${everyMinutes[1]} minutes`
+  }
+
+  const everyHours = hour?.match(/^\*\/(\d+)$/)
+  if (everyHours && /^\d+$/.test(minute) && dom === '*' && month === '*' && dow === '*') {
+    return `Every ${everyHours[1]} hours`
+  }
+
+  if (minute === '0' && hour === '*' && dom === '*' && month === '*' && dow === '*') {
+    return 'Every hour'
+  }
+
+  const isFixedTime = /^\d+$/.test(minute) && /^\d+$/.test(hour)
+  if (!isFixedTime) return expression
+
+  const time = formatTime(minute, hour)
+
+  if (dom === '*' && month === '*' && dow === '*') return `Every day at ${time}`
+  if (dom === '*' && month === '*' && dow === '1-5') return `Every weekday at ${time}`
+  if (dom === '*' && month === '*' && /^\d$/.test(dow)) {
+    return `Every ${DAY_NAMES[Number(dow)]} at ${time}`
+  }
+  if (month === '*' && dow === '*' && /^\d+$/.test(dom)) {
+    const suffix = dom === '1' ? 'st' : dom === '2' ? 'nd' : dom === '3' ? 'rd' : 'th'
+    return `${dom}${suffix} of every month at ${time}`
+  }
+
+  return expression
+}

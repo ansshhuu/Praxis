@@ -9,10 +9,10 @@ import {
   Plus,
   X,
 } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import { DashboardShell } from '@/components/dashboard/dashboard-shell'
-import { Button } from '@/components/ui/button'
+import { Button, buttonVariants } from '@/components/ui/button'
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Table,
@@ -23,7 +23,54 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { cn } from '@/lib/utils'
-import { getReports, type Report, type ReportFormat, type ReportStatus, type ReportType } from '@/lib/mock-data/reports'
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+type ReportType = 'Employee' | 'Workflow' | 'Sales' | 'HR' | 'AI Usage'
+type ReportFormat = 'PDF' | 'Word' | 'Excel'
+type ReportStatus = 'Ready' | 'Generating' | 'Failed'
+
+/** Wire format returned by /api/reports. */
+interface Report {
+  id: string
+  name: string
+  type: ReportType
+  format: ReportFormat
+  status: ReportStatus
+  generatedAt: string
+  fileUrl: string
+  generatedBy: string
+}
+
+/** UI label → the enum values the API accepts. */
+const typeValues: Record<ReportType, string> = {
+  Employee: 'EMPLOYEE',
+  Workflow: 'WORKFLOW',
+  Sales: 'SALES',
+  HR: 'HR',
+  'AI Usage': 'AI_USAGE',
+}
+
+const formatValues: Record<ReportFormat, string> = {
+  PDF: 'PDF',
+  Word: 'WORD',
+  Excel: 'EXCEL',
+}
+
+function formatGeneratedAt(iso: string): string {
+  return new Date(iso).toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+async function readError(response: Response, fallback: string): Promise<string> {
+  const body = await response.json().catch(() => null)
+  return (body as { error?: string } | null)?.error ?? fallback
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -81,17 +128,45 @@ function FormatIcon({ format }: { format: ReportFormat }) {
 const reportTypes: ReportType[] = ['Employee', 'Workflow', 'Sales', 'HR', 'AI Usage']
 const reportFormats: ReportFormat[] = ['PDF', 'Word', 'Excel']
 
-function GenerateReportModal({ onClose }: { onClose: () => void }) {
+function GenerateReportModal({
+  onClose,
+  onGenerated,
+}: {
+  onClose: () => void
+  onGenerated: (report: Report) => void
+}) {
   const [selectedType, setSelectedType] = useState<ReportType>('Employee')
   const [selectedFormat, setSelectedFormat] = useState<ReportFormat>('PDF')
   const [isGenerating, setIsGenerating] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  function handleGenerate() {
+  async function handleGenerate() {
+    if (isGenerating) return
     setIsGenerating(true)
-    setTimeout(() => {
-      setIsGenerating(false)
+    setError(null)
+
+    try {
+      const response = await fetch('/api/reports/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: typeValues[selectedType],
+          format: formatValues[selectedFormat],
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error(await readError(response, 'Report generation failed.'))
+      }
+
+      const { report } = (await response.json()) as { report: Report }
+      onGenerated(report)
       onClose()
-    }, 1500)
+    } catch (generateError) {
+      setError((generateError as Error).message)
+    } finally {
+      setIsGenerating(false)
+    }
   }
 
   return (
@@ -150,11 +225,13 @@ function GenerateReportModal({ onClose }: { onClose: () => void }) {
           </div>
         </div>
 
+        {error && <p className="mt-4 text-xs text-destructive">{error}</p>}
+
         <div className="mt-5 flex gap-2">
-          <Button variant="outline" className="flex-1" onClick={onClose}>Cancel</Button>
+          <Button variant="outline" className="flex-1" onClick={onClose} disabled={isGenerating}>Cancel</Button>
           <Button
             className="flex-1"
-            onClick={handleGenerate}
+            onClick={() => void handleGenerate()}
             disabled={isGenerating}
             id="generate-report-confirm-button"
           >
@@ -173,8 +250,32 @@ function GenerateReportModal({ onClose }: { onClose: () => void }) {
 // ─── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function ReportsPage() {
-  const reports = getReports()
+  const [reports, setReports] = useState<Report[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [showModal, setShowModal] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function load() {
+      try {
+        const response = await fetch('/api/reports')
+        if (!response.ok) throw new Error(await readError(response, 'Could not load reports.'))
+        const { reports: rows } = (await response.json()) as { reports: Report[] }
+        if (!cancelled) setReports(rows)
+      } catch (error) {
+        if (!cancelled) setLoadError((error as Error).message)
+      } finally {
+        if (!cancelled) setIsLoading(false)
+      }
+    }
+
+    void load()
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   return (
     <DashboardShell>
@@ -195,7 +296,9 @@ export default function ReportsPage() {
         <Card className="shadow-sm">
           <CardHeader>
             <CardTitle>All Reports</CardTitle>
-            <CardDescription>{reports.length} reports generated</CardDescription>
+            <CardDescription>
+              {loadError ?? (isLoading ? 'Loading…' : `${reports.length} reports generated`)}
+            </CardDescription>
           </CardHeader>
           <div className="overflow-x-auto">
             <Table>
@@ -223,34 +326,43 @@ export default function ReportsPage() {
                         <span className="text-sm text-muted-foreground">{report.format}</span>
                       </div>
                     </TableCell>
-                    <TableCell className="text-muted-foreground text-sm">{report.generatedAt}</TableCell>
+                    <TableCell className="text-muted-foreground text-sm">{formatGeneratedAt(report.generatedAt)}</TableCell>
                     <TableCell className="text-muted-foreground text-sm">{report.generatedBy}</TableCell>
                     <TableCell><StatusBadge status={report.status} /></TableCell>
                     <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        disabled={report.status !== 'Ready'}
+                      <a
+                        href={report.fileUrl}
+                        download={report.name}
+                        target="_blank"
+                        rel="noreferrer"
                         aria-label={`Download ${report.name}`}
                         id={`download-report-${report.id}`}
-                        className="size-8"
+                        className={cn(buttonVariants({ variant: 'ghost', size: 'icon' }), 'size-8')}
                       >
-                        {report.status === 'Generating' ? (
-                          <Loader2 className="size-4 animate-spin text-muted-foreground" />
-                        ) : (
-                          <Download className={cn('size-4', report.status === 'Ready' ? 'text-foreground' : 'text-muted-foreground/40')} />
-                        )}
-                      </Button>
+                        <Download className="size-4 text-foreground" />
+                      </a>
                     </TableCell>
                   </TableRow>
                 ))}
+                {!isLoading && reports.length === 0 && (
+                  <TableRow className="hover:bg-transparent">
+                    <TableCell colSpan={7} className="py-10 text-center text-sm text-muted-foreground">
+                      No reports yet — generate one to get started.
+                    </TableCell>
+                  </TableRow>
+                )}
               </TableBody>
             </Table>
           </div>
         </Card>
       </div>
 
-      {showModal && <GenerateReportModal onClose={() => setShowModal(false)} />}
+      {showModal && (
+        <GenerateReportModal
+          onClose={() => setShowModal(false)}
+          onGenerated={(report) => setReports((prev) => [report, ...prev])}
+        />
+      )}
     </DashboardShell>
   )
 }

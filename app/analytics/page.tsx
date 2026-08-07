@@ -1,14 +1,9 @@
 'use client'
 
+import { useEffect, useState } from 'react'
+
 import { DashboardShell } from '@/components/dashboard/dashboard-shell'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import {
-  getAiUsageOverTime,
-  getApiCallData,
-  getResponseTimeData,
-  getStorageUsage,
-  getWorkflowStatusData,
-} from '@/lib/mock-data/analytics'
 import {
   Area,
   AreaChart,
@@ -25,6 +20,54 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
+
+// ─── Wire format returned by /api/analytics ───────────────────────────────────
+
+interface TrendPoint {
+  label: string
+  value: number
+}
+
+interface WorkflowStatusPoint {
+  name: string
+  success: number
+  failed: number
+}
+
+interface ApiCallPoint {
+  date: string
+  calls: number
+}
+
+interface ResponseTimePoint {
+  date: string
+  p50: number
+  p95: number
+  p99: number
+}
+
+interface StorageUsage {
+  label: string
+  used: number
+  total: number
+  unit: string
+}
+
+interface Analytics {
+  totals: {
+    workflowRuns: number
+    workflowSuccess: number
+    workflowFailed: number
+    documentsProcessed: number
+    resumesScreened: number
+    chatMessages: number
+  }
+  aiUsageOverTime: TrendPoint[]
+  workflowStatus: WorkflowStatusPoint[]
+  responseTime: ResponseTimePoint[]
+  apiCalls: ApiCallPoint[]
+  storage: StorageUsage
+}
 
 // ─── Shared chart config ──────────────────────────────────────────────────────
 
@@ -45,8 +88,7 @@ const tooltipStyle = {
 
 // ─── AI Usage Chart ───────────────────────────────────────────────────────────
 
-function AiUsageChart() {
-  const data = getAiUsageOverTime()
+function AiUsageChart({ data }: { data: TrendPoint[] }) {
   return (
     <Card className="shadow-sm">
       <CardHeader>
@@ -76,8 +118,7 @@ function AiUsageChart() {
 
 // ─── Workflow Success/Fail Chart ──────────────────────────────────────────────
 
-function WorkflowStatusChart() {
-  const data = getWorkflowStatusData()
+function WorkflowStatusChart({ data }: { data: WorkflowStatusPoint[] }) {
   return (
     <Card className="shadow-sm">
       <CardHeader>
@@ -110,13 +151,12 @@ function WorkflowStatusChart() {
 
 // ─── Response Time Trend ──────────────────────────────────────────────────────
 
-function ResponseTimeChart() {
-  const data = getResponseTimeData()
+function ResponseTimeChart({ data }: { data: ResponseTimePoint[] }) {
   return (
     <Card className="shadow-sm">
       <CardHeader>
         <CardTitle>Response Time Trend</CardTitle>
-        <CardDescription>API latency percentiles in milliseconds</CardDescription>
+        <CardDescription>Workflow run duration percentiles in milliseconds</CardDescription>
       </CardHeader>
       <CardContent>
         <ResponsiveContainer width="100%" height={220}>
@@ -145,13 +185,12 @@ function ResponseTimeChart() {
 
 // ─── API Calls Chart ──────────────────────────────────────────────────────────
 
-function ApiCallsChart() {
-  const data = getApiCallData()
+function ApiCallsChart({ data }: { data: ApiCallPoint[] }) {
   return (
     <Card className="shadow-sm">
       <CardHeader>
         <CardTitle>API Calls Count</CardTitle>
-        <CardDescription>Total API calls per day</CardDescription>
+        <CardDescription>Recorded platform operations per day</CardDescription>
       </CardHeader>
       <CardContent>
         <ResponsiveContainer width="100%" height={220}>
@@ -176,14 +215,13 @@ function ApiCallsChart() {
 
 // ─── Storage Gauge ────────────────────────────────────────────────────────────
 
-function StorageGauge() {
-  const storage = getStorageUsage()
-  const usedPct = Math.round((storage.used / storage.total) * 100)
-  const freeGb = storage.total - storage.used
+function StorageGauge({ storage }: { storage: StorageUsage }) {
+  const usedPct = storage.total > 0 ? Math.round((storage.used / storage.total) * 100) : 0
+  const free = Math.round((storage.total - storage.used) * 100) / 100
 
   const pieData = [
     { name: 'Used', value: storage.used },
-    { name: 'Free', value: freeGb },
+    { name: 'Free', value: free },
   ]
 
   return (
@@ -211,7 +249,7 @@ function StorageGauge() {
                 <Cell fill={INDIGO} />
                 <Cell fill="hsl(var(--muted))" />
               </Pie>
-              <Tooltip contentStyle={tooltipStyle} formatter={(v) => [`${v} GB`, '']} />
+              <Tooltip contentStyle={tooltipStyle} formatter={(v) => [`${v} ${storage.unit}`, '']} />
             </PieChart>
           </ResponsiveContainer>
           <div className="absolute flex flex-col items-center">
@@ -226,7 +264,7 @@ function StorageGauge() {
           </div>
           <div className="w-px bg-border" />
           <div>
-            <p className="text-lg font-semibold tabular-nums">{freeGb} {storage.unit}</p>
+            <p className="text-lg font-semibold tabular-nums">{free} {storage.unit}</p>
             <p className="text-xs text-muted-foreground">Free</p>
           </div>
           <div className="w-px bg-border" />
@@ -243,6 +281,32 @@ function StorageGauge() {
 // ─── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function AnalyticsPage() {
+  const [analytics, setAnalytics] = useState<Analytics | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function load() {
+      try {
+        const response = await fetch('/api/analytics')
+        if (!response.ok) {
+          const body = (await response.json().catch(() => null)) as { error?: string } | null
+          throw new Error(body?.error ?? 'Could not load analytics.')
+        }
+        const { analytics: payload } = (await response.json()) as { analytics: Analytics }
+        if (!cancelled) setAnalytics(payload)
+      } catch (loadError) {
+        if (!cancelled) setError((loadError as Error).message)
+      }
+    }
+
+    void load()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
   return (
     <DashboardShell>
       <div className="mx-auto flex max-w-7xl flex-col gap-6">
@@ -253,16 +317,24 @@ export default function AnalyticsPage() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-          <AiUsageChart />
-          <WorkflowStatusChart />
-          <ResponseTimeChart />
-          <ApiCallsChart />
-        </div>
+        {error && (
+          <p className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">{error}</p>
+        )}
 
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-          <StorageGauge />
-        </div>
+        {analytics && (
+          <>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <AiUsageChart data={analytics.aiUsageOverTime} />
+              <WorkflowStatusChart data={analytics.workflowStatus} />
+              <ResponseTimeChart data={analytics.responseTime} />
+              <ApiCallsChart data={analytics.apiCalls} />
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+              <StorageGauge storage={analytics.storage} />
+            </div>
+          </>
+        )}
       </div>
     </DashboardShell>
   )

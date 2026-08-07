@@ -6,7 +6,43 @@ import { useEffect, useRef, useState } from 'react'
 import { DashboardShell } from '@/components/dashboard/dashboard-shell'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import { getChatHistory, suggestedPrompts, type ChatMessage } from '@/lib/mock-data/chat'
+import { suggestedPrompts } from '@/lib/mock-data/chat'
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+interface ChatMessage {
+  id: string
+  role: 'user' | 'assistant'
+  content: string
+  timestamp: string
+  referencedDoc?: string
+}
+
+/** Wire format returned by /api/chat. */
+interface ApiChatMessage {
+  id: string
+  role: 'user' | 'assistant'
+  content: string
+  createdAt: string
+}
+
+function formatTime(iso: string): string {
+  return new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+}
+
+function toMessage(message: ApiChatMessage): ChatMessage {
+  return {
+    id: message.id,
+    role: message.role,
+    content: message.content,
+    timestamp: formatTime(message.createdAt),
+  }
+}
+
+async function readError(response: Response, fallback: string): Promise<string> {
+  const body = await response.json().catch(() => null)
+  return (body as { error?: string } | null)?.error ?? fallback
+}
 
 // ─── Message bubble ───────────────────────────────────────────────────────────
 
@@ -69,55 +105,99 @@ function TypingIndicator() {
 // ─── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function ChatPage() {
-  const initialMessages = getChatHistory()
-  const [messages, setMessages] = useState<ChatMessage[]>(initialMessages)
+  const [messages, setMessages] = useState<ChatMessage[]>([])
   const [inputValue, setInputValue] = useState('')
   const [isTyping, setIsTyping] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
+
+  // Load the persisted conversation once on mount.
+  useEffect(() => {
+    let cancelled = false
+
+    async function load() {
+      try {
+        const response = await fetch('/api/chat')
+        if (!response.ok) throw new Error(await readError(response, 'Could not load chat history.'))
+        const { messages: history } = (await response.json()) as { messages: ApiChatMessage[] }
+        if (!cancelled) setMessages(history.map(toMessage))
+      } catch (loadError) {
+        if (!cancelled) setError((loadError as Error).message)
+      } finally {
+        if (!cancelled) setIsLoading(false)
+      }
+    }
+
+    void load()
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, isTyping])
 
-  function sendMessage(content: string) {
-    if (!content.trim()) return
-    const userMsg: ChatMessage = {
-      id: `u-${Date.now()}`,
-      role: 'user',
-      content: content.trim(),
-      timestamp: new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }),
-    }
-    setMessages((prev) => [...prev, userMsg])
+  async function sendMessage(content: string) {
+    const message = content.trim()
+    if (!message || isTyping) return
+
+    // Show the user's own message straight away; the server copy replaces it
+    // once the request resolves and carries the real id and timestamp.
+    const optimisticId = `pending-${Date.now()}`
+    setMessages((prev) => [
+      ...prev,
+      { id: optimisticId, role: 'user', content: message, timestamp: formatTime(new Date().toISOString()) },
+    ])
     setInputValue('')
     setIsTyping(true)
+    setError(null)
 
-    setTimeout(() => {
-      const aiMsg: ChatMessage = {
-        id: `a-${Date.now()}`,
-        role: 'assistant',
-        content: `I've analyzed your request: **"${content.trim()}"**. This is a mock AI response. In production, the assistant will search across your documents, workflows, and data to provide accurate, grounded answers with citations.`,
-        timestamp: new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }),
-        referencedDoc: Math.random() > 0.5 ? 'Q3_Invoice_Batch.pdf' : undefined,
+    try {
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message }),
+      })
+
+      if (!response.ok) {
+        throw new Error(await readError(response, 'The assistant could not answer that.'))
       }
-      setMessages((prev) => [...prev, aiMsg])
+
+      const { userMessage, assistantMessage } = (await response.json()) as {
+        userMessage: ApiChatMessage
+        assistantMessage: ApiChatMessage
+      }
+
+      setMessages((prev) => [
+        ...prev.filter((msg) => msg.id !== optimisticId),
+        toMessage(userMessage),
+        toMessage(assistantMessage),
+      ])
+    } catch (sendError) {
+      // The message stays on screen — it was really sent — and the failure is
+      // surfaced above the input rather than faked as an assistant reply.
+      setError((sendError as Error).message)
+    } finally {
       setIsTyping(false)
-    }, 1400)
+    }
   }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    sendMessage(inputValue)
+    void sendMessage(inputValue)
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
-      sendMessage(inputValue)
+      void sendMessage(inputValue)
     }
   }
 
-  const isEmpty = messages.length === 0
+  const isEmpty = !isLoading && messages.length === 0
 
   return (
     <DashboardShell mainClassName="flex flex-col p-0">
@@ -162,7 +242,7 @@ export default function ChatPage() {
               <button
                 key={prompt}
                 id={`suggested-prompt-${prompt.slice(0, 20).replace(/\s+/g, '-').toLowerCase()}`}
-                onClick={() => sendMessage(prompt)}
+                onClick={() => void sendMessage(prompt)}
                 className="rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:border-primary hover:bg-primary/5 hover:text-primary"
               >
                 {prompt}
@@ -173,6 +253,11 @@ export default function ChatPage() {
 
         {/* Input box */}
         <div className="mt-3">
+          {error && (
+            <p className="mb-2 rounded-lg bg-destructive/10 px-3 py-2 text-xs text-destructive">
+              {error}
+            </p>
+          )}
           <form
             onSubmit={handleSubmit}
             className="flex items-end gap-2 rounded-xl border border-border bg-card p-2 shadow-sm focus-within:ring-2 focus-within:ring-ring"
