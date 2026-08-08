@@ -456,7 +456,7 @@ function Flow() {
           {statusLabels[status]}
         </Badge>
 
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex items-center gap-3">
           <Button
             variant="ghost"
             onClick={() => {
@@ -464,25 +464,26 @@ function Flow() {
               setHistoryOpen((open) => !open)
             }}
             aria-pressed={historyOpen}
+            className="font-bold text-gray-600 hover:text-gray-900"
           >
-            <History className="size-4" />
+            <History className="size-4 mr-1.5" />
             History
           </Button>
-          <Button variant="outline" onClick={handleRun} disabled={running}>
-            {running ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : (
-              <Play className="size-4" />
-            )}
-            {running ? 'Running…' : 'Run'}
-          </Button>
-          <Button onClick={handleSave} disabled={saving}>
+          <Button variant="outline" onClick={handleSave} disabled={saving} className="font-bold border-gray-200 text-gray-700 hover:bg-gray-50">
             {saving ? (
-              <Loader2 className="size-4 animate-spin" />
+              <Loader2 className="size-4 animate-spin mr-1.5" />
             ) : (
-              <Save className="size-4" />
+              <Save className="size-4 mr-1.5" />
             )}
             {saving ? 'Saving…' : 'Save'}
+          </Button>
+          <Button onClick={handleRun} disabled={running} className="bg-[#F5CA50] text-[#111111] hover:brightness-95 font-bold">
+            {running ? (
+              <Loader2 className="size-4 animate-spin mr-1.5" />
+            ) : (
+              <Play className="size-4 mr-1.5" />
+            )}
+            {running ? 'Deploying…' : 'Deploy'}
           </Button>
         </div>
       </div>
@@ -511,8 +512,7 @@ function Flow() {
             defaultEdgeOptions={edgeBase}
             fitView
             fitViewOptions={{ padding: 0.2 }}
-            proOptions={{ hideAttribution: true }}
-            className="bg-background"
+            className="bg-[#FAFAFA]"
           >
             <Background variant={BackgroundVariant.Dots} gap={20} size={1.5} color="#cbd5e1" />
             <MiniMap

@@ -20,12 +20,12 @@ export type NavEntry = {
 }
 
 export const navItems: NavEntry[] = [
-  { label: 'Dashboard', icon: LayoutDashboard, href: '/' },
+  { label: 'Dashboard', icon: LayoutDashboard, href: '/dashboard' },
   { label: 'Workflows', icon: Workflow, href: '/workflows' },
   { label: 'Documents', icon: FileText, href: '/documents' },
   { label: 'Resumes', icon: ScrollText, href: '/resumes' },
   { label: 'Reports', icon: BarChart3, href: '/reports' },
-  { label: 'Chat', icon: MessageSquare, href: '/chat' },
+  { label: 'AI Assistant', icon: MessageSquare, href: '/chat' },
   { label: 'Marketplace', icon: Store, href: '/marketplace' },
   { label: 'Notifications', icon: Bell, href: '/notifications' },
   { label: 'Scheduler', icon: CalendarClock, href: '/scheduler' },

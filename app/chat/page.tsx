@@ -18,7 +18,6 @@ interface ChatMessage {
   referencedDoc?: string
 }
 
-/** Wire format returned by /api/chat. */
 interface ApiChatMessage {
   id: string
   role: 'user' | 'assistant'
@@ -49,32 +48,37 @@ async function readError(response: Response, fallback: string): Promise<string> 
 function MessageBubble({ message }: { message: ChatMessage }) {
   const isUser = message.role === 'user'
   return (
-    <div className={cn('flex flex-col gap-1', isUser ? 'items-end' : 'items-start')}>
-      {/* Referenced doc chip */}
-      {message.referencedDoc && (
-        <span className="flex items-center gap-1 rounded-full bg-accent px-2.5 py-0.5 text-xs font-medium text-accent-foreground">
-          <FileText className="size-3" />
-          referencing: {message.referencedDoc}
-        </span>
+    <div className={cn('flex gap-3', isUser ? 'justify-end' : 'justify-start')}>
+      {!isUser && (
+         <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-[#FFFAEC] border border-[#F5CA50]/30 text-[#D4A017] shadow-sm">
+           <Bot className="size-4" />
+         </div>
       )}
-      <div
-        className={cn(
-          'max-w-[78%] rounded-2xl px-4 py-3 text-sm leading-relaxed shadow-sm',
-          isUser
-            ? 'rounded-br-sm bg-primary text-primary-foreground'
-            : 'rounded-bl-sm bg-card text-foreground border border-border',
+      <div className={cn('flex flex-col gap-1.5', isUser ? 'items-end' : 'items-start')}>
+        {message.referencedDoc && (
+          <span className="flex items-center gap-1.5 rounded-full bg-gray-100 px-3 py-1 text-[11px] font-bold text-gray-600 uppercase tracking-wide border border-gray-200">
+            <FileText className="size-3 text-gray-400" />
+            Source: {message.referencedDoc}
+          </span>
         )}
-      >
-        {/* Render markdown-lite bold */}
-        {message.content.split(/(\*\*[^*]+\*\*)/).map((part, i) =>
-          part.startsWith('**') && part.endsWith('**') ? (
-            <strong key={i}>{part.slice(2, -2)}</strong>
-          ) : (
-            <span key={i}>{part}</span>
-          ),
-        )}
+        <div
+          className={cn(
+            'max-w-[85%] rounded-2xl px-4 py-3 text-[14px] leading-relaxed shadow-sm',
+            isUser
+              ? 'rounded-tr-sm bg-[#FFFAEC] text-gray-900 border border-[#F5CA50]/30 font-medium'
+              : 'rounded-tl-sm bg-white text-gray-800 border border-gray-100 font-medium',
+          )}
+        >
+          {message.content.split(/(\*\*[^*]+\*\*)/).map((part, i) =>
+            part.startsWith('**') && part.endsWith('**') ? (
+              <strong key={i} className="font-bold text-gray-900">{part.slice(2, -2)}</strong>
+            ) : (
+              <span key={i}>{part}</span>
+            ),
+          )}
+        </div>
+        <span className="text-[11px] font-bold text-gray-400 px-1">{message.timestamp}</span>
       </div>
-      <span className="text-[10px] text-muted-foreground">{message.timestamp}</span>
     </div>
   )
 }
@@ -83,16 +87,16 @@ function MessageBubble({ message }: { message: ChatMessage }) {
 
 function TypingIndicator() {
   return (
-    <div className="flex items-start gap-2">
-      <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+    <div className="flex gap-3 justify-start">
+      <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-[#FFFAEC] border border-[#F5CA50]/30 text-[#D4A017] shadow-sm">
         <Bot className="size-4" />
       </div>
-      <div className="rounded-2xl rounded-bl-sm border border-border bg-card px-4 py-3 shadow-sm">
-        <div className="flex gap-1">
+      <div className="rounded-2xl rounded-tl-sm border border-gray-100 bg-white px-4 py-3 shadow-sm h-11 flex items-center">
+        <div className="flex gap-1.5">
           {[0, 1, 2].map((i) => (
             <span
               key={i}
-              className="size-1.5 rounded-full bg-muted-foreground/60 animate-bounce"
+              className="size-1.5 rounded-full bg-gray-400 animate-bounce"
               style={{ animationDelay: `${i * 0.15}s` }}
             />
           ))}
@@ -113,10 +117,8 @@ export default function ChatPage() {
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
 
-  // Load the persisted conversation once on mount.
   useEffect(() => {
     let cancelled = false
-
     async function load() {
       try {
         const response = await fetch('/api/chat')
@@ -129,11 +131,8 @@ export default function ChatPage() {
         if (!cancelled) setIsLoading(false)
       }
     }
-
     void load()
-    return () => {
-      cancelled = true
-    }
+    return () => { cancelled = true }
   }, [])
 
   useEffect(() => {
@@ -144,8 +143,6 @@ export default function ChatPage() {
     const message = content.trim()
     if (!message || isTyping) return
 
-    // Show the user's own message straight away; the server copy replaces it
-    // once the request resolves and carries the real id and timestamp.
     const optimisticId = `pending-${Date.now()}`
     setMessages((prev) => [
       ...prev,
@@ -161,24 +158,17 @@ export default function ChatPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message }),
       })
-
-      if (!response.ok) {
-        throw new Error(await readError(response, 'The assistant could not answer that.'))
-      }
-
+      if (!response.ok) throw new Error(await readError(response, 'The assistant could not answer that.'))
       const { userMessage, assistantMessage } = (await response.json()) as {
         userMessage: ApiChatMessage
         assistantMessage: ApiChatMessage
       }
-
       setMessages((prev) => [
         ...prev.filter((msg) => msg.id !== optimisticId),
         toMessage(userMessage),
         toMessage(assistantMessage),
       ])
     } catch (sendError) {
-      // The message stays on screen — it was really sent — and the failure is
-      // surfaced above the input rather than faked as an assistant reply.
       setError((sendError as Error).message)
     } finally {
       setIsTyping(false)
@@ -200,29 +190,20 @@ export default function ChatPage() {
   const isEmpty = !isLoading && messages.length === 0
 
   return (
-    <DashboardShell mainClassName="flex flex-col p-0">
-      <div className="flex flex-1 flex-col overflow-hidden px-4 pb-4 pt-4 md:px-6">
-        {/* Header */}
-        <div className="mb-4">
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">AI Chat</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Ask questions about your documents, workflows, and data
-          </p>
-        </div>
-
+    <DashboardShell mainClassName="flex flex-col p-0 h-[calc(100vh-64px)]">
+      <div className="flex flex-1 flex-col overflow-hidden max-w-[1000px] mx-auto w-full relative pt-6 md:pt-8">
+        
         {/* Messages area */}
-        <div className="flex flex-1 flex-col gap-4 overflow-y-auto rounded-xl border border-border bg-background/50 p-4 min-h-0">
+        <div className="flex flex-1 flex-col gap-6 overflow-y-auto px-4 md:px-8 pb-32">
           {isEmpty ? (
-            <div className="flex flex-1 flex-col items-center justify-center gap-6 py-12">
-              <div className="flex size-16 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                <Sparkles className="size-8" />
+            <div className="flex flex-col items-center justify-center my-auto">
+              <div className="flex size-20 items-center justify-center rounded-3xl bg-[#FFFAEC] text-[#D4A017] shadow-sm mb-6 border border-[#F5CA50]/30 shadow-[#F5CA50]/10">
+                <Sparkles className="size-10" />
               </div>
-              <div className="text-center">
-                <p className="text-lg font-semibold">How can I help you today?</p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  I have access to all your documents, workflows, and platform data.
-                </p>
-              </div>
+              <h1 className="text-3xl font-bold tracking-tight text-gray-900">How can I help you?</h1>
+              <p className="mt-3 text-[15px] font-medium text-gray-500 max-w-sm text-center">
+                I'm your Praxis AI Assistant. I can analyze documents, summarize workflows, and answer questions about your data.
+              </p>
             </div>
           ) : (
             <>
@@ -235,60 +216,55 @@ export default function ChatPage() {
           <div ref={bottomRef} />
         </div>
 
-        {/* Suggested prompts (shown above input on empty state) */}
-        {isEmpty && (
-          <div className="mt-3 flex flex-wrap gap-2">
-            {suggestedPrompts.map((prompt) => (
-              <button
-                key={prompt}
-                id={`suggested-prompt-${prompt.slice(0, 20).replace(/\s+/g, '-').toLowerCase()}`}
-                onClick={() => void sendMessage(prompt)}
-                className="rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:border-primary hover:bg-primary/5 hover:text-primary"
-              >
-                {prompt}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* Input box */}
-        <div className="mt-3">
-          {error && (
-            <p className="mb-2 rounded-lg bg-destructive/10 px-3 py-2 text-xs text-destructive">
-              {error}
-            </p>
+        {/* Input Bar Fixed to Bottom */}
+        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-gray-50 via-gray-50 to-transparent pb-6 pt-10 px-4 md:px-8">
+          
+          {/* Suggested Prompts */}
+          {isEmpty && (
+            <div className="mb-4 flex flex-wrap justify-center gap-2">
+              {suggestedPrompts.map((prompt) => (
+                <button
+                  key={prompt}
+                  onClick={() => void sendMessage(prompt)}
+                  className="rounded-full border border-gray-200 bg-white px-4 py-2 text-[12px] font-bold text-gray-600 transition-all hover:border-[#F5CA50] hover:bg-[#FFFAEC] hover:text-[#D4A017] shadow-sm"
+                >
+                  {prompt}
+                </button>
+              ))}
+            </div>
           )}
+
+          {error && (
+            <div className="mb-3 rounded-xl bg-red-50 border border-red-100 p-3 text-[13px] font-bold text-red-600 max-w-3xl mx-auto">
+              {error}
+            </div>
+          )}
+          
           <form
             onSubmit={handleSubmit}
-            className="flex items-end gap-2 rounded-xl border border-border bg-card p-2 shadow-sm focus-within:ring-2 focus-within:ring-ring"
+            className="flex items-end gap-3 rounded-2xl border border-gray-200 bg-white p-2 shadow-lg max-w-3xl mx-auto focus-within:ring-2 focus-within:ring-[#F5CA50]/50 focus-within:border-[#F5CA50] transition-all"
           >
             <textarea
               ref={inputRef}
-              id="chat-input"
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Ask anything… (Enter to send, Shift+Enter for newline)"
               rows={1}
-              className="flex-1 resize-none bg-transparent px-2 py-1.5 text-sm outline-none placeholder:text-muted-foreground"
-              style={{ maxHeight: 120, minHeight: 36 }}
+              className="flex-1 resize-none bg-transparent px-3 py-3 text-[14.5px] font-medium text-gray-900 outline-none placeholder:text-gray-400 placeholder:font-normal"
+              style={{ maxHeight: 160, minHeight: 48 }}
             />
             <Button
               type="submit"
               size="icon"
-              id="chat-send-button"
               disabled={isTyping || !inputValue.trim()}
-              className="size-9 shrink-0 rounded-lg"
+              className="size-11 shrink-0 rounded-xl bg-[#F5CA50] text-[#111111] hover:brightness-95 disabled:bg-gray-100 disabled:text-gray-400"
             >
-              {isTyping ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <Send className="size-4" />
-              )}
+              {isTyping ? <Loader2 className="size-5 animate-spin" /> : <Send className="size-5" />}
             </Button>
           </form>
-          <p className="mt-1.5 text-center text-[10px] text-muted-foreground">
-            EAWMP AI may make mistakes. Always verify important information.
+          <p className="mt-3 text-center text-[11px] font-bold text-gray-400 uppercase tracking-wide">
+            Praxis AI may make mistakes. Verify important information.
           </p>
         </div>
       </div>

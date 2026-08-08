@@ -1,6 +1,6 @@
 'use client'
 
-import { Loader2, Pause, Play, Plus, X } from 'lucide-react'
+import { Loader2, Pause, Play, Plus, X, CalendarClock, Power } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 import { DashboardShell } from '@/components/dashboard/dashboard-shell'
@@ -18,7 +18,6 @@ import { cn } from '@/lib/utils'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-/** Wire format returned by /api/scheduler/jobs. */
 interface ScheduledJob {
   id: string
   workflowId: string
@@ -63,14 +62,14 @@ function StatusToggle({ active, onChange, id }: { active: boolean; onChange: (v:
       title={active ? 'Pause job' : 'Activate job'}
       onClick={() => onChange(!active)}
       className={cn(
-        'relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-        active ? 'bg-primary' : 'bg-muted',
+        'relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F5CA50]',
+        active ? 'bg-green-500' : 'bg-gray-200',
       )}
     >
       <span
         className={cn(
           'pointer-events-none inline-block size-4 rounded-full bg-white shadow-sm transition-transform',
-          active ? 'translate-x-5' : 'translate-x-0.5',
+          active ? 'translate-x-6' : 'translate-x-1',
         )}
       />
     </button>
@@ -92,11 +91,8 @@ function NewJobModal({
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // A schedule points at a workflow by id, so the picker is populated from the
-  // user's own workflows rather than accepting a free-text name.
   useEffect(() => {
     let cancelled = false
-
     async function load() {
       try {
         const response = await fetch('/api/workflows')
@@ -109,11 +105,8 @@ function NewJobModal({
         if (!cancelled) setError((loadError as Error).message)
       }
     }
-
     void load()
-    return () => {
-      cancelled = true
-    }
+    return () => { cancelled = true }
   }, [])
 
   async function handleSave() {
@@ -127,10 +120,7 @@ function NewJobModal({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ workflow_id: workflowId, cron_expr: cronExpr.trim() }),
       })
-
-      if (!response.ok) {
-        throw new Error(await readError(response, 'Could not save the job.'))
-      }
+      if (!response.ok) throw new Error(await readError(response, 'Could not save the job.'))
 
       const { job } = (await response.json()) as { job: ScheduledJob }
       onCreated(job)
@@ -144,23 +134,23 @@ function NewJobModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-foreground/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-md rounded-2xl bg-card p-6 shadow-2xl">
-        <div className="mb-5 flex items-center justify-between">
-          <h2 className="text-lg font-semibold">New Scheduled Job</h2>
-          <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close modal">
-            <X className="size-4" />
+      <div className="absolute inset-0 bg-gray-900/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full max-w-md rounded-2xl bg-white p-6 md:p-8 shadow-2xl">
+        <div className="mb-6 flex items-center justify-between">
+          <h2 className="text-xl font-bold text-gray-900">New Scheduled Job</h2>
+          <Button variant="ghost" size="icon" onClick={onClose} className="rounded-full">
+            <X className="size-5 text-gray-500" />
           </Button>
         </div>
 
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium" htmlFor="new-job-workflow">Workflow</label>
+        <div className="flex flex-col gap-5">
+          <div className="flex flex-col gap-2">
+            <label className="text-[13px] font-bold text-gray-900 uppercase tracking-wide" htmlFor="new-job-workflow">Workflow</label>
             <select
               id="new-job-workflow"
               value={workflowId}
               onChange={(e) => setWorkflowId(e.target.value)}
-              className="rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+              className="rounded-xl border border-gray-200 bg-white px-4 py-3 text-[14px] font-medium text-gray-700 outline-none focus:ring-1 focus:ring-[#F5CA50] focus:border-[#F5CA50] shadow-sm transition-all"
             >
               {workflows.length === 0 ? (
                 <option value="">No workflows available</option>
@@ -174,21 +164,20 @@ function NewJobModal({
             </select>
           </div>
 
-          <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium" htmlFor="new-job-cron">Cron Expression</label>
+          <div className="flex flex-col gap-2">
+            <label className="text-[13px] font-bold text-gray-900 uppercase tracking-wide" htmlFor="new-job-cron">Cron Expression</label>
             <input
               id="new-job-cron"
               value={cronExpr}
               onChange={(e) => setCronExpr(e.target.value)}
-              placeholder="e.g. 0 9 * * 1-5 (weekdays at 9 AM)"
-              className="rounded-lg border border-input bg-background px-3 py-2 font-mono text-sm outline-none placeholder:text-muted-foreground focus:ring-2 focus:ring-ring"
+              placeholder="e.g. 0 9 * * 1-5"
+              className="rounded-xl border border-gray-200 bg-white px-4 py-3 font-mono text-[14px] outline-none placeholder:text-gray-400 focus:ring-1 focus:ring-[#F5CA50] focus:border-[#F5CA50] shadow-sm transition-all"
             />
-            <p className="text-xs text-muted-foreground">Standard 5-field cron expression</p>
+            <p className="text-[12px] font-medium text-gray-500">Standard 5-field cron expression (minute hour day month day-of-week)</p>
           </div>
 
-          {/* Quick presets */}
           <div>
-            <p className="mb-2 text-xs font-medium text-muted-foreground">Quick Presets</p>
+            <p className="mb-3 text-[13px] font-bold text-gray-500 uppercase tracking-wide">Quick Presets</p>
             <div className="grid grid-cols-2 gap-2">
               {[
                 { label: 'Every hour', value: '0 * * * *' },
@@ -200,10 +189,10 @@ function NewJobModal({
                   key={p.value}
                   onClick={() => setCronExpr(p.value)}
                   className={cn(
-                    'rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors',
+                    'rounded-xl border px-3 py-2 text-[13px] font-bold transition-all',
                     cronExpr === p.value
-                      ? 'border-primary bg-primary/10 text-primary'
-                      : 'border-border bg-background hover:bg-muted',
+                      ? 'border-[#F5CA50] bg-[#FFFAEC] text-gray-900 shadow-sm ring-1 ring-[#F5CA50]/50'
+                      : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50 hover:text-gray-900',
                   )}
                 >
                   {p.label}
@@ -213,17 +202,17 @@ function NewJobModal({
           </div>
         </div>
 
-        {error && <p className="mt-4 text-xs text-destructive">{error}</p>}
+        {error && <p className="mt-4 text-[13px] font-bold text-red-500 text-center">{error}</p>}
 
-        <div className="mt-5 flex gap-2">
-          <Button variant="outline" className="flex-1" onClick={onClose} disabled={isSaving}>Cancel</Button>
+        <div className="mt-8 flex gap-3">
+          <Button variant="outline" className="flex-1 rounded-xl h-12 font-bold" onClick={onClose} disabled={isSaving}>Cancel</Button>
           <Button
-            className="flex-1"
+            className="flex-1 rounded-xl h-12 font-bold bg-[#F5CA50] text-[#111111] hover:brightness-95"
             onClick={() => void handleSave()}
             disabled={isSaving || !workflowId || !cronExpr.trim()}
-            id="save-new-job-button"
           >
-            {isSaving ? <><Loader2 className="size-4 animate-spin" /> Saving…</> : 'Save Job'}
+            {isSaving ? <Loader2 className="size-4 animate-spin mr-2" /> : <CalendarClock className="size-4 mr-2" />}
+            {isSaving ? 'Saving…' : 'Save Job'}
           </Button>
         </div>
       </div>
@@ -241,7 +230,6 @@ export default function SchedulerPage() {
 
   useEffect(() => {
     let cancelled = false
-
     async function load() {
       try {
         const response = await fetch('/api/scheduler/jobs')
@@ -254,24 +242,18 @@ export default function SchedulerPage() {
         if (!cancelled) setIsLoading(false)
       }
     }
-
     void load()
-    return () => {
-      cancelled = true
-    }
+    return () => { cancelled = true }
   }, [])
 
   async function toggleJob(id: string) {
     const previous = jobs
-    // Flip immediately so the switch feels responsive, then reconcile with the
-    // server's copy — or roll back if the request fails.
     setJobs((prev) => prev.map((job) => (job.id === id ? { ...job, isActive: !job.isActive } : job)))
     setError(null)
 
     try {
       const response = await fetch(`/api/scheduler/jobs/${id}`, { method: 'PATCH' })
       if (!response.ok) throw new Error(await readError(response, 'Could not update the job.'))
-
       const { job } = (await response.json()) as { job: ScheduledJob }
       setJobs((prev) => prev.map((existing) => (existing.id === id ? job : existing)))
     } catch (toggleError) {
@@ -282,78 +264,91 @@ export default function SchedulerPage() {
 
   return (
     <DashboardShell>
-      <div className="mx-auto flex max-w-7xl flex-col gap-6">
+      <div className="mx-auto flex max-w-7xl flex-col gap-6 md:p-6 p-4">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight text-foreground">Scheduler</h1>
-            <p className="mt-1 text-sm text-muted-foreground">
+            <h1 className="text-2xl font-bold tracking-tight text-gray-900">Scheduler</h1>
+            <p className="mt-1 text-sm font-medium text-gray-500">
               Manage automated job schedules and cron triggers
             </p>
           </div>
-          <Button onClick={() => setShowModal(true)} id="new-scheduled-job-button">
-            <Plus className="size-4" />
-            New Job
+          <Button 
+            className="bg-[#F5CA50] text-[#111111] hover:brightness-95 font-bold"
+            onClick={() => setShowModal(true)}
+          >
+            <Plus className="size-4 mr-2" />
+            Create Schedule
           </Button>
         </div>
 
-        <Card className="shadow-sm">
-          <CardHeader>
-            <CardTitle>Scheduled Jobs</CardTitle>
-            <CardDescription>
+        <Card className="overflow-hidden">
+          <div className="p-5 md:p-6 border-b border-gray-100 bg-white">
+            <CardTitle className="text-xl">Scheduled Jobs</CardTitle>
+            <CardDescription className="mt-1 font-medium">
               {error ??
                 (isLoading
                   ? 'Loading…'
                   : `${jobs.length} jobs configured — ${jobs.filter((job) => job.isActive).length} active`)}
             </CardDescription>
-          </CardHeader>
-          <div className="overflow-x-auto">
+          </div>
+          <div className="overflow-x-auto bg-white">
             <Table>
               <TableHeader>
-                <TableRow className="hover:bg-transparent">
-                  <TableHead>Workflow</TableHead>
+                <TableRow>
+                  <TableHead className="pl-6">Workflow</TableHead>
                   <TableHead>Schedule</TableHead>
                   <TableHead>Cron</TableHead>
                   <TableHead>Next Run</TableHead>
                   <TableHead>Last Run</TableHead>
                   <TableHead>Triggered By</TableHead>
                   <TableHead>Active</TableHead>
+                  <TableHead className="pr-6"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {jobs.map((job) => (
-                  <TableRow key={job.id} id={`job-row-${job.id}`}>
-                    <TableCell className="font-medium text-foreground">{job.workflowName}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{job.cronReadable}</TableCell>
+                  <TableRow key={job.id}>
+                    <TableCell className="pl-6 font-bold text-gray-900">{job.workflowName}</TableCell>
+                    <TableCell className="text-[13px] font-bold text-gray-700">{job.cronReadable}</TableCell>
                     <TableCell>
-                      <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs text-foreground">
+                      <span className="rounded-md bg-gray-50 border border-gray-100 px-2 py-1 font-mono text-[11px] font-bold text-gray-600">
                         {job.cronExpr}
                       </span>
                     </TableCell>
-                    <TableCell className="text-sm text-muted-foreground tabular-nums">{formatRunTime(job.nextRun)}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground tabular-nums">{formatRunTime(job.lastRun)}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{job.triggeredBy}</TableCell>
+                    <TableCell className="text-[13px] font-medium text-gray-500 tabular-nums">{formatRunTime(job.nextRun)}</TableCell>
+                    <TableCell className="text-[13px] font-medium text-gray-500 tabular-nums">{formatRunTime(job.lastRun)}</TableCell>
+                    <TableCell className="text-[13px] font-medium text-gray-500">{job.triggeredBy}</TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-3">
                         <StatusToggle
                           active={job.isActive}
                           onChange={() => void toggleJob(job.id)}
                           id={`toggle-job-${job.id}`}
                         />
-                        <span className="text-xs text-muted-foreground">
+                        <span className="text-[11px] font-bold uppercase tracking-wider">
                           {job.isActive ? (
-                            <span className="flex items-center gap-1 text-success"><Play className="size-3" /> Active</span>
+                            <span className="flex items-center gap-1.5 text-green-600"><Play className="size-3.5" /> Active</span>
                           ) : (
-                            <span className="flex items-center gap-1 text-muted-foreground"><Pause className="size-3" /> Paused</span>
+                            <span className="flex items-center gap-1.5 text-gray-400"><Pause className="size-3.5" /> Paused</span>
                           )}
                         </span>
                       </div>
                     </TableCell>
+                    <TableCell className="pr-6 text-right">
+                       <Button variant="ghost" size="icon" className="text-gray-400 hover:text-gray-900 rounded-full">
+                          <Power className="size-4" />
+                       </Button>
+                    </TableCell>
                   </TableRow>
                 ))}
                 {!isLoading && jobs.length === 0 && (
-                  <TableRow className="hover:bg-transparent">
-                    <TableCell colSpan={7} className="py-10 text-center text-sm text-muted-foreground">
-                      No scheduled jobs yet — create one to get started.
+                  <TableRow>
+                    <TableCell colSpan={8} className="py-20 text-center">
+                       <div className="flex flex-col items-center justify-center text-gray-400">
+                          <CalendarClock className="size-10 mb-3 opacity-30" />
+                          <p className="text-[14px] font-bold text-gray-600">No scheduled jobs</p>
+                          <p className="text-[13px] font-medium text-gray-500 mt-1">Create a schedule to automate your workflows.</p>
+                       </div>
                     </TableCell>
                   </TableRow>
                 )}

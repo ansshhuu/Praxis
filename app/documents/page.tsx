@@ -13,28 +13,25 @@ import {
   Send,
   Upload,
   X,
+  FolderOpen,
+  PieChart,
+  Users,
+  Briefcase
 } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import React from 'react'
 
 import { DashboardShell } from '@/components/dashboard/dashboard-shell'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
+import { StatusBadge } from '@/components/ui/status-badge'
 import { cn } from '@/lib/utils'
 
 // ─── Types & helpers ──────────────────────────────────────────────────────────
 
 type DocumentStatus = 'Processed' | 'Processing' | 'Failed' | 'Pending'
 
-/** Wire format returned by /api/documents. */
 interface ApiDocument {
   id: string
   fileName: string
@@ -60,13 +57,6 @@ const statusLabels: Record<ApiDocument['status'], DocumentStatus> = {
   FAILED: 'Failed',
 }
 
-const statusStyles: Record<DocumentStatus, string> = {
-  Processed: 'bg-success/10 text-success',
-  Processing: 'bg-warning/15 text-warning',
-  Failed: 'bg-destructive/10 text-destructive',
-  Pending: 'bg-muted text-muted-foreground',
-}
-
 function formatUploadDate(iso: string): string {
   return new Date(iso).toLocaleDateString('en-US', {
     month: 'short',
@@ -80,49 +70,22 @@ async function readError(response: Response, fallback: string): Promise<string> 
   return (body as { error?: string } | null)?.error ?? fallback
 }
 
-function StatusBadge({ status }: { status: DocumentStatus }) {
-  return (
-    <span
-      className={cn(
-        'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium',
-        statusStyles[status],
-      )}
-    >
-      <span
-        className={cn(
-          'size-1.5 rounded-full',
-          status === 'Processed' && 'bg-success',
-          status === 'Processing' && 'animate-pulse bg-warning',
-          status === 'Failed' && 'bg-destructive',
-          status === 'Pending' && 'bg-muted-foreground',
-        )}
-      />
-      {status}
-    </span>
-  )
-}
-
 function DocTypeIcon({ type }: { type: string }) {
   const icons: Record<string, React.ReactNode> = {
-    PDF: <FileText className="size-4 text-red-500" />,
-    DOC: <FileType className="size-4 text-blue-500" />,
-    DOCX: <FileType className="size-4 text-blue-500" />,
-    PPT: <FileType className="size-4 text-orange-500" />,
-    PPTX: <FileType className="size-4 text-orange-500" />,
-    XLS: <FileSpreadsheet className="size-4 text-green-500" />,
-    XLSX: <FileSpreadsheet className="size-4 text-green-500" />,
-    CSV: <FileSpreadsheet className="size-4 text-emerald-500" />,
-    TXT: <FileText className="size-4 text-muted-foreground" />,
-    PNG: <Image className="size-4 text-purple-500" />,
-    JPG: <Image className="size-4 text-pink-500" />,
-    JPEG: <Image className="size-4 text-pink-500" />,
+    PDF: <FileText className="size-8 text-red-500" />,
+    DOC: <FileType className="size-8 text-blue-500" />,
+    DOCX: <FileType className="size-8 text-blue-500" />,
+    PPT: <FileType className="size-8 text-orange-500" />,
+    PPTX: <FileType className="size-8 text-orange-500" />,
+    XLS: <FileSpreadsheet className="size-8 text-green-500" />,
+    XLSX: <FileSpreadsheet className="size-8 text-green-500" />,
+    CSV: <FileSpreadsheet className="size-8 text-emerald-500" />,
+    TXT: <FileText className="size-8 text-gray-400" />,
+    PNG: <Image className="size-8 text-purple-500" />,
+    JPG: <Image className="size-8 text-pink-500" />,
+    JPEG: <Image className="size-8 text-pink-500" />,
   }
-  return (
-    <span className="flex items-center gap-1.5">
-      {icons[type] ?? <FileText className="size-4 text-muted-foreground" />}
-      <span className="text-xs font-medium text-muted-foreground">{type}</span>
-    </span>
-  )
+  return icons[type] ?? <FileText className="size-8 text-gray-400" />
 }
 
 // ─── Upload Modal ─────────────────────────────────────────────────────────────
@@ -132,7 +95,6 @@ function UploadModal({
   onUploaded,
 }: {
   onClose: () => void
-  /** Fires once per file, right after its record exists (before processing). */
   onUploaded: (doc: ApiDocument, processing: Promise<void>) => void
 }) {
   const [isDragging, setIsDragging] = useState(false)
@@ -147,11 +109,6 @@ function UploadModal({
     setFiles(Array.from(list))
   }
 
-  /**
-   * Two-step: upload returns as soon as the file is stored, then processing
-   * (extraction + summary) runs separately so a slow OCR never blocks the
-   * modal from closing.
-   */
   async function handleUpload() {
     if (files.length === 0 || isUploading) return
     setIsUploading(true)
@@ -175,8 +132,6 @@ function UploadModal({
         const processing = fetch(`/api/documents/${document.id}/process`, {
           method: 'POST',
         }).then(() => undefined)
-        // Never let a rejected processing promise surface as unhandled — the
-        // caller re-reads status from the server either way.
         processing.catch(() => {})
 
         onUploaded(document, processing)
@@ -191,40 +146,39 @@ function UploadModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-foreground/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-md rounded-2xl bg-card p-6 shadow-2xl">
+      <div className="absolute inset-0 bg-gray-900/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Upload Document</h2>
-          <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close upload modal">
-            <X className="size-4" />
+          <h2 className="text-lg font-bold text-gray-900">Upload Document</h2>
+          <Button variant="ghost" size="icon" onClick={onClose}>
+            <X className="size-4 text-gray-500" />
           </Button>
         </div>
 
         <div
-          id="upload-dropzone"
           onDragOver={(e) => { e.preventDefault(); setIsDragging(true) }}
           onDragLeave={() => setIsDragging(false)}
           onDrop={(e) => { e.preventDefault(); setIsDragging(false); addFiles(e.dataTransfer.files) }}
           onClick={() => inputRef.current?.click()}
           className={cn(
-            'flex cursor-pointer flex-col items-center gap-3 rounded-xl border-2 border-dashed py-12 transition-colors',
+            'flex cursor-pointer flex-col items-center gap-3 rounded-2xl border-2 border-dashed py-12 transition-colors',
             isDragging
-              ? 'border-primary bg-primary/5'
-              : 'border-border bg-muted/40 hover:border-primary/50 hover:bg-primary/5',
+              ? 'border-[#F5CA50] bg-[#FFFAEC]'
+              : 'border-gray-200 bg-gray-50 hover:border-[#F5CA50]/50 hover:bg-[#FFFAEC]',
           )}
         >
-          <div className="flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-            <Upload className="size-6" />
+          <div className="flex size-12 items-center justify-center rounded-full bg-[#EAE3D9] text-[#111111]">
+            <Upload className="size-5" />
           </div>
           <div className="text-center">
-            <p className="text-sm font-medium text-foreground">
+            <p className="text-sm font-semibold text-gray-900">
               {files.length === 0
                 ? 'Drop files here or click to browse'
                 : files.length === 1
                   ? files[0].name
                   : `${files.length} files selected`}
             </p>
-            <p className="mt-1 text-xs text-muted-foreground">PDF, DOCX, XLSX, CSV, TXT, PNG — max 50 MB</p>
+            <p className="mt-1 text-xs text-gray-500">PDF, DOCX, XLSX, CSV, TXT, PNG — max 50 MB</p>
           </div>
           <input
             ref={inputRef}
@@ -236,17 +190,12 @@ function UploadModal({
           />
         </div>
 
-        {error && <p className="mt-3 text-xs text-destructive">{error}</p>}
+        {error && <p className="mt-3 text-xs text-red-500 font-medium">{error}</p>}
 
-        <div className="mt-4 flex gap-2">
+        <div className="mt-6 flex gap-3">
           <Button variant="outline" className="flex-1" onClick={onClose} disabled={isUploading}>Cancel</Button>
-          <Button
-            className="flex-1"
-            id="confirm-upload-button"
-            onClick={handleUpload}
-            disabled={isUploading || files.length === 0}
-          >
-            {isUploading && <Loader2 className="size-4 animate-spin" />}
+          <Button className="flex-1 bg-[#F5CA50] text-[#111111] hover:brightness-95" onClick={handleUpload} disabled={isUploading || files.length === 0}>
+            {isUploading && <Loader2 className="size-4 animate-spin mr-2" />}
             {isUploading ? 'Uploading…' : 'Upload'}
           </Button>
         </div>
@@ -255,47 +204,38 @@ function UploadModal({
   )
 }
 
-// ─── Document Detail View ─────────────────────────────────────────────────────
+// ─── Document Detail View (Right Panel) ───────────────────────────────────────
 
 interface ChatMsg { id: string; role: 'user' | 'assistant'; content: string }
 
 function DocumentDetailView({
   documentId,
   summary,
-  onBack,
 }: {
   documentId: string
-  /** List-row data, shown until the detail request resolves. */
   summary: ApiDocument
-  onBack: () => void
 }) {
   const [doc, setDoc] = useState<ApiDocumentDetail | null>(null)
   const [messages, setMessages] = useState<ChatMsg[]>([])
   const [inputValue, setInputValue] = useState('')
   const [isAsking, setIsAsking] = useState(false)
+  const [activeTab, setActiveTab] = useState<'summary' | 'ocr' | 'qa'>('summary')
 
   const status = statusLabels[doc?.status ?? summary.status]
   const isProcessing = status === 'Processing' || status === 'Pending'
 
-  // Re-fetch while the document is still processing so extracted text and the
-  // summary appear as soon as the server finishes.
   useEffect(() => {
     let cancelled = false
-
     async function load() {
       try {
         const response = await fetch(`/api/documents/${documentId}`)
         if (!response.ok || cancelled) return
         const { document } = (await response.json()) as { document: ApiDocumentDetail }
         if (!cancelled) setDoc(document)
-      } catch {
-        // Leave the list-row data in place; the poll will try again.
-      }
+      } catch {}
     }
-
     void load()
     const interval = isProcessing ? setInterval(load, 3000) : null
-
     return () => {
       cancelled = true
       if (interval) clearInterval(interval)
@@ -320,13 +260,9 @@ function DocumentDetailView({
       const content = response.ok
         ? ((await response.json()) as { answer: string }).answer
         : await readError(response, 'The assistant could not answer that.')
-
       setMessages((prev) => [...prev, { id: `a-${Date.now()}`, role: 'assistant', content }])
     } catch (error) {
-      setMessages((prev) => [
-        ...prev,
-        { id: `a-${Date.now()}`, role: 'assistant', content: (error as Error).message },
-      ])
+      setMessages((prev) => [...prev, { id: `a-${Date.now()}`, role: 'assistant', content: (error as Error).message }])
     } finally {
       setIsAsking(false)
     }
@@ -334,142 +270,121 @@ function DocumentDetailView({
 
   const extractedText = doc?.extractedText ?? null
   const aiSummary = doc?.aiSummary ?? null
-  const statusMessage = doc?.statusMessage ?? summary.statusMessage
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center gap-3">
-        <Button variant="outline" size="sm" onClick={onBack} id="back-to-documents-button">
-          ← Back
-        </Button>
-        <div>
-          <h2 className="text-lg font-semibold text-foreground">{doc?.fileName ?? summary.fileName}</h2>
-          <p className="text-sm text-muted-foreground">
-            {formatUploadDate(doc?.createdAt ?? summary.createdAt)} · {doc?.size ?? summary.size}
-          </p>
-        </div>
-        <div className="ml-auto">
+    <Card className="h-full flex flex-col overflow-hidden rounded-2xl shadow-sm border-gray-100 p-0">
+      <div className="p-5 border-b border-gray-100 shrink-0">
+        <h3 className="font-bold text-gray-900 text-base truncate pr-2">{doc?.fileName ?? summary.fileName}</h3>
+        <div className="flex items-center justify-between mt-2">
+          <span className="text-xs text-gray-500 font-medium">{formatUploadDate(doc?.createdAt ?? summary.createdAt)} · {doc?.size ?? summary.size}</span>
           <StatusBadge status={status} />
         </div>
       </div>
+      
+      {/* Tabs */}
+      <div className="flex px-4 border-b border-gray-100 shrink-0">
+        {[
+          { id: 'summary', label: 'Summary' },
+          { id: 'ocr', label: 'OCR Text' },
+          { id: 'qa', label: 'Q&A' }
+        ].map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id as any)}
+            className={cn(
+              "px-4 py-3 text-[13px] font-semibold transition-colors border-b-2",
+              activeTab === tab.id 
+                ? "border-[#F5CA50] text-[#111111]" 
+                : "border-transparent text-gray-500 hover:text-gray-900 hover:border-gray-200"
+            )}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
-        {/* OCR Panel */}
-        <Card className="shadow-sm lg:col-span-3">
-          <CardHeader>
-            <CardTitle className="text-base">Extracted Text</CardTitle>
-            <CardDescription>Raw OCR output from document</CardDescription>
-          </CardHeader>
-          <CardContent>
+      <div className="flex-1 overflow-y-auto p-5 relative bg-gray-50/30">
+        {activeTab === 'summary' && (
+          <div className="flex flex-col gap-4">
             {isProcessing ? (
-              <div className="flex flex-col gap-2">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-                  <Loader2 className="size-4 animate-spin" />
-                  Processing document…
-                </div>
-                {Array.from({ length: 8 }).map((_, i) => (
-                  <Skeleton key={i} className={cn('h-4', i % 3 === 2 ? 'w-3/4' : 'w-full')} />
-                ))}
-              </div>
-            ) : extractedText ? (
-              <pre className="whitespace-pre-wrap font-mono text-xs leading-relaxed text-foreground/80 max-h-80 overflow-y-auto">
-                {extractedText}
-              </pre>
+               <div className="flex flex-col gap-3">
+                 <Skeleton className="h-4 w-3/4" />
+                 <Skeleton className="h-4 w-full" />
+                 <Skeleton className="h-4 w-5/6" />
+               </div>
+            ) : aiSummary ? (
+               <div className="prose prose-sm prose-gray max-w-none">
+                 <p className="text-[13.5px] leading-relaxed text-gray-700 whitespace-pre-wrap">{aiSummary}</p>
+               </div>
             ) : (
-              <div className="flex flex-col items-center gap-2 py-8 text-center text-muted-foreground">
-                <FileText className="size-8 opacity-30" />
-                <p className="text-sm">
-                  {status === 'Failed'
-                    ? 'Text extraction failed for this document.'
-                    : 'No text could be extracted from this document.'}
-                </p>
-                {statusMessage && <p className="max-w-md text-xs">{statusMessage}</p>}
+              <div className="flex flex-col items-center justify-center py-10 text-center opacity-50">
+                 <Bot className="size-8 mb-3 text-gray-400" />
+                 <p className="text-sm text-gray-500 font-medium">Summary not available</p>
               </div>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        )}
 
-        {/* Right column */}
-        <div className="flex flex-col gap-4 lg:col-span-2">
-          {/* AI Summary */}
-          <Card className="shadow-sm">
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <div className="flex size-7 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                  <Bot className="size-4" />
+        {activeTab === 'ocr' && (
+           <div className="h-full bg-white rounded-xl border border-gray-100 p-4 shadow-sm overflow-y-auto">
+             {isProcessing ? (
+                <div className="flex items-center gap-2 text-sm text-gray-500">
+                  <Loader2 className="size-4 animate-spin" /> Processing OCR...
                 </div>
-                <CardTitle className="text-base">AI Summary</CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {isProcessing ? (
-                <div className="flex flex-col gap-2">
-                  {Array.from({ length: 3 }).map((_, i) => (
-                    <Skeleton key={i} className={cn('h-4', i === 2 ? 'w-2/3' : 'w-full')} />
-                  ))}
-                </div>
-              ) : aiSummary ? (
-                <p className="text-sm leading-relaxed text-foreground/80">{aiSummary}</p>
-              ) : (
-                <p className="text-sm text-muted-foreground">Summary not available.</p>
-              )}
-            </CardContent>
-          </Card>
+             ) : extractedText ? (
+                <pre className="whitespace-pre-wrap font-mono text-[11px] leading-relaxed text-gray-600">
+                  {extractedText}
+                </pre>
+             ) : (
+                <p className="text-sm text-gray-500 italic">No text could be extracted.</p>
+             )}
+           </div>
+        )}
 
-          {/* Q&A Chat */}
-          <Card className="shadow-sm flex flex-col flex-1">
-            <CardHeader className="pb-3">
-              <div className="flex items-center gap-2">
-                <div className="flex size-7 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                  <MessageSquare className="size-4" />
-                </div>
-                <CardTitle className="text-base">Ask a Question</CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-3 pt-0">
-              <div className="min-h-24 max-h-48 overflow-y-auto flex flex-col gap-2">
-                {messages.length === 0 && (
-                  <p className="text-xs text-muted-foreground text-center py-4">
-                    Ask anything about this document
-                  </p>
-                )}
-                {messages.map((msg) => (
+        {activeTab === 'qa' && (
+          <div className="flex flex-col h-full bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+             <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
+               {messages.length === 0 && (
+                 <div className="m-auto text-center">
+                   <MessageSquare className="size-8 mx-auto text-gray-300 mb-2" />
+                   <p className="text-[13px] text-gray-500 font-medium">Ask any question about this document</p>
+                 </div>
+               )}
+               {messages.map((msg) => (
                   <div
                     key={msg.id}
                     className={cn(
-                      'rounded-lg px-3 py-2 text-xs leading-relaxed',
+                      'rounded-2xl px-4 py-2.5 text-[13px] leading-relaxed max-w-[85%]',
                       msg.role === 'user'
-                        ? 'ml-4 bg-primary text-primary-foreground self-end'
-                        : 'mr-4 bg-muted text-foreground self-start',
+                        ? 'ml-auto bg-[#FFFAEC] text-gray-900 font-medium border border-[#F5CA50]/30 rounded-tr-sm'
+                        : 'mr-auto bg-gray-50 border border-gray-100 text-gray-800 rounded-tl-sm',
                     )}
                   >
                     {msg.content}
                   </div>
                 ))}
                 {isAsking && (
-                  <div className="mr-4 rounded-lg bg-muted px-3 py-2 self-start">
-                    <Loader2 className="size-3 animate-spin text-muted-foreground" />
+                  <div className="mr-auto bg-gray-50 border border-gray-100 rounded-2xl rounded-tl-sm px-4 py-2.5">
+                    <Loader2 className="size-3.5 animate-spin text-gray-400" />
                   </div>
                 )}
-              </div>
-              <form onSubmit={sendQuestion} className="flex gap-2">
+             </div>
+             <form onSubmit={sendQuestion} className="p-3 border-t border-gray-100 bg-gray-50/50 flex gap-2">
                 <input
-                  id="doc-qa-input"
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
-                  placeholder="e.g. What is the total amount?"
-                  className="flex-1 rounded-lg border border-input bg-background px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-ring"
+                  placeholder="Ask a question..."
+                  className="flex-1 rounded-full border border-gray-200 bg-white px-4 py-2 text-[13px] outline-none focus:ring-1 focus:ring-[#F5CA50] focus:border-[#F5CA50] transition-all"
                   disabled={isProcessing || isAsking}
                 />
-                <Button type="submit" size="icon" className="size-8 shrink-0" disabled={isProcessing || isAsking || !inputValue.trim()}>
-                  <Send className="size-3" />
+                <Button type="submit" size="icon" className="size-9 shrink-0 rounded-full bg-[#F5CA50] text-[#111111] hover:brightness-95" disabled={isProcessing || isAsking || !inputValue.trim()}>
+                  <Send className="size-4" />
                 </Button>
-              </form>
-            </CardContent>
-          </Card>
-        </div>
+             </form>
+          </div>
+        )}
       </div>
-    </div>
+    </Card>
   )
 }
 
@@ -478,144 +393,141 @@ function DocumentDetailView({
 export default function DocumentsPage() {
   const [documents, setDocuments] = useState<ApiDocument[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [loadError, setLoadError] = useState<string | null>(null)
   const [selectedDocId, setSelectedDocId] = useState<string | null>(null)
   const [showUpload, setShowUpload] = useState(false)
+  const [activeFolder, setActiveFolder] = useState('All')
 
   const refresh = useCallback(async () => {
     try {
       const response = await fetch('/api/documents')
-      if (!response.ok) {
-        setLoadError(await readError(response, 'Could not load documents'))
-        return
+      if (response.ok) {
+        const { documents: rows } = (await response.json()) as { documents: ApiDocument[] }
+        setDocuments(rows)
+        // Select first doc by default if none selected
+        if (rows.length > 0 && !selectedDocId) {
+          setSelectedDocId(rows[0].id)
+        }
       }
-      const { documents: rows } = (await response.json()) as { documents: ApiDocument[] }
-      setDocuments(rows)
-      setLoadError(null)
-    } catch (error) {
-      setLoadError((error as Error).message)
-    } finally {
+    } catch (error) {} finally {
       setIsLoading(false)
     }
-  }, [])
+  }, [selectedDocId])
 
-  useEffect(() => {
-    void refresh()
+  useEffect(() => { void refresh() }, [refresh])
+
+  const handleUploaded = useCallback((doc: ApiDocument, processing: Promise<void>) => {
+    setDocuments((prev) => [{ ...doc, status: 'PROCESSING' }, ...prev])
+    setSelectedDocId(doc.id) // Auto-select newly uploaded
+    void processing.finally(() => { void refresh() })
   }, [refresh])
-
-  /**
-   * Show the new row straight away as Processing, then re-read it from the
-   * server once the process request settles.
-   */
-  const handleUploaded = useCallback(
-    (doc: ApiDocument, processing: Promise<void>) => {
-      setDocuments((prev) => [{ ...doc, status: 'PROCESSING' }, ...prev])
-      void processing.finally(() => {
-        void refresh()
-      })
-    },
-    [refresh],
-  )
 
   const selectedDoc = documents.find((doc) => doc.id === selectedDocId) ?? null
 
+  const folders = [
+    { name: 'All', icon: Inbox },
+    { name: 'Financials', icon: PieChart },
+    { name: 'Contracts', icon: Briefcase },
+    { name: 'HR', icon: Users },
+    { name: 'Reports', icon: FolderOpen },
+  ]
+
   return (
-    <DashboardShell>
-      <div className="mx-auto flex max-w-7xl flex-col gap-6">
-        {selectedDoc ? (
-          <DocumentDetailView
-            documentId={selectedDoc.id}
-            summary={selectedDoc}
-            onBack={() => {
-              setSelectedDocId(null)
-              void refresh()
-            }}
-          />
-        ) : (
-          <>
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-2xl font-semibold tracking-tight text-foreground">Documents</h1>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Upload and analyze documents with AI-powered OCR and summarization
-                </p>
-              </div>
-              <Button onClick={() => setShowUpload(true)} id="upload-document-button">
-                <Upload className="size-4" />
-                Upload
-              </Button>
-            </div>
+    <DashboardShell mainClassName="p-0 h-[calc(100vh-64px)] flex flex-col">
+      <div className="flex h-full max-w-[1600px] mx-auto w-full">
+        
+        {/* Left Sidebar - Folders */}
+        <div className="w-60 border-r border-gray-100 bg-white flex flex-col p-4 shrink-0 hidden md:flex">
+          <Button 
+            className="w-full justify-start bg-[#F5CA50] text-gray-900 hover:brightness-95 shadow-sm rounded-lg h-10 font-bold mb-6"
+            onClick={() => setShowUpload(true)}
+          >
+            <Plus className="size-4 mr-2" /> Upload Document
+          </Button>
 
-            {isLoading ? (
-              <Card className="shadow-sm">
-                <div className="flex flex-col gap-3 p-6">
-                  {Array.from({ length: 4 }).map((_, i) => (
-                    <Skeleton key={i} className="h-10 w-full" />
-                  ))}
-                </div>
-              </Card>
-            ) : documents.length === 0 ? (
-              <Card className="shadow-sm">
-                <div className="flex flex-col items-center justify-center gap-4 px-6 py-16 text-center">
-                  <div className="flex size-14 items-center justify-center rounded-full bg-accent text-accent-foreground">
-                    <Inbox className="size-7" />
+          <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 px-2">Folders</h4>
+          <ul className="flex flex-col gap-1">
+            {folders.map(f => (
+              <li key={f.name}>
+                <button
+                  onClick={() => setActiveFolder(f.name)}
+                  className={cn(
+                    "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-[13.5px] font-medium transition-colors",
+                    activeFolder === f.name 
+                      ? "bg-gray-100 text-gray-900" 
+                      : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"
+                  )}
+                >
+                  <f.icon className={cn("size-4", activeFolder === f.name ? "text-gray-900" : "text-gray-400")} />
+                  {f.name}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        {/* Middle - Document List */}
+        <div className="flex-1 min-w-0 bg-gray-50/30 border-r border-gray-100 flex flex-col">
+          <div className="p-4 md:p-6 border-b border-gray-100 bg-white flex items-center justify-between shrink-0">
+             <h2 className="text-xl font-bold text-gray-900">Documents</h2>
+             <Button variant="outline" size="sm" className="md:hidden" onClick={() => setShowUpload(true)}>Upload</Button>
+          </div>
+          
+          <div className="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col gap-3">
+             {isLoading ? (
+                Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-20 w-full rounded-2xl" />)
+             ) : documents.length === 0 ? (
+                <div className="m-auto text-center flex flex-col items-center">
+                  <div className="size-16 rounded-full bg-gray-100 flex items-center justify-center mb-4">
+                    <FileText className="size-8 text-gray-400" />
                   </div>
-                  <div className="space-y-1">
-                    <p className="text-base font-medium">
-                      {loadError ? 'Could not load documents' : 'No documents yet'}
-                    </p>
-                    <p className="mx-auto max-w-sm text-sm text-muted-foreground">
-                      {loadError ??
-                        'Upload your first document to get started with AI-powered processing.'}
-                    </p>
-                  </div>
-                  <Button onClick={() => setShowUpload(true)}>
-                    <Plus className="size-4" />
-                    Upload document
-                  </Button>
+                  <h3 className="text-sm font-bold text-gray-900">No documents found</h3>
+                  <p className="text-[13px] text-gray-500 mt-1 max-w-xs">Upload a document to automatically extract text and generate AI summaries.</p>
                 </div>
-              </Card>
-            ) : (
-              <Card className="shadow-sm">
-                <CardHeader>
-                  <CardTitle>All Documents</CardTitle>
-                  <CardDescription>{documents.length} documents in your workspace</CardDescription>
-                </CardHeader>
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="hover:bg-transparent">
-                        <TableHead>Name</TableHead>
-                        <TableHead>Type</TableHead>
-                        <TableHead>Upload Date</TableHead>
-                        <TableHead>Size</TableHead>
-                        <TableHead>Status</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {documents.map((doc) => (
-                        <TableRow
-                          key={doc.id}
-                          className="cursor-pointer"
-                          onClick={() => setSelectedDocId(doc.id)}
-                          id={`doc-row-${doc.id}`}
-                        >
-                          <TableCell className="font-medium text-foreground">{doc.fileName}</TableCell>
-                          <TableCell><DocTypeIcon type={doc.displayType} /></TableCell>
-                          <TableCell className="text-muted-foreground">{formatUploadDate(doc.createdAt)}</TableCell>
-                          <TableCell className="text-muted-foreground tabular-nums">{doc.size}</TableCell>
-                          <TableCell><StatusBadge status={statusLabels[doc.status]} /></TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              </Card>
-            )}
-          </>
-        )}
+             ) : (
+               documents.map(doc => (
+                 <button 
+                    key={doc.id}
+                    onClick={() => setSelectedDocId(doc.id)}
+                    className={cn(
+                      "flex items-center gap-4 p-4 rounded-2xl border text-left transition-all",
+                      selectedDocId === doc.id
+                        ? "border-[#F5CA50] bg-[#FFFAEC] shadow-sm ring-1 ring-[#F5CA50]/50"
+                        : "border-gray-100 bg-white hover:border-gray-200 hover:shadow-sm"
+                    )}
+                 >
+                    <div className="shrink-0 bg-gray-50 rounded-xl p-2.5 border border-gray-100">
+                      <DocTypeIcon type={doc.displayType} />
+                    </div>
+                    <div className="flex-1 min-w-0 flex flex-col gap-1">
+                      <p className="text-[14px] font-bold text-gray-900 truncate">{doc.fileName}</p>
+                      <div className="flex items-center gap-3 text-[12px] text-gray-500 font-medium">
+                        <span>{doc.size}</span>
+                        <span>·</span>
+                        <span>{formatUploadDate(doc.createdAt)}</span>
+                      </div>
+                    </div>
+                    <div className="shrink-0">
+                       <StatusBadge status={statusLabels[doc.status]} />
+                    </div>
+                 </button>
+               ))
+             )}
+          </div>
+        </div>
+
+        {/* Right - Detail View */}
+        <div className="w-[360px] xl:w-[420px] bg-white p-4 md:p-6 shrink-0 hidden lg:block overflow-hidden h-full">
+           {selectedDoc ? (
+             <DocumentDetailView documentId={selectedDoc.id} summary={selectedDoc} />
+           ) : (
+             <div className="h-full border-2 border-dashed border-gray-100 rounded-2xl flex flex-col items-center justify-center text-center p-8 text-gray-400">
+                <FileText className="size-10 mb-4 opacity-30" />
+                <p className="text-sm font-semibold text-gray-500">Select a document to view details</p>
+             </div>
+           )}
+        </div>
+
       </div>
-
       {showUpload && <UploadModal onClose={() => setShowUpload(false)} onUploaded={handleUploaded} />}
     </DashboardShell>
   )

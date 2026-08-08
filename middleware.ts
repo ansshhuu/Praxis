@@ -12,15 +12,24 @@ const PUBLIC_ROUTES = ['/', '/login', '/register']
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  if (PUBLIC_ROUTES.some((route) => pathname === route || pathname.startsWith(`${route}/`))) {
-    return NextResponse.next()
-  }
-
   if (pathname.startsWith('/api/auth')) {
     return NextResponse.next()
   }
 
   const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET })
+
+  // Treat exactly '/', and anything starting with '/login' or '/register' as public routes
+  const isPublicRoute = PUBLIC_ROUTES.some((route) => 
+    pathname === route || (route !== '/' && pathname.startsWith(`${route}/`))
+  )
+
+  if (isPublicRoute) {
+    if (token) {
+      // Authenticated users shouldn't see marketing / login / register pages
+      return NextResponse.redirect(new URL('/dashboard', request.url))
+    }
+    return NextResponse.next()
+  }
 
   if (!token) {
     const loginUrl = new URL('/login', request.url)
@@ -29,7 +38,7 @@ export async function middleware(request: NextRequest) {
 
   const matchedGuard = ROLE_GUARDED_ROUTES.find((guard) => pathname.startsWith(guard.prefix))
   if (matchedGuard && !matchedGuard.roles.includes(token.role as string)) {
-    return NextResponse.redirect(new URL('/', request.url))
+    return NextResponse.redirect(new URL('/dashboard', request.url))
   }
 
   return NextResponse.next()
