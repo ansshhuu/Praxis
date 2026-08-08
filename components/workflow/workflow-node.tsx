@@ -6,6 +6,8 @@ import { Check, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
   categoryStyles,
+  nodeColor,
+  nodeTint,
   nodeTypesByKey,
   type NodeTypeKey,
 } from './node-catalog'
@@ -22,38 +24,45 @@ export function WorkflowNode({ data, selected }: NodeProps) {
   const nodeData = data as WorkflowNodeData
   const def = nodeTypesByKey[nodeData.typeKey]
   const style = categoryStyles[def.category]
-  const Icon = def.icon
+  const color = nodeColor(def)
+  const tint  = nodeTint(def)
+  const Icon  = def.icon
   const isCondition = nodeData.typeKey === 'condition'
   const status = nodeData.status ?? 'idle'
 
   return (
     <div
       className={cn(
-        'relative flex w-52 items-center gap-3 rounded-xl border bg-card py-3 pr-3 pl-4 shadow-sm transition-all',
-        selected ? 'border-primary shadow-md ring-2 ring-primary/30' : 'border-border',
+        'relative flex w-56 items-center gap-3 rounded-xl border bg-card py-3 pr-3 pl-4 shadow-sm transition-all',
+        selected ? 'shadow-md ring-2 ring-primary/30' : 'border-border',
         status === 'running' && 'animate-pulse-ring',
       )}
-      style={{ borderLeft: `4px solid ${style.color}` }}
+      style={{
+        borderLeft: `4px solid ${color}`,
+        // Subtle category-tinted full border when selected
+        ...(selected ? { borderColor: color, borderLeftWidth: '4px' } : {}),
+      }}
     >
       <Handle
         type="target"
         position={Position.Left}
         className="!size-2.5 !border-2 !border-card"
-        style={{ background: style.color }}
+        style={{ background: color }}
       />
 
+      {/* ── Icon badge: 44 × 44 px rounded-xl chip ── */}
       <span
-        className="flex size-9 shrink-0 items-center justify-center rounded-lg"
-        style={{ background: style.tint, color: style.color }}
+        className="flex size-11 shrink-0 items-center justify-center rounded-xl"
+        style={{ background: tint, color }}
       >
-        <Icon className="size-5" />
+        <Icon className="size-5" strokeWidth={1.75} />
       </span>
 
       <div className="min-w-0">
-        <p className="truncate text-sm font-medium text-foreground">
+        <p className="truncate text-sm font-semibold text-foreground">
           {nodeData.label}
         </p>
-        <p className="text-xs" style={{ color: style.color }}>
+        <p className="mt-0.5 text-xs font-medium" style={{ color }}>
           {style.label}
         </p>
       </div>
@@ -91,9 +100,10 @@ export function WorkflowNode({ data, selected }: NodeProps) {
           type="source"
           position={Position.Right}
           className="!size-2.5 !border-2 !border-card"
-          style={{ background: style.color }}
+          style={{ background: color }}
         />
       )}
     </div>
   )
 }
+

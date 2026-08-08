@@ -2,15 +2,16 @@
 
 import { useState } from 'react'
 
-import { categoryStyles, paletteGroups, type NodeTypeDef } from './node-catalog'
+import { categoryStyles, nodeColor, nodeTint, paletteGroups, type NodeTypeDef } from './node-catalog'
 
 function groupLabel(category: NodeTypeDef['category']) {
   return category === 'action' ? 'Actions' : `${categoryStyles[category].label}s`
 }
 
 function PaletteCard({ def }: { def: NodeTypeDef }) {
-  const style = categoryStyles[def.category]
-  const Icon = def.icon
+  const color = nodeColor(def)
+  const tint  = nodeTint(def)
+  const Icon  = def.icon
 
   return (
     <div
@@ -20,13 +21,14 @@ function PaletteCard({ def }: { def: NodeTypeDef }) {
         e.dataTransfer.effectAllowed = 'move'
       }}
       title={def.description}
-      className="flex cursor-grab items-center gap-2.5 rounded-lg border border-border bg-card px-2.5 py-2 shadow-xs transition-colors hover:border-primary/40 hover:bg-accent active:cursor-grabbing"
+      className="flex cursor-grab items-center gap-2.5 rounded-xl border border-border bg-card px-2.5 py-2 shadow-xs transition-colors hover:border-primary/40 hover:bg-accent active:cursor-grabbing"
     >
+      {/* Icon badge: 36 × 36 px rounded-xl chip */}
       <span
-        className="flex size-7 shrink-0 items-center justify-center rounded-md"
-        style={{ background: style.tint, color: style.color }}
+        className="flex size-9 shrink-0 items-center justify-center rounded-xl"
+        style={{ background: tint, color }}
       >
-        <Icon className="size-4" />
+        <Icon className="size-4" strokeWidth={1.75} />
       </span>
       <span className="truncate text-sm font-medium text-foreground">
         {def.label}
@@ -44,8 +46,9 @@ function RailItem({
   def: NodeTypeDef
   onHover: (tooltip: TooltipState | null) => void
 }) {
-  const style = categoryStyles[def.category]
-  const Icon = def.icon
+  const color = nodeColor(def)
+  const tint  = nodeTint(def)
+  const Icon  = def.icon
 
   return (
     <div
@@ -65,13 +68,14 @@ function RailItem({
       }}
       onMouseLeave={() => onHover(null)}
       aria-label={def.label}
-      className="flex size-10 cursor-grab items-center justify-center rounded-lg transition-colors hover:bg-accent active:cursor-grabbing"
+      className="flex size-12 cursor-grab items-center justify-center rounded-xl transition-colors hover:bg-accent active:cursor-grabbing"
     >
+      {/* Icon badge: 36 × 36 px rounded-xl chip */}
       <span
-        className="flex size-7 shrink-0 items-center justify-center rounded-md"
-        style={{ background: style.tint, color: style.color }}
+        className="flex size-9 shrink-0 items-center justify-center rounded-xl"
+        style={{ background: tint, color }}
       >
-        <Icon className="size-4" />
+        <Icon className="size-4" strokeWidth={1.75} />
       </span>
     </div>
   )

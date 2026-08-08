@@ -1,16 +1,16 @@
 import {
   Bell,
+  BrainCircuit,
   Braces,
   Clock,
   Database,
   FileText,
-  Filter,
   GitBranch,
   Globe,
   Mail,
   MailPlus,
-  Repeat,
-  Sparkles,
+  RefreshCw,
+  Timer,
   Webhook,
   type LucideIcon,
 } from 'lucide-react'
@@ -25,11 +25,13 @@ export type CategoryStyle = {
   tint: string
 }
 
+// ── Category-level color themes ───────────────────────────────────────────────
+// trigger → green | ai → indigo/purple | logic → orange | action → amber
 export const categoryStyles: Record<NodeCategory, CategoryStyle> = {
-  trigger: { label: 'Trigger', color: '#2563eb', tint: 'rgba(37, 99, 235, 0.12)' },
-  ai: { label: 'AI', color: '#7c3aed', tint: 'rgba(124, 58, 237, 0.12)' },
-  logic: { label: 'Logic', color: '#ea580c', tint: 'rgba(234, 88, 12, 0.12)' },
-  action: { label: 'Action', color: '#16a34a', tint: 'rgba(22, 163, 74, 0.12)' },
+  trigger: { label: 'Trigger', color: '#16a34a', tint: 'rgba(22, 163, 74, 0.12)' },
+  ai:      { label: 'AI',      color: '#6366f1', tint: 'rgba(99, 102, 241, 0.12)' },
+  logic:   { label: 'Logic',   color: '#ea580c', tint: 'rgba(234, 88, 12, 0.12)' },
+  action:  { label: 'Action',  color: '#f59e0b', tint: 'rgba(245, 158, 11, 0.12)' },
 }
 
 export type NodeTypeKey =
@@ -53,10 +55,29 @@ export type NodeTypeDef = {
   category: NodeCategory
   icon: LucideIcon
   description: string
+  /**
+   * Optional per-node accent color (hex). Overrides the category color for
+   * the icon badge and left-border. Falls back to categoryStyles[category].color.
+   */
+  colorOverride?: string
+  /**
+   * Optional per-node icon-chip tint. Falls back to categoryStyles[category].tint.
+   */
+  tintOverride?: string
+}
+
+/** Resolve the effective accent color for any node def. */
+export function nodeColor(def: NodeTypeDef): string {
+  return def.colorOverride ?? categoryStyles[def.category].color
+}
+
+/** Resolve the effective chip-background tint for any node def. */
+export function nodeTint(def: NodeTypeDef): string {
+  return def.tintOverride ?? categoryStyles[def.category].tint
 }
 
 export const nodeTypes: NodeTypeDef[] = [
-  // Triggers
+  // ── Triggers (green) ─────────────────────────────────────────────────────
   {
     key: 'email-trigger',
     label: 'Email Trigger',
@@ -78,12 +99,13 @@ export const nodeTypes: NodeTypeDef[] = [
     icon: Webhook,
     description: 'Triggers from an inbound HTTP request',
   },
-  // Actions
+
+  // ── AI (indigo) ───────────────────────────────────────────────────────────
   {
     key: 'ai-classify',
     label: 'AI Classify',
     category: 'ai',
-    icon: Sparkles,
+    icon: BrainCircuit,
     description: 'Categorize input with an LLM',
   },
   {
@@ -93,12 +115,16 @@ export const nodeTypes: NodeTypeDef[] = [
     icon: Braces,
     description: 'Pull structured fields from text',
   },
+
+  // ── Actions (amber default; DB overridden to orange-red) ─────────────────
   {
     key: 'save-db',
     label: 'Save to DB',
     category: 'action',
     icon: Database,
     description: 'Persist a record to the database',
+    colorOverride: '#ea580c',
+    tintOverride:  'rgba(234, 88, 12, 0.12)',
   },
   {
     key: 'generate-report',
@@ -128,7 +154,8 @@ export const nodeTypes: NodeTypeDef[] = [
     icon: MailPlus,
     description: 'Send an outbound email',
   },
-  // Logic
+
+  // ── Logic (orange) ────────────────────────────────────────────────────────
   {
     key: 'condition',
     label: 'Condition',
@@ -140,14 +167,14 @@ export const nodeTypes: NodeTypeDef[] = [
     key: 'loop',
     label: 'Loop',
     category: 'logic',
-    icon: Repeat,
+    icon: RefreshCw,
     description: 'Iterate over a collection',
   },
   {
     key: 'delay',
     label: 'Delay',
     category: 'logic',
-    icon: Clock,
+    icon: Timer,
     description: 'Wait before continuing',
   },
 ]
