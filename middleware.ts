@@ -7,7 +7,7 @@ const ROLE_GUARDED_ROUTES: { prefix: string; roles: string[] }[] = [
   { prefix: '/resumes', roles: ['ADMIN', 'HR', 'MANAGER'] },
 ]
 
-const PUBLIC_ROUTES = ['/', '/login']
+const PUBLIC_ROUTES = ['/', '/login', '/register']
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl

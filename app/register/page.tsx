@@ -1,9 +1,9 @@
 'use client'
 
 import { Eye, EyeOff } from 'lucide-react'
-import { signIn } from 'next-auth/react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { signIn } from 'next-auth/react'
 import { useState } from 'react'
 
 /* ── Praxis sunburst icon ─────────────────────────────────────────── */
@@ -62,22 +62,46 @@ const baseInput: React.CSSProperties = {
 const errInput: React.CSSProperties = { ...baseInput, border: '1.5px solid #dc2626' }
 
 /* ── Page ─────────────────────────────────────────────────────────── */
-export default function LoginPage() {
+export default function RegisterPage() {
   const router = useRouter()
-  const [email, setEmail] = useState('')
+  const [name,     setName]     = useState('')
+  const [email,    setEmail]    = useState('')
   const [password, setPassword] = useState('')
-  const [showPw, setShowPw] = useState(false)
-  const [rememberMe, setRememberMe] = useState(false)
-  const [error, setError] = useState('')
-  const [loading, setLoading] = useState(false)
+  const [showPw,   setShowPw]   = useState(false)
+  const [agreed,   setAgreed]   = useState(false)
+  const [error,    setError]    = useState('')
+  const [loading,  setLoading]  = useState(false)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    if (!agreed) { setError('Please agree to the Terms of Service and Privacy Policy to continue.'); return }
     setError('')
     setLoading(true)
+
+    // 1. Create account
+    const res = await fetch('/api/auth/register', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ name, email, password }),
+    })
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      setError(data.error || 'Registration failed. Please try again.')
+      setLoading(false)
+      return
+    }
+
+    // 2. Auto-login — smoother UX than redirect to /login
     const result = await signIn('credentials', { email, password, redirect: false })
     setLoading(false)
-    if (!result || result.error) { setError('Invalid email or password. Please try again.'); return }
+
+    if (!result || result.error) {
+      // Account created but session failed — send to login with a hint
+      router.push('/login?registered=1')
+      return
+    }
+
     router.push('/')
     router.refresh()
   }
@@ -89,36 +113,44 @@ export default function LoginPage() {
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 24px' }}>
         <div style={{ width: '100%', maxWidth: 400 }}>
 
-          <Link href="/" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, marginBottom: 44, textDecoration: 'none' }}>
+          <Link href="/" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, marginBottom: 40, textDecoration: 'none' }}>
             <div style={{ width: 34, height: 34, borderRadius: 10, background: '#FFFAEC', border: '1.5px solid rgba(245,202,80,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <PraxisIcon size={17} color="#D4A017" />
             </div>
             <span style={{ fontSize: 14, fontWeight: 900, letterSpacing: '0.05em', color: '#111111' }}>PRAXIS</span>
           </Link>
 
-          <h1 style={{ fontSize: 25, fontWeight: 800, color: '#111111', letterSpacing: '-0.03em', margin: '0 0 6px' }}>Login to Praxis</h1>
-          <p style={{ fontSize: 14, color: '#66615B', margin: '0 0 28px', lineHeight: 1.5 }}>Welcome back! Please login to your account.</p>
+          <h1 style={{ fontSize: 25, fontWeight: 800, color: '#111111', letterSpacing: '-0.03em', margin: '0 0 6px' }}>Create your Praxis account</h1>
+          <p style={{ fontSize: 14, color: '#66615B', margin: '0 0 28px', lineHeight: 1.5 }}>Get started in less than a minute.</p>
 
-          <form onSubmit={handleSubmit} id="login-form">
+          <form onSubmit={handleSubmit} id="register-form">
+            {/* Full name */}
+            <div style={{ marginBottom: 16 }}>
+              <label htmlFor="name-input" style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#111111', marginBottom: 6 }}>
+                Full name
+              </label>
+              <input id="name-input" type="text" placeholder="Jane Smith" autoComplete="name" required
+                value={name} onChange={(e) => setName(e.target.value)} style={error && !name ? errInput : baseInput} />
+            </div>
+
             {/* Email */}
-            <div style={{ marginBottom: 18 }}>
+            <div style={{ marginBottom: 16 }}>
               <label htmlFor="email-input" style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#111111', marginBottom: 6 }}>
                 Email address
               </label>
               <input id="email-input" type="email" placeholder="name@company.com" autoComplete="email" required
-                value={email} onChange={(e) => setEmail(e.target.value)} style={error ? errInput : baseInput} />
+                value={email} onChange={(e) => setEmail(e.target.value)} style={baseInput} />
             </div>
 
             {/* Password */}
-            <div style={{ marginBottom: 20 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                <label htmlFor="password-input" style={{ fontSize: 13, fontWeight: 600, color: '#111111' }}>Password</label>
-                <a href="#" id="forgot-password-link" style={{ fontSize: 12, color: '#D4A017', textDecoration: 'none', fontWeight: 600 }}>Forgot password?</a>
-              </div>
+            <div style={{ marginBottom: 18 }}>
+              <label htmlFor="password-input" style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#111111', marginBottom: 6 }}>
+                Password
+              </label>
               <div style={{ position: 'relative' }}>
-                <input id="password-input" type={showPw ? 'text' : 'password'} placeholder="••••••••" autoComplete="current-password" required
+                <input id="password-input" type={showPw ? 'text' : 'password'} placeholder="Min. 8 characters" autoComplete="new-password" required minLength={8}
                   value={password} onChange={(e) => setPassword(e.target.value)}
-                  style={{ ...(error ? errInput : baseInput), paddingRight: 44 }} />
+                  style={{ ...baseInput, paddingRight: 44 }} />
                 <button type="button" id="toggle-password-btn" onClick={() => setShowPw(!showPw)}
                   style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#66615B', padding: 0, display: 'flex', alignItems: 'center' }}
                   aria-label={showPw ? 'Hide password' : 'Show password'}>
@@ -127,45 +159,50 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* Remember me */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 }}>
-              <input id="remember-me" type="checkbox" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)}
-                style={{ width: 15, height: 15, accentColor: '#111111', cursor: 'pointer', flexShrink: 0 }} />
-              <label htmlFor="remember-me" style={{ fontSize: 13, color: '#66615B', cursor: 'pointer' }}>Remember me</label>
+            {/* Terms checkbox */}
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, marginBottom: 20 }}>
+              <input id="agree-terms" type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)}
+                style={{ width: 15, height: 15, accentColor: '#111111', cursor: 'pointer', flexShrink: 0, marginTop: 2 }} />
+              <label htmlFor="agree-terms" style={{ fontSize: 13, color: '#66615B', cursor: 'pointer', lineHeight: 1.4 }}>
+                I agree to the{' '}
+                <a href="#" style={{ color: '#D4A017', textDecoration: 'none', fontWeight: 600 }}>Terms of Service</a>
+                {' '}and{' '}
+                <a href="#" style={{ color: '#D4A017', textDecoration: 'none', fontWeight: 600 }}>Privacy Policy</a>
+              </label>
             </div>
 
             {error && (
-              <div role="alert" id="login-error" style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#dc2626', marginBottom: 16 }}>
+              <div role="alert" id="register-error" style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#dc2626', marginBottom: 16 }}>
                 {error}
               </div>
             )}
 
-            <button type="submit" id="sign-in-button" disabled={loading}
+            <button type="submit" id="sign-up-button" disabled={loading}
               style={{ width: '100%', padding: '12px', borderRadius: 10, background: '#111111', color: '#fff', fontSize: 14.5, fontWeight: 700, border: 'none', cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1, letterSpacing: '-0.01em', transition: 'opacity 0.15s' }}>
-              {loading ? 'Signing in...' : 'Login'}
+              {loading ? 'Creating account...' : 'Sign Up'}
             </button>
           </form>
 
           {/* Divider */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '22px 0' }}>
             <div style={{ flex: 1, height: 1, background: '#EAE3D9' }} />
-            <span style={{ fontSize: 12, color: '#9F9A93', whiteSpace: 'nowrap' }}>or continue with</span>
+            <span style={{ fontSize: 12, color: '#9F9A93', whiteSpace: 'nowrap' }}>or sign up with</span>
             <div style={{ flex: 1, height: 1, background: '#EAE3D9' }} />
           </div>
 
           {/* OAuth buttons — UI only */}
           <div style={{ display: 'flex', gap: 10 }}>
-            <button id="google-login-btn" type="button" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '10px 14px', borderRadius: 10, border: '1.5px solid #E5E2DC', background: '#fff', fontSize: 13.5, fontWeight: 600, color: '#111111', cursor: 'pointer' }}>
+            <button id="google-register-btn" type="button" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '10px 14px', borderRadius: 10, border: '1.5px solid #E5E2DC', background: '#fff', fontSize: 13.5, fontWeight: 600, color: '#111111', cursor: 'pointer' }}>
               <GoogleIcon /> Google
             </button>
-            <button id="microsoft-login-btn" type="button" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '10px 14px', borderRadius: 10, border: '1.5px solid #E5E2DC', background: '#fff', fontSize: 13.5, fontWeight: 600, color: '#111111', cursor: 'pointer' }}>
+            <button id="microsoft-register-btn" type="button" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '10px 14px', borderRadius: 10, border: '1.5px solid #E5E2DC', background: '#fff', fontSize: 13.5, fontWeight: 600, color: '#111111', cursor: 'pointer' }}>
               <MicrosoftIcon /> Microsoft
             </button>
           </div>
 
           <p style={{ textAlign: 'center', marginTop: 28, fontSize: 13, color: '#66615B' }}>
-            Don&apos;t have an account?{' '}
-            <Link href="/register" id="signup-link" style={{ color: '#D4A017', fontWeight: 700, textDecoration: 'none' }}>Sign up</Link>
+            Already have an account?{' '}
+            <Link href="/login" id="login-link" style={{ color: '#D4A017', fontWeight: 700, textDecoration: 'none' }}>Login</Link>
           </p>
         </div>
       </div>
@@ -175,15 +212,15 @@ export default function LoginPage() {
         style={{ flex: 1, flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#EAE3D9', position: 'relative', overflow: 'hidden', padding: '48px 40px' }}>
         {/* Dot-grid texture */}
         <div style={{ position: 'absolute', inset: 0, backgroundImage: 'radial-gradient(circle, rgba(0,0,0,0.07) 1px, transparent 1px)', backgroundSize: '28px 28px', pointerEvents: 'none' }} />
-        {/* Amber atmospheric glow */}
-        <div style={{ position: 'absolute', top: '35%', left: '50%', transform: 'translateX(-50%)', width: 480, height: 380, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(245,202,80,0.25) 0%, transparent 70%)', filter: 'blur(50px)', pointerEvents: 'none' }} />
+        {/* Lime-tinted atmospheric glow for register — same palette, slightly different personality */}
+        <div style={{ position: 'absolute', top: '30%', left: '50%', transform: 'translateX(-50%)', width: 500, height: 400, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(118,224,18,0.14) 0%, rgba(245,202,80,0.15) 40%, transparent 70%)', filter: 'blur(60px)', pointerEvents: 'none' }} />
 
         {/* Accent dots */}
-        <div style={{ position: 'absolute', top: 80,  right: 80,  width: 10, height: 10, borderRadius: '50%', background: '#F5CA50', boxShadow: '0 0 10px rgba(245,202,80,0.55)' }} />
-        <div style={{ position: 'absolute', top: 160, left: 60,  width: 6,  height: 6,  borderRadius: '50%', background: '#D4A017', opacity: 0.45 }} />
-        <div style={{ position: 'absolute', bottom: 120, right: 100, width: 8, height: 8, borderRadius: '50%', background: '#F5CA50', opacity: 0.5 }} />
-        <div style={{ position: 'absolute', bottom: 80,  left: 80,  width: 5,  height: 5,  borderRadius: '50%', background: '#D4A017', opacity: 0.35 }} />
-        <div style={{ position: 'absolute', top: 40,   left: '42%', width: 4,  height: 4,  borderRadius: '50%', background: '#F5CA50', opacity: 0.6 }} />
+        <div style={{ position: 'absolute', top: 70,   right: 90,  width: 9,  height: 9,  borderRadius: '50%', background: '#76E012', boxShadow: '0 0 10px rgba(118,224,18,0.45)', opacity: 0.7 }} />
+        <div style={{ position: 'absolute', top: 170,  left: 55,  width: 6,  height: 6,  borderRadius: '50%', background: '#D4A017', opacity: 0.45 }} />
+        <div style={{ position: 'absolute', bottom: 110, right: 110, width: 7, height: 7, borderRadius: '50%', background: '#F5CA50', opacity: 0.55 }} />
+        <div style={{ position: 'absolute', bottom: 75,  left: 70,  width: 5,  height: 5,  borderRadius: '50%', background: '#76E012', opacity: 0.35 }} />
+        <div style={{ position: 'absolute', top: 45,   left: '45%', width: 4,  height: 4,  borderRadius: '50%', background: '#F5CA50', opacity: 0.6 }} />
 
         <div style={{ position: 'relative', zIndex: 1, textAlign: 'center', maxWidth: 360 }}>
           {/* Logo */}
@@ -195,14 +232,24 @@ export default function LoginPage() {
           </div>
 
           <h2 style={{ fontSize: 32, fontWeight: 800, color: '#111111', letterSpacing: '-0.04em', lineHeight: 1.1, margin: '0 0 16px' }}>
-            Automate. Collaborate.<br />Accelerate.
+            Your work, automated<br />intelligently.
           </h2>
           <p style={{ fontSize: 16, color: '#66615B', lineHeight: 1.65, margin: '0 0 40px' }}>
-            One platform to power all your enterprise workflows.
+            Join thousands of teams building the future of work.
           </p>
 
+          {/* Social proof stats */}
+          <div style={{ display: 'flex', gap: 20, justifyContent: 'center', marginBottom: 36 }}>
+            {[{ val: '10k+', label: 'Teams' }, { val: '142M', label: 'Tasks automated' }, { val: '99.9%', label: 'Uptime' }].map(({ val, label }) => (
+              <div key={label} style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 20, fontWeight: 800, color: '#111111', letterSpacing: '-0.03em' }}>{val}</div>
+                <div style={{ fontSize: 11, color: '#9F9A93', marginTop: 2 }}>{label}</div>
+              </div>
+            ))}
+          </div>
+
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center' }}>
-            {['AI Processing', 'Workflow Automation', 'Resume Screening', 'AI Assistant'].map((feat) => (
+            {['Free to start', 'No credit card', 'Cancel anytime', 'GDPR ready'].map((feat) => (
               <span key={feat} style={{ padding: '6px 14px', borderRadius: 999, background: 'rgba(255,255,255,0.65)', border: '1px solid rgba(0,0,0,0.09)', fontSize: 12, fontWeight: 600, color: '#66615B' }}>
                 {feat}
               </span>

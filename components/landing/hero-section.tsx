@@ -46,7 +46,7 @@ export function HeroSection() {
         <div className="hero-cta-row fu-3">
           <Link href="/login" id="hero-get-started-btn" className="btn-cta-primary">Get Started &rarr;</Link>
           <button id="hero-watch-demo-btn" className="btn-cta-demo">
-            <span className="demo-play-wrap"><Play size={11} color="#FFE485" fill="#FFE485" /></span>
+            <span className="demo-play-wrap"><Play size={11} color="#FFFFFF" fill="#FFFFFF" /></span>
             Watch Demo
           </button>
         </div>

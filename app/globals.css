@@ -185,3 +185,14 @@
 .animate-pulse-ring {
   animation: pulse-ring 1.2s ease-in-out infinite;
 }
+
+/* Auth pages — brand panel hides on mobile, shows on desktop */
+.auth-brand-panel {
+  display: none !important;
+}
+@media (min-width: 768px) {
+  .auth-brand-panel {
+    display: flex !important;
+  }
+}
+
