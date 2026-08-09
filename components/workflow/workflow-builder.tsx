@@ -17,6 +17,7 @@ import {
   type Node,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
+import { useReducedMotion } from 'framer-motion'
 import {
   History,
   Loader2,
@@ -45,7 +46,11 @@ import { NodeConfigDrawer, defaultConfigFor } from './node-config-drawer'
 import { PaletteSidebar } from './palette-sidebar'
 import { RunHistory } from './run-history'
 import { RunToast, type Toast } from './run-toast'
-import { WorkflowNode, type WorkflowNodeData } from './workflow-node'
+import {
+  WorkflowNode,
+  type WorkflowNodeData,
+  type WorkflowNodeStatus,
+} from './workflow-node'
 
 const rfNodeTypes = { workflow: WorkflowNode }
 
@@ -107,6 +112,39 @@ const initialEdges: Edge[] = [
 
 type Snapshot = { nodes: Node[]; edges: Edge[] }
 
+/* ── Execution playback ────────────────────────────────────
+   Timings kept snappy: a node lights up, settles 260ms later, and the next
+   follows 380ms after the last one started. */
+const STEP_MS = 380
+const SETTLE_MS = 260
+/** How long the finished graph holds before returning to rest. */
+const HOLD_MS = 1600
+
+type PlaybackStep = { nodeId: string; status: WorkflowNodeStatus }
+
+/** Engine step status → node visual status. */
+const STATUS_BY_STEP: Record<string, WorkflowNodeStatus> = {
+  ok: 'done',
+  error: 'failed',
+  skipped: 'skipped',
+}
+
+/** Narrow the run response's `steps[]` into a playback script. */
+function toPlayback(steps: unknown): PlaybackStep[] {
+  if (!Array.isArray(steps)) return []
+  return steps.flatMap((entry) => {
+    if (!entry || typeof entry !== 'object') return []
+    const row = entry as { nodeId?: unknown; status?: unknown }
+    if (typeof row.nodeId !== 'string') return []
+    return [
+      {
+        nodeId: row.nodeId,
+        status: STATUS_BY_STEP[String(row.status)] ?? 'done',
+      },
+    ]
+  })
+}
+
 type WorkflowStatus = 'DRAFT' | 'ACTIVE' | 'PAUSED'
 
 const statusLabels: Record<WorkflowStatus, string> = {
@@ -157,8 +195,9 @@ function Flow() {
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [running, setRunning] = useState(false)
-  const [animating, setAnimating] = useState(false)
+  const [playback, setPlayback] = useState<PlaybackStep[] | null>(null)
   const [saving, setSaving] = useState(false)
+  const prefersReduced = useReducedMotion()
   const [status, setStatus] = useState<WorkflowStatus>('DRAFT')
   const [name, setName] = useState('Untitled Workflow')
   const [past, setPast] = useState<Snapshot[]>([])
@@ -266,21 +305,27 @@ function Flow() {
     [commit, setNodes, setEdges],
   )
 
-  // Load the user's most recently updated workflow into the canvas. When the
-  // account has none, the canvas keeps its starter graph and the first Save
-  // creates a new record.
+  // Load a workflow into the canvas: the one named by `?id=` when present
+  // (that is how "Use Template" hands off a freshly forked copy), otherwise
+  // the user's most recently updated one. When the account has none, the
+  // canvas keeps its starter graph and the first Save creates a new record.
   useEffect(() => {
     let cancelled = false
 
     async function loadLatest() {
       try {
-        const listResponse = await fetch('/api/workflows')
-        if (!listResponse.ok) return
-        const { workflows } = await listResponse.json()
-        const latest = workflows?.[0]
-        if (!latest || cancelled) return
+        const requestedId = new URLSearchParams(window.location.search).get('id')
 
-        const response = await fetch(`/api/workflows/${latest.id}`)
+        let targetId = requestedId
+        if (!targetId) {
+          const listResponse = await fetch('/api/workflows')
+          if (!listResponse.ok) return
+          const { workflows } = await listResponse.json()
+          targetId = workflows?.[0]?.id ?? null
+        }
+        if (!targetId || cancelled) return
+
+        const response = await fetch(`/api/workflows/${targetId}`)
         if (!response.ok || cancelled) return
         const { workflow } = await response.json()
 
@@ -349,7 +394,13 @@ function Flow() {
   const handleRun = useCallback(async () => {
     if (running) return
     setRunning(true)
-    setAnimating(true)
+    // Clear any previous outcome and mark the graph as awaiting results. No
+    // per-node progress is invented while the request is in flight — the
+    // engine reports statuses only when it finishes.
+    setPlayback(null)
+    setNodes((nds) => nds.map((n) => ({ ...n, data: { ...n.data, status: 'idle' } })))
+    setEdges((eds) => eds.map((e) => ({ ...e, animated: true })))
+
     try {
       // Persist first so the run executes the graph currently on the canvas.
       const id = await persist()
@@ -358,8 +409,11 @@ function Flow() {
       const body = await response.json().catch(() => ({}))
 
       if (!response.ok) {
+        setPlayback(toPlayback(body.steps))
         throw new Error(body.error ?? 'Workflow run failed')
       }
+
+      setPlayback(toPlayback(body.steps))
 
       const stepCount = body.steps?.length ?? 0
       showToast(
@@ -367,54 +421,66 @@ function Flow() {
         `Run completed — ${stepCount} node${stepCount === 1 ? '' : 's'} executed, ${body.aiCalls ?? 0} AI call${body.aiCalls === 1 ? '' : 's'}`,
       )
     } catch (error) {
+      setEdges((eds) => eds.map((e) => ({ ...e, animated: false })))
       showToast('error', (error as Error).message)
     } finally {
       setRunning(false)
       setHistoryToken((token) => token + 1)
     }
-  }, [persist, running, showToast])
+  }, [persist, running, showToast, setNodes, setEdges])
 
-  // Sequential "running" animation across the nodes.
+  /**
+   * Replay the run's real execution order.
+   *
+   * `/api/workflows/[id]/run` returns final results only, but its `steps[]`
+   * carries the true order the engine walked the graph in and each node's own
+   * outcome — so this is a replay of what actually happened, not a guess at
+   * it. Nodes the engine never reached are left `idle` rather than being
+   * marked done.
+   */
   useEffect(() => {
-    if (!animating) return
-    const order = nodesRef.current.map((n) => n.id)
-    if (order.length === 0) {
-      setAnimating(false)
-      return
-    }
-    let i = 0
-    const paint = () => {
+    if (!playback || playback.length === 0) return
+
+    const setStatus = (nodeId: string, status: WorkflowNodeStatus) => {
       setNodes((nds) =>
-        nds.map((n) => {
-          const idx = order.indexOf(n.id)
-          const nextStatus =
-            idx === i ? 'running' : idx > -1 && idx < i ? 'done' : 'idle'
-          return { ...n, data: { ...n.data, status: nextStatus } }
-        }),
+        nds.map((n) => (n.id === nodeId ? { ...n, data: { ...n.data, status } } : n)),
       )
     }
-    setEdges((eds) => eds.map((e) => ({ ...e, animated: true })))
-    paint()
-    const interval = setInterval(() => {
-      i += 1
-      if (i >= order.length) {
-        clearInterval(interval)
-        setNodes((nds) =>
-          nds.map((n) => ({ ...n, data: { ...n.data, status: 'done' } })),
-        )
-        window.setTimeout(() => {
-          setAnimating(false)
-          setEdges((eds) => eds.map((e) => ({ ...e, animated: false })))
-          setNodes((nds) =>
-            nds.map((n) => ({ ...n, data: { ...n.data, status: 'idle' } })),
-          )
-        }, 1100)
-        return
-      }
-      paint()
-    }, 850)
-    return () => clearInterval(interval)
-  }, [animating, setNodes, setEdges])
+
+    // Reduced motion: show the outcome, skip the sequence.
+    if (prefersReduced) {
+      setNodes((nds) =>
+        nds.map((n) => {
+          const step = playback.find((s) => s.nodeId === n.id)
+          return step ? { ...n, data: { ...n.data, status: step.status } } : n
+        }),
+      )
+      setEdges((eds) => eds.map((e) => ({ ...e, animated: false })))
+      setPlayback(null)
+      return
+    }
+
+    const timers: number[] = []
+    playback.forEach((step, i) => {
+      timers.push(
+        window.setTimeout(() => setStatus(step.nodeId, 'running'), i * STEP_MS),
+      )
+      timers.push(
+        window.setTimeout(() => setStatus(step.nodeId, step.status), i * STEP_MS + SETTLE_MS),
+      )
+    })
+
+    // Hold the finished state briefly, then return the canvas to rest.
+    timers.push(
+      window.setTimeout(() => {
+        setEdges((eds) => eds.map((e) => ({ ...e, animated: false })))
+        setNodes((nds) => nds.map((n) => ({ ...n, data: { ...n.data, status: 'idle' } })))
+        setPlayback(null)
+      }, playback.length * STEP_MS + HOLD_MS),
+    )
+
+    return () => timers.forEach(clearTimeout)
+  }, [playback, prefersReduced, setNodes, setEdges])
 
   const selectedNode = nodes.find((n) => n.id === selectedId) ?? null
   const isEmpty = nodes.length === 0

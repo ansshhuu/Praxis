@@ -59,6 +59,13 @@ enum NotificationStatus {
   FAILED
 }
 
+enum MeetingStatus {
+  PENDING
+  TRANSCRIBING
+  PROCESSED
+  FAILED
+}
+
 model User {
   id           String   @id @default(uuid())
   email        String   @unique
@@ -77,6 +84,7 @@ model User {
   marketplaceTemplates MarketplaceTemplate[]
   notifications        Notification[]
   apiConnections       ApiConnection[]
+  meetings             Meeting[]
 
   @@map("users")
 }
@@ -247,6 +255,37 @@ model Notification {
 
   @@index([userId, status])
   @@map("notifications")
+}
+
+model Meeting {
+  id          String @id @default(uuid())
+  userId      String @map("user_id")
+  fileName    String @map("file_name")
+  /// Empty string for meetings created from a pasted transcript — those have
+  /// no audio object behind them.
+  fileUrl     String @map("file_url")
+  /// Object key inside the "meetings" bucket, kept so transcription can sign a
+  /// read URL without parsing it back out of fileUrl (mirrors Document).
+  storagePath String? @map("storage_path")
+
+  durationSeconds Int?    @map("duration_seconds")
+  transcript      String?
+  summary         String?
+  /// Array of { task, assignee_guess, deadline_guess } produced by the single
+  /// analysis AI call.
+  actionItems     Json?   @map("action_items")
+  /// Prisma scalar lists cannot be null — "none identified" is an empty array.
+  attendees       String[]
+
+  status        MeetingStatus @default(PENDING)
+  /// Why transcription or analysis fell short, surfaced to the UI.
+  statusMessage String?       @map("status_message")
+  createdAt     DateTime      @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@map("meetings")
 }
 
 model ScheduledJob {

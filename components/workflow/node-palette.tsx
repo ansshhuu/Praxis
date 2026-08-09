@@ -9,7 +9,6 @@ import { cn } from '@/lib/utils'
 function groupLabel(category: NodeTypeDef['category']) {
   if (category === 'trigger') return 'Triggers'
   if (category === 'action') return 'Actions'
-  if (category === 'integration') return 'Integrations'
   if (category === 'logic') return 'Logic'
   return `${categoryStyles[category].label}s`
 }

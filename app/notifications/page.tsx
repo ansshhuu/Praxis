@@ -2,11 +2,12 @@
 
 import {
   Bell,
+  Loader2,
   Mail,
   MessageSquare,
   Phone,
 } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import { DashboardShell } from '@/components/dashboard/dashboard-shell'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -21,12 +22,58 @@ import {
 import { cn } from '@/lib/utils'
 import {
   getChannelSettings,
-  getNotifications,
   type ChannelSettings,
-  type Notification,
   type NotificationChannel,
   type NotificationStatus,
 } from '@/lib/mock-data/notifications'
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+/** Row shape returned by GET /api/notifications. */
+interface ApiNotification {
+  id: string
+  type: 'EMAIL' | 'SMS' | 'PUSH' | 'SLACK'
+  message: string
+  status: 'PENDING' | 'SENT' | 'FAILED'
+  createdAt: string
+}
+
+/** What the table renders — the API row mapped onto the existing UI vocabulary. */
+interface Notification {
+  id: string
+  channel: NotificationChannel
+  message: string
+  status: NotificationStatus
+  timestamp: string
+}
+
+const channelByType: Record<ApiNotification['type'], NotificationChannel> = {
+  EMAIL: 'email',
+  SMS: 'sms',
+  PUSH: 'push',
+  SLACK: 'slack',
+}
+
+const statusByApiStatus: Record<ApiNotification['status'], NotificationStatus> = {
+  SENT: 'Sent',
+  PENDING: 'Pending',
+  FAILED: 'Failed',
+}
+
+function toNotification(row: ApiNotification): Notification {
+  return {
+    id: row.id,
+    channel: channelByType[row.type] ?? 'push',
+    message: row.message,
+    status: statusByApiStatus[row.status] ?? 'Pending',
+    timestamp: new Date(row.createdAt).toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    }),
+  }
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -103,6 +150,13 @@ function Toggle({ enabled, onChange, id }: { enabled: boolean; onChange: (v: boo
 
 // ─── Channel Settings ──────────────────────────────────────────────────────────
 
+/**
+ * Presentation only — the toggles live in component state and are not
+ * persisted. There is no per-user channel-preference table or column in the
+ * schema, and nothing delivers over email/SMS/Slack yet (the engine's NOTIFY
+ * node writes a `notifications` row and stops there), so there is nothing
+ * meaningful for these switches to control server-side.
+ */
 function ChannelSettingsSection() {
   const initial = getChannelSettings()
   const [settings, setSettings] = useState<ChannelSettings[]>(initial)
@@ -145,12 +199,26 @@ function ChannelSettingsSection() {
 
 // ─── Notification Log ─────────────────────────────────────────────────────────
 
-function NotificationLog({ notifications }: { notifications: Notification[] }) {
+function NotificationLog({
+  notifications,
+  loading,
+  error,
+}: {
+  notifications: Notification[]
+  loading: boolean
+  error: string | null
+}) {
+  const description = loading
+    ? 'Loading notifications…'
+    : error
+      ? error
+      : `${notifications.length} recent notifications across all channels`
+
   return (
     <Card className="shadow-sm">
       <CardHeader>
         <CardTitle>Notification Log</CardTitle>
-        <CardDescription>{notifications.length} recent notifications across all channels</CardDescription>
+        <CardDescription>{description}</CardDescription>
       </CardHeader>
       <div className="overflow-x-auto">
         <Table>
@@ -164,16 +232,32 @@ function NotificationLog({ notifications }: { notifications: Notification[] }) {
             </TableRow>
           </TableHeader>
           <TableBody>
+            {loading && (
+              <TableRow>
+                <TableCell colSpan={5} className="py-10 text-center text-sm text-muted-foreground">
+                  <span className="inline-flex items-center gap-2">
+                    <Loader2 className="size-4 animate-spin" />
+                    Loading notifications…
+                  </span>
+                </TableCell>
+              </TableRow>
+            )}
+            {!loading && notifications.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={5} className="py-10 text-center text-sm text-muted-foreground">
+                  No notifications yet — run a workflow with a Notify node to see them here.
+                </TableCell>
+              </TableRow>
+            )}
             {notifications.map((n) => (
               <TableRow key={n.id} id={`notification-row-${n.id}`}>
                 <TableCell><ChannelChip channel={n.channel} /></TableCell>
                 <TableCell className="max-w-xs">
                   <p className="truncate text-sm font-medium text-foreground">{n.message}</p>
-                  {n.workflowName && (
-                    <p className="text-xs text-muted-foreground">{n.workflowName}</p>
-                  )}
                 </TableCell>
-                <TableCell className="text-sm text-muted-foreground">{n.recipient}</TableCell>
+                {/* `notifications` has no recipient column — the NOTIFY node
+                    always targets the workflow's owner. */}
+                <TableCell className="text-sm text-muted-foreground">You</TableCell>
                 <TableCell><StatusBadge status={n.status} /></TableCell>
                 <TableCell className="text-sm text-muted-foreground tabular-nums">{n.timestamp}</TableCell>
               </TableRow>
@@ -188,7 +272,33 @@ function NotificationLog({ notifications }: { notifications: Notification[] }) {
 // ─── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function NotificationsPage() {
-  const notifications = getNotifications()
+  const [notifications, setNotifications] = useState<Notification[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function load() {
+      try {
+        const response = await fetch('/api/notifications')
+        const body = await response.json().catch(() => ({}))
+        if (!response.ok) throw new Error(body.error ?? 'Could not load notifications.')
+        if (!cancelled) {
+          setNotifications((body.notifications as ApiNotification[]).map(toNotification))
+        }
+      } catch (loadError) {
+        if (!cancelled) setError((loadError as Error).message)
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+
+    void load()
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   return (
     <DashboardShell>
@@ -201,7 +311,7 @@ export default function NotificationsPage() {
         </div>
 
         <ChannelSettingsSection />
-        <NotificationLog notifications={notifications} />
+        <NotificationLog notifications={notifications} loading={loading} error={error} />
       </div>
     </DashboardShell>
   )

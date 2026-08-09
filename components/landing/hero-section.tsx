@@ -1,12 +1,16 @@
 'use client'
 
+import { motion, useScroll, useTransform, type Variants } from 'framer-motion'
 import Link from 'next/link'
+import { useRef } from 'react'
 import {
   Play, LayoutDashboard, GitBranch, FileText, Users, BarChart3,
   MessageSquare, TrendingUp, Bell, ShoppingBag, Clock, Settings,
   CircleDot, Zap, Filter, BrainCircuit, Database, Link2, Shuffle,
   UserCircle, Mail, Shield,
 } from 'lucide-react'
+
+import { WordReveal } from '@/components/motion/primitives'
 
 function PraxisIcon({ size = 22, color = '#F5CA50' }: { size?: number; color?: string }) {
   const s = size
@@ -31,15 +35,38 @@ function PraxisIcon({ size = 22, color = '#F5CA50' }: { size?: number; color?: s
 }
 
 export function HeroSection() {
+  const sectionRef = useRef<HTMLElement>(null)
+
+  /* Parallax: the glow layer drifts slower than the page, so the hero eases
+     into the next section instead of cutting away from it. */
+  const { scrollYProgress } = useScroll({
+    target: sectionRef,
+    offset: ['start start', 'end start'],
+  })
+  const blobY = useTransform(scrollYProgress, [0, 1], ['0%', '22%'])
+  const blobOpacity = useTransform(scrollYProgress, [0, 0.85], [1, 0.35])
+
   return (
-    <section className="hero-section" id="hero" aria-label="Hero">
-      <div className="hero-blob-amber" aria-hidden="true" />
-      <div className="hero-blob-lime"  aria-hidden="true" />
-      <div className="hero-blob-sand"  aria-hidden="true" />
-      <div className="hero-blob-core"  aria-hidden="true" />
+    <section className="hero-section" id="hero" aria-label="Hero" ref={sectionRef}>
+      {/*
+        Wrapper exists purely to carry the parallax transform. The blobs keep
+        their own CSS `transform: translate(-50%, …)` centring, which an inline
+        motion transform on each would otherwise overwrite.
+      */}
+      <motion.div
+        aria-hidden="true"
+        style={{ position: 'absolute', inset: 0, y: blobY, opacity: blobOpacity, pointerEvents: 'none' }}
+      >
+        <div className="hero-blob-amber" />
+        <div className="hero-blob-lime" />
+        <div className="hero-blob-sand" />
+        <div className="hero-blob-core" />
+      </motion.div>
 
       <div className="hero-text-area">
-        <h1 className="hero-headline fu-1">Automate every process.</h1>
+        <h1 className="hero-headline">
+          <WordReveal text="Automate every process." />
+        </h1>
         <p className="hero-subheading fu-2">
           Build, run, and monitor enterprise workflows with no-code AI that understands your team.
         </p>
@@ -61,6 +88,42 @@ export function HeroSection() {
       </div>
     </section>
   )
+}
+
+/* ── Sequenced build-out of the workflow graph ─────────────
+   Node i lands at i × 180ms; its connector draws 140ms later, so the line
+   always follows the node it leaves rather than racing it. */
+const NODE_STEP = 0.18
+
+const nodeVariants: Variants = {
+  hidden: { opacity: 0, scale: 0.86, y: 6 },
+  visible: (i: number) => ({
+    opacity: 1,
+    scale: 1,
+    y: 0,
+    transition: { duration: 0.32, delay: i * NODE_STEP, ease: [0.22, 1, 0.36, 1] },
+  }),
+}
+
+const connectorVariants: Variants = {
+  hidden: { pathLength: 0, opacity: 0 },
+  visible: (i: number) => ({
+    pathLength: 1,
+    opacity: 1,
+    transition: {
+      pathLength: { duration: 0.26, delay: i * NODE_STEP + 0.14, ease: 'easeInOut' },
+      opacity: { duration: 0.08, delay: i * NODE_STEP + 0.14 },
+    },
+  }),
+}
+
+/* The arrowhead appears once its line has arrived, rather than drawing. */
+const arrowheadVariants: Variants = {
+  hidden: { opacity: 0 },
+  visible: (i: number) => ({
+    opacity: 1,
+    transition: { duration: 0.16, delay: i * NODE_STEP + 0.38 },
+  }),
 }
 
 function WorkflowBuilderCard() {
@@ -105,7 +168,7 @@ function WorkflowBuilderCard() {
   ]
 
   return (
-    <div className="wf-builder-card">
+    <div className="wf-builder-card hover-glow">
       <div className="wfb-topbar">
         <div className="wfb-topbar-dot" style={{ background: '#FF5F57' }} />
         <div className="wfb-topbar-dot" style={{ background: '#FEBC2E' }} />
@@ -167,12 +230,27 @@ function WorkflowBuilderCard() {
         </div>
 
         <div className="wfb-canvas">
-          <div className="wfb-nodes-area">
+          {/*
+            The graph builds itself: each node pops in, then its connector
+            draws, then the next node follows. `once: false` so it replays
+            whenever the card is scrolled back into view.
+          */}
+          <motion.div
+            className="wfb-nodes-area"
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: false, amount: 0.5 }}
+          >
             {nodes.map((node, i) => {
               const Icon = node.Icon
               return (
                 <div key={node.label} style={{ display: 'flex', alignItems: 'center' }}>
-                  <div className="wfb-node-card" style={{ borderColor: node.border }}>
+                  <motion.div
+                    className="wfb-node-card"
+                    style={{ borderColor: node.border }}
+                    custom={i}
+                    variants={nodeVariants}
+                  >
                     <div
                       className="wfb-node-badge"
                       style={{ background: node.badgeBg, border: `1.5px solid ${node.border}` }}
@@ -183,20 +261,43 @@ function WorkflowBuilderCard() {
                     <span className="wfb-node-label">{node.label}</span>
                     <span className="wfb-node-sub">{node.sub}</span>
                     {i < nodes.length - 1 && <div className="wfb-node-plus">+</div>}
-                  </div>
+                  </motion.div>
                   {i < nodes.length - 1 && (
                     <div className="wfb-elbow">
                       <svg width="40" height="32" viewBox="0 0 40 32" fill="none">
-                        <path d="M2 16 H22 V16" stroke="#DFD6C9" strokeWidth="1.5" strokeDasharray="3 2" />
-                        <path d="M30 16 H38" stroke="#DFD6C9" strokeWidth="1.5" />
-                        <path d="M34 12 L38 16 L34 20" stroke="#DFD6C9" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                        {/* pathLength is driven by framer-motion via
+                            strokeDasharray/strokeDashoffset under the hood. */}
+                        <motion.path
+                          d="M2 16 H22 V16"
+                          stroke="#DFD6C9"
+                          strokeWidth="1.5"
+                          strokeDasharray="3 2"
+                          custom={i}
+                          variants={connectorVariants}
+                        />
+                        <motion.path
+                          d="M30 16 H38"
+                          stroke="#DFD6C9"
+                          strokeWidth="1.5"
+                          custom={i}
+                          variants={connectorVariants}
+                        />
+                        <motion.path
+                          d="M34 12 L38 16 L34 20"
+                          stroke="#DFD6C9"
+                          strokeWidth="1.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          custom={i}
+                          variants={arrowheadVariants}
+                        />
                       </svg>
                     </div>
                   )}
                 </div>
               )
             })}
-          </div>
+          </motion.div>
 
           <div className="wfb-zoom-bar">
             <div className="wfb-zoom-btn">&#128075;</div>
@@ -216,7 +317,7 @@ function WorkflowBuilderCard() {
 
 function OverlayDocIntel() {
   return (
-    <div className="overlay-card oc-doc-intel accent-amber">
+    <div className="overlay-card oc-doc-intel accent-amber hover-glow">
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
         <div style={{ width: 28, height: 28, borderRadius: 8, background: '#FFFAEC', border: '1px solid rgba(245,202,80,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#D4A017" strokeWidth="2">
@@ -247,7 +348,7 @@ function OverlayResume() {
     { name: 'Marcus Webb',  score: 81 },
   ]
   return (
-    <div className="overlay-card oc-resume accent-lime">
+    <div className="overlay-card oc-resume accent-lime hover-glow">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
         <p className="oc-title" style={{ marginBottom: 0 }}>Resume Screening</p>
         <span style={{ fontSize: 9, color: '#66615B' }}>3 of 47</span>
@@ -275,7 +376,7 @@ function OverlayResume() {
 function OverlayAnalytics() {
   const r = 28, circ = 2 * Math.PI * r, pct = 0.926
   return (
-    <div className="overlay-card oc-analytics accent-amber">
+    <div className="overlay-card oc-analytics accent-amber hover-glow">
       <p className="oc-title">Success Rate</p>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         <div style={{ position: 'relative', width: 68, height: 68, flexShrink: 0 }}>
@@ -303,7 +404,7 @@ function OverlayAnalytics() {
 
 function OverlayAIChat() {
   return (
-    <div className="overlay-card oc-ai-chat accent-lime">
+    <div className="overlay-card oc-ai-chat accent-lime hover-glow">
       <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 10 }}>
         <div style={{ width: 24, height: 24, borderRadius: 999, background: '#111111', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
           <MessageSquare size={12} color="#76E012" strokeWidth={2} />

@@ -6,20 +6,33 @@ import {
   Brain,
   Camera,
   Check,
+  CheckCircle2,
   Cloud,
   HardDrive,
   Link,
   Link2Off,
+  Loader2,
   MessageCircle,
   Send,
+  UserPlus,
   Users,
+  X,
+  XCircle,
 } from 'lucide-react'
-import { useState } from 'react'
+import { useSession } from 'next-auth/react'
+import { useEffect, useState } from 'react'
 
 import { DashboardShell } from '@/components/dashboard/dashboard-shell'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
 import {
   Table,
   TableBody,
@@ -29,16 +42,16 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { cn } from '@/lib/utils'
-import { getApiConnections, getUsers, type ApiConnection, type AppUser, type UserRole } from '@/lib/mock-data/settings'
+import { getApiConnections, type ApiConnection } from '@/lib/mock-data/settings'
 
 // ─── Tabs ─────────────────────────────────────────────────────────────────────
 
 type Tab = 'profile' | 'api' | 'users'
 
-const tabs: { id: Tab; label: string }[] = [
+const tabs: { id: Tab; label: string; adminOnly?: boolean }[] = [
   { id: 'profile', label: 'Profile' },
   { id: 'api', label: 'API Connections' },
-  { id: 'users', label: 'User Management' },
+  { id: 'users', label: 'User Management', adminOnly: true },
 ]
 
 // ─── Icon map ─────────────────────────────────────────────────────────────────
@@ -54,16 +67,56 @@ const iconMap: Record<string, React.ReactNode> = {
   send: <Send className="size-5" />,
 }
 
-// ─── Role colors ──────────────────────────────────────────────────────────────
+// ─── Roles ────────────────────────────────────────────────────────────────────
 
-const roleColors: Record<UserRole, string> = {
-  Admin: 'bg-violet-100 text-violet-700',
-  Manager: 'bg-blue-100 text-blue-700',
-  Analyst: 'bg-emerald-100 text-emerald-700',
-  Viewer: 'bg-muted text-muted-foreground',
+/** Mirrors the `Role` enum in prisma/schema.prisma. */
+type UserRole = 'ADMIN' | 'HR' | 'MANAGER' | 'EMPLOYEE'
+
+const roles: UserRole[] = ['ADMIN', 'HR', 'MANAGER', 'EMPLOYEE']
+
+const roleLabels: Record<UserRole, string> = {
+  ADMIN: 'Admin',
+  HR: 'HR',
+  MANAGER: 'Manager',
+  EMPLOYEE: 'Employee',
 }
 
-const roles: UserRole[] = ['Admin', 'Manager', 'Analyst', 'Viewer']
+const roleColors: Record<UserRole, string> = {
+  ADMIN: 'bg-violet-100 text-violet-700',
+  HR: 'bg-emerald-100 text-emerald-700',
+  MANAGER: 'bg-blue-100 text-blue-700',
+  EMPLOYEE: 'bg-muted text-muted-foreground',
+}
+
+/** Row shape returned by GET /api/users. */
+interface AppUser {
+  id: string
+  name: string
+  email: string
+  role: UserRole
+  createdAt: string
+  lastLogin: string | null
+}
+
+function initialsOf(name: string): string {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]!.toUpperCase())
+    .join('') || '?'
+}
+
+function formatLastLogin(iso: string | null): string {
+  if (!iso) return 'Never'
+  return new Date(iso).toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
 
 // ─── Profile Tab ──────────────────────────────────────────────────────────────
 
@@ -228,69 +281,360 @@ function ApiConnectionsTab() {
   )
 }
 
-// ─── User Management Tab ───────────────────────────────────────────────────────
+// ─── Toast ─────────────────────────────────────────────────────────────────────
 
-function UserManagementTab() {
-  const initial = getUsers()
-  const [users, setUsers] = useState<AppUser[]>(initial)
+type ToastState = { id: number; kind: 'success' | 'error'; message: string }
 
-  function updateRole(id: string, role: UserRole) {
-    setUsers((prev) => prev.map((u) => (u.id === id ? { ...u, role } : u)))
+/**
+ * Visually mirrors components/workflow/run-toast.tsx, but fixed to the
+ * viewport — that one is `absolute` because it anchors to the builder canvas,
+ * which has no equivalent positioned container on this page.
+ */
+function SettingsToast({ toast, onDismiss }: { toast: ToastState | null; onDismiss: () => void }) {
+  useEffect(() => {
+    if (!toast) return
+    const timer = window.setTimeout(onDismiss, 5000)
+    return () => window.clearTimeout(timer)
+  }, [toast, onDismiss])
+
+  if (!toast) return null
+
+  const Icon = toast.kind === 'success' ? CheckCircle2 : XCircle
+
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      className="fixed bottom-6 left-1/2 z-[60] flex -translate-x-1/2 items-start gap-3 rounded-xl border border-gray-100 bg-white px-4 py-3 shadow-2xl"
+    >
+      <Icon
+        className={cn(
+          'mt-0.5 size-4 shrink-0',
+          toast.kind === 'success' ? 'text-green-600' : 'text-red-500',
+        )}
+      />
+      <p className="max-w-xs text-[13px] font-medium text-gray-900">{toast.message}</p>
+      <button
+        type="button"
+        onClick={onDismiss}
+        aria-label="Dismiss notification"
+        className="-mr-1 rounded p-0.5 text-gray-400 transition-colors hover:text-gray-900"
+      >
+        <X className="size-4" />
+      </button>
+    </div>
+  )
+}
+
+// ─── Add User Modal ────────────────────────────────────────────────────────────
+
+const fieldClass =
+  'rounded-xl border border-gray-200 bg-white px-4 py-3 text-[14px] font-medium text-gray-700 outline-none placeholder:text-gray-400 focus:ring-1 focus:ring-[#F5CA50] focus:border-[#F5CA50] shadow-sm transition-all'
+
+const labelClass = 'text-[13px] font-bold text-gray-900 uppercase tracking-wide'
+
+function AddUserModal({
+  onClose,
+  onCreated,
+}: {
+  onClose: () => void
+  onCreated: (user: AppUser) => void
+}) {
+  const [name, setName] = useState('')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [role, setRole] = useState<UserRole>('EMPLOYEE')
+  const [isSaving, setIsSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const canSubmit = name.trim() !== '' && email.trim() !== '' && password.length >= 8
+
+  async function handleSubmit(event: React.FormEvent) {
+    event.preventDefault()
+    if (isSaving || !canSubmit) return
+
+    setIsSaving(true)
+    setError(null)
+
+    try {
+      const response = await fetch('/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: name.trim(), email: email.trim(), password, role }),
+      })
+      const body = await response.json().catch(() => ({}))
+      // 409 (duplicate email) and 400 (validation) both land here, keeping the
+      // modal open with the server's own message.
+      if (!response.ok) throw new Error(body.error ?? 'Could not create this user.')
+
+      onCreated(body.user as AppUser)
+      onClose()
+    } catch (submitError) {
+      setError((submitError as Error).message)
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   return (
-    <Card className="shadow-sm">
-      <CardHeader>
-        <CardTitle>Users</CardTitle>
-        <CardDescription>
-          Manage user accounts and roles. User accounts can only be created by administrators.
-        </CardDescription>
-      </CardHeader>
-      <div className="overflow-x-auto">
-        <Table>
-          <TableHeader>
-            <TableRow className="hover:bg-transparent">
-              <TableHead>User</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Role</TableHead>
-              <TableHead>Last Active</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {users.map((user) => (
-              <TableRow key={user.id} id={`user-row-${user.id}`}>
-                <TableCell>
-                  <div className="flex items-center gap-2.5">
-                    <Avatar className="size-8">
-                      <AvatarFallback className="text-xs font-semibold">{user.avatarInitials}</AvatarFallback>
-                    </Avatar>
-                    <span className="text-sm font-medium">{user.name}</span>
-                  </div>
-                </TableCell>
-                <TableCell className="text-sm text-muted-foreground">{user.email}</TableCell>
-                <TableCell>
-                  <select
-                    id={`user-role-${user.id}`}
-                    value={user.role}
-                    onChange={(e) => updateRole(user.id, e.target.value as UserRole)}
-                    className={cn(
-                      'rounded-full border-0 px-2.5 py-0.5 text-xs font-medium outline-none cursor-pointer',
-                      roleColors[user.role],
-                    )}
-                    aria-label={`Role for ${user.name}`}
-                  >
-                    {roles.map((r) => (
-                      <option key={r} value={r}>{r}</option>
-                    ))}
-                  </select>
-                </TableCell>
-                <TableCell className="text-sm text-muted-foreground">{user.lastActive}</TableCell>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-gray-900/40 backdrop-blur-sm" onClick={onClose} />
+      <form
+        onSubmit={handleSubmit}
+        id="add-user-form"
+        className="relative w-full max-w-md rounded-2xl bg-white p-6 md:p-8 shadow-2xl"
+      >
+        <div className="mb-6 flex items-center justify-between">
+          <h2 className="text-xl font-bold text-gray-900">Add User</h2>
+          <Button type="button" variant="ghost" size="icon" onClick={onClose} className="rounded-full">
+            <X className="size-5 text-gray-500" />
+          </Button>
+        </div>
+
+        <div className="flex flex-col gap-5">
+          <div className="flex flex-col gap-2">
+            <label className={labelClass} htmlFor="add-user-name">Full Name</label>
+            <input
+              id="add-user-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Ava Chen"
+              autoComplete="off"
+              className={fieldClass}
+            />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <label className={labelClass} htmlFor="add-user-email">Email Address</label>
+            <input
+              id="add-user-email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="ava.chen@company.com"
+              autoComplete="off"
+              className={fieldClass}
+            />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <label className={labelClass} htmlFor="add-user-password">Temporary Password</label>
+            <input
+              id="add-user-password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="At least 8 characters"
+              autoComplete="new-password"
+              className={fieldClass}
+            />
+            <p className="text-[12px] font-medium text-gray-500">
+              The user signs in with this password — share it with them directly.
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <label className={labelClass} htmlFor="add-user-role">Role</label>
+            <select
+              id="add-user-role"
+              value={role}
+              onChange={(e) => setRole(e.target.value as UserRole)}
+              className={cn(fieldClass, 'cursor-pointer')}
+            >
+              {roles.map((r) => (
+                <option key={r} value={r}>{roleLabels[r]}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {error && (
+          <p className="mt-4 text-[13px] font-bold text-red-500 text-center" role="alert">{error}</p>
+        )}
+
+        <div className="mt-8 flex gap-3">
+          <Button
+            type="button"
+            variant="outline"
+            className="flex-1 rounded-xl h-12 font-bold"
+            onClick={onClose}
+            disabled={isSaving}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            className="flex-1 rounded-xl h-12 font-bold bg-[#F5CA50] text-[#111111] hover:brightness-95"
+            disabled={isSaving || !canSubmit}
+          >
+            {isSaving ? <Loader2 className="size-4 animate-spin mr-2" /> : <UserPlus className="size-4 mr-2" />}
+            {isSaving ? 'Creating…' : 'Create User'}
+          </Button>
+        </div>
+      </form>
+    </div>
+  )
+}
+
+// ─── User Management Tab ───────────────────────────────────────────────────────
+
+function UserManagementTab() {
+  const [users, setUsers] = useState<AppUser[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [savingId, setSavingId] = useState<string | null>(null)
+  const [showAddUser, setShowAddUser] = useState(false)
+  const [toast, setToast] = useState<ToastState | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function load() {
+      try {
+        const response = await fetch('/api/users')
+        const body = await response.json().catch(() => ({}))
+        if (!response.ok) throw new Error(body.error ?? 'Could not load users.')
+        if (!cancelled) setUsers(body.users ?? [])
+      } catch (loadError) {
+        if (!cancelled) setError((loadError as Error).message)
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+
+    void load()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  /** Optimistic, with a rollback when the server rejects the change. */
+  async function updateRole(id: string, role: UserRole) {
+    const previous = users.find((u) => u.id === id)?.role
+    if (!previous || previous === role) return
+
+    setUsers((prev) => prev.map((u) => (u.id === id ? { ...u, role } : u)))
+    setSavingId(id)
+    setError(null)
+
+    try {
+      const response = await fetch(`/api/users/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role }),
+      })
+      const body = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(body.error ?? 'Could not update this role.')
+
+      setUsers((prev) => prev.map((u) => (u.id === id ? { ...u, ...body.user } : u)))
+    } catch (updateError) {
+      setError((updateError as Error).message)
+      setUsers((prev) => prev.map((u) => (u.id === id ? { ...u, role: previous } : u)))
+    } finally {
+      setSavingId(null)
+    }
+  }
+
+  /** The modal owns its own errors; it only calls back once the POST landed. */
+  function handleCreated(user: AppUser) {
+    setUsers((prev) => [...prev, user])
+    setError(null)
+    setToast({ id: Date.now(), kind: 'success', message: `${user.name} was added as ${roleLabels[user.role]}.` })
+  }
+
+  const description = loading
+    ? 'Loading users…'
+    : error
+      ? error
+      : 'Manage user accounts and roles. User accounts can only be created by administrators.'
+
+  return (
+    <>
+      <Card className="shadow-sm">
+        <CardHeader>
+          <CardTitle>Users</CardTitle>
+          <CardDescription>{description}</CardDescription>
+          <CardAction>
+            <Button
+              id="add-user-button"
+              className="bg-[#F5CA50] text-[#111111] hover:brightness-95 font-bold"
+              onClick={() => setShowAddUser(true)}
+            >
+              <UserPlus className="size-4 mr-2" />
+              Add User
+            </Button>
+          </CardAction>
+        </CardHeader>
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
+                <TableHead>User</TableHead>
+                <TableHead>Email</TableHead>
+                <TableHead>Role</TableHead>
+                <TableHead>Last Active</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
-    </Card>
+            </TableHeader>
+            <TableBody>
+              {loading && (
+                <TableRow>
+                  <TableCell colSpan={4} className="py-10 text-center text-sm text-muted-foreground">
+                    <span className="inline-flex items-center gap-2">
+                      <Loader2 className="size-4 animate-spin" />
+                      Loading users…
+                    </span>
+                  </TableCell>
+                </TableRow>
+              )}
+              {!loading && users.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={4} className="py-10 text-center text-sm text-muted-foreground">
+                    No users to show.
+                  </TableCell>
+                </TableRow>
+              )}
+              {users.map((user) => (
+                <TableRow key={user.id} id={`user-row-${user.id}`}>
+                  <TableCell>
+                    <div className="flex items-center gap-2.5">
+                      <Avatar className="size-8">
+                        <AvatarFallback className="text-xs font-semibold">{initialsOf(user.name)}</AvatarFallback>
+                      </Avatar>
+                      <span className="text-sm font-medium">{user.name}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">{user.email}</TableCell>
+                  <TableCell>
+                    <select
+                      id={`user-role-${user.id}`}
+                      value={user.role}
+                      disabled={savingId === user.id}
+                      onChange={(e) => void updateRole(user.id, e.target.value as UserRole)}
+                      className={cn(
+                        'rounded-full border-0 px-2.5 py-0.5 text-xs font-medium outline-none cursor-pointer disabled:opacity-60',
+                        roleColors[user.role],
+                      )}
+                      aria-label={`Role for ${user.name}`}
+                    >
+                      {roles.map((r) => (
+                        <option key={r} value={r}>{roleLabels[r]}</option>
+                      ))}
+                    </select>
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">{formatLastLogin(user.lastLogin)}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      </Card>
+
+      {showAddUser && (
+        <AddUserModal onClose={() => setShowAddUser(false)} onCreated={handleCreated} />
+      )}
+
+      <SettingsToast toast={toast} onDismiss={() => setToast(null)} />
+    </>
   )
 }
 
@@ -298,6 +642,12 @@ function UserManagementTab() {
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<Tab>('profile')
+  const { data: session } = useSession()
+
+  // Cosmetic gate only — /api/users re-checks the role on every request, so a
+  // non-admin who forces the tab open still gets a 403 and an empty table.
+  const isAdmin = session?.user?.role === 'ADMIN'
+  const visibleTabs = tabs.filter((tab) => !tab.adminOnly || isAdmin)
 
   return (
     <DashboardShell>
@@ -311,7 +661,7 @@ export default function SettingsPage() {
 
         {/* Tab bar */}
         <div className="flex gap-1 rounded-xl border border-border bg-muted/50 p-1 w-fit" role="tablist">
-          {tabs.map((tab) => (
+          {visibleTabs.map((tab) => (
             <button
               key={tab.id}
               id={`settings-tab-${tab.id}`}
@@ -333,7 +683,7 @@ export default function SettingsPage() {
         {/* Tab content */}
         {activeTab === 'profile' && <ProfileTab />}
         {activeTab === 'api' && <ApiConnectionsTab />}
-        {activeTab === 'users' && <UserManagementTab />}
+        {activeTab === 'users' && isAdmin && <UserManagementTab />}
       </div>
     </DashboardShell>
   )

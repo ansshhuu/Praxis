@@ -10,6 +10,7 @@ import {
   CreditCard,
   FileCheck,
   HardDrive,
+  Loader2,
   Mail,
   MessageCircle,
   Receipt,
@@ -18,12 +19,31 @@ import {
   UserPlus,
   Users,
 } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { useEffect, useState } from 'react'
 
 import { DashboardShell } from '@/components/dashboard/dashboard-shell'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
-import { getTemplates, type MarketplaceTemplate, type TemplateCategory } from '@/lib/mock-data/marketplace'
+import { TEMPLATE_PRESENTATION, type TemplateCategory } from '@/lib/marketplace/templates'
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+/** Row shape returned by GET /api/marketplace. */
+interface MarketplaceTemplate {
+  id: string
+  name: string
+  description: string
+  category: string
+}
+
+/**
+ * `marketplace_templates` stores no icon / rating / usage columns, so those
+ * come from the shared catalogue, matched by name. Templates published later
+ * through POST /api/marketplace fall back to neutral defaults.
+ */
+const presentationFallback = { icon: 'file-check', rating: 4.5, usageCount: 0 }
 
 // ─── Icon map ─────────────────────────────────────────────────────────────────
 
@@ -59,9 +79,19 @@ const categoryColors: Record<TemplateCategory, string> = {
 
 // ─── Template Card ────────────────────────────────────────────────────────────
 
-function TemplateCard({ template }: { template: MarketplaceTemplate }) {
-  const icon = iconMap[template.icon] ?? <FileCheck className="size-6" />
-  const categoryColor = categoryColors[template.category]
+function TemplateCard({
+  template,
+  onUse,
+  busy,
+}: {
+  template: MarketplaceTemplate
+  onUse: (template: MarketplaceTemplate) => void
+  busy: boolean
+}) {
+  const presentation = TEMPLATE_PRESENTATION[template.name] ?? presentationFallback
+  const icon = iconMap[presentation.icon] ?? <FileCheck className="size-6" />
+  const categoryColor =
+    categoryColors[template.category as TemplateCategory] ?? 'bg-muted text-muted-foreground'
 
   return (
     <Card className="group flex flex-col shadow-sm transition-all duration-200 hover:shadow-md hover:-translate-y-0.5">
@@ -84,16 +114,24 @@ function TemplateCard({ template }: { template: MarketplaceTemplate }) {
         <div className="mb-3 flex items-center gap-3 text-xs text-muted-foreground">
           <span className="flex items-center gap-0.5">
             <Star className="size-3 fill-amber-400 text-amber-400" />
-            <span className="font-medium text-foreground">{template.rating}</span>
+            <span className="font-medium text-foreground">{presentation.rating}</span>
           </span>
-          <span>{template.usageCount.toLocaleString()} uses</span>
+          <span>{presentation.usageCount.toLocaleString()} uses</span>
         </div>
         <Button
           className="w-full"
           size="sm"
           id={`use-template-${template.id}`}
+          disabled={busy}
+          onClick={() => onUse(template)}
         >
-          Use Template
+          {busy ? (
+            <>
+              <Loader2 className="size-4 animate-spin mr-1.5" /> Opening…
+            </>
+          ) : (
+            'Use Template'
+          )}
         </Button>
       </CardContent>
     </Card>
@@ -103,7 +141,51 @@ function TemplateCard({ template }: { template: MarketplaceTemplate }) {
 // ─── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function MarketplacePage() {
-  const templates = getTemplates()
+  const router = useRouter()
+  const [templates, setTemplates] = useState<MarketplaceTemplate[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [usingId, setUsingId] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function load() {
+      try {
+        const response = await fetch('/api/marketplace')
+        const body = await response.json().catch(() => ({}))
+        if (!response.ok) throw new Error(body.error ?? 'Could not load templates.')
+        if (!cancelled) setTemplates(body.templates ?? [])
+      } catch (loadError) {
+        if (!cancelled) setError((loadError as Error).message)
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+
+    void load()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  /** Fork the template server-side, then open the copy in the builder. */
+  async function handleUse(template: MarketplaceTemplate) {
+    if (usingId) return
+    setUsingId(template.id)
+    setError(null)
+
+    try {
+      const response = await fetch(`/api/marketplace/${template.id}/use`, { method: 'POST' })
+      const body = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(body.error ?? 'Could not create a workflow from this template.')
+
+      router.push(`/workflows?id=${body.workflow.id}`)
+    } catch (useError) {
+      setError((useError as Error).message)
+      setUsingId(null)
+    }
+  }
 
   return (
     <DashboardShell>
@@ -134,12 +216,32 @@ export default function MarketplacePage() {
           ))}
         </div>
 
+        {error && (
+          <p className="text-sm text-destructive" role="alert">{error}</p>
+        )}
+
         {/* Template grid */}
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {templates.map((template) => (
-            <TemplateCard key={template.id} template={template} />
-          ))}
-        </div>
+        {loading ? (
+          <div className="flex items-center gap-2 py-12 text-sm text-muted-foreground">
+            <Loader2 className="size-4 animate-spin" />
+            Loading templates…
+          </div>
+        ) : templates.length === 0 ? (
+          <p className="py-12 text-sm text-muted-foreground">
+            No templates published yet. Run <code>npm run seed</code> to load the starter catalogue.
+          </p>
+        ) : (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {templates.map((template) => (
+              <TemplateCard
+                key={template.id}
+                template={template}
+                onUse={handleUse}
+                busy={usingId === template.id}
+              />
+            ))}
+          </div>
+        )}
       </div>
     </DashboardShell>
   )

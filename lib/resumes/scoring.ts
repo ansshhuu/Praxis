@@ -8,6 +8,14 @@
  */
 
 import { callAI } from '@/lib/ai/ai-router'
+import { parseJsonArray } from '@/lib/ai/json'
+
+/**
+ * Re-exported so existing importers (`/api/resumes/[id]/questions`) keep their
+ * import path. The implementation now lives in `lib/ai/json.ts`, shared with
+ * the Meetings module.
+ */
+export { parseJsonArray }
 
 /** Combined prompt ceiling (JD + all resume excerpts) before splitting. */
 const MAX_BATCH_CHARS = 12_000
@@ -44,137 +52,6 @@ export type ScoredCandidate = {
   currentRole: string | null
   education: string | null
   summary: string | null
-}
-
-/** Remove markdown code fences and any surrounding whitespace. */
-function stripFences(raw: string): string {
-  return raw
-    .replace(/^\s*```(?:json|javascript)?\s*/i, '')
-    .replace(/```\s*$/, '')
-    .replace(/```(?:json|javascript)?/gi, '')
-    .trim()
-}
-
-function tryParse(text: string): unknown {
-  try {
-    return JSON.parse(text)
-  } catch {
-    return undefined
-  }
-}
-
-/**
- * Slice out the first balanced `[...]` / `{...}` run, ignoring brackets that
- * appear inside string literals. `lastIndexOf(']')` alone gets this wrong when
- * the model adds prose after the JSON, or when the payload is truncated and
- * the final `]` belongs to a nested "skills" array.
- */
-function extractBalanced(text: string, open: '[' | '{'): string | null {
-  const close = open === '[' ? ']' : '}'
-  const start = text.indexOf(open)
-  if (start === -1) return null
-
-  let depth = 0
-  let inString = false
-  let escaped = false
-
-  for (let i = start; i < text.length; i += 1) {
-    const char = text[i]
-
-    if (inString) {
-      if (escaped) escaped = false
-      else if (char === '\\') escaped = true
-      else if (char === '"') inString = false
-      continue
-    }
-
-    if (char === '"') inString = true
-    else if (char === open) depth += 1
-    else if (char === close) {
-      depth -= 1
-      if (depth === 0) return text.slice(start, i + 1)
-    }
-  }
-
-  return null
-}
-
-/**
- * Salvage an array that was cut off mid-flight (the provider hitting its output
- * token cap). Keeps every element that closed cleanly and discards the partial
- * one, so four of five candidates still score instead of the whole batch failing.
- */
-function repairTruncatedArray(text: string): unknown[] | null {
-  const start = text.indexOf('[')
-  if (start === -1) return null
-
-  let depth = 0
-  let inString = false
-  let escaped = false
-  let lastComplete = -1
-
-  for (let i = start; i < text.length; i += 1) {
-    const char = text[i]
-
-    if (inString) {
-      if (escaped) escaped = false
-      else if (char === '\\') escaped = true
-      else if (char === '"') inString = false
-      continue
-    }
-
-    if (char === '"') inString = true
-    else if (char === '[' || char === '{') depth += 1
-    else if (char === ']' || char === '}') {
-      depth -= 1
-      // depth 1 means we just closed a direct element of the outer array.
-      if (depth === 1 && char === '}') lastComplete = i
-    }
-  }
-
-  if (lastComplete === -1) return null
-  const parsed = tryParse(`${text.slice(start, lastComplete + 1)}]`)
-  return Array.isArray(parsed) ? parsed : null
-}
-
-/** Unwrap `{ "candidates": [...] }` style responses, or a lone object. */
-function coerceToArray(value: unknown): unknown[] | null {
-  if (Array.isArray(value)) return value
-  if (!value || typeof value !== 'object') return null
-
-  const record = value as Record<string, unknown>
-  for (const key of ['candidates', 'results', 'data', 'items', 'scores']) {
-    if (Array.isArray(record[key])) return record[key] as unknown[]
-  }
-  // A single candidate returned bare rather than in an array.
-  return Object.keys(record).length > 0 ? [record] : null
-}
-
-/**
- * Tolerant JSON array extraction. Models wrap output in fences, add prose
- * around it, return a wrapper object, or get truncated mid-array — each of
- * those is recovered here before giving up.
- */
-export function parseJsonArray(raw: string): unknown[] | null {
-  const cleaned = stripFences(raw)
-  if (!cleaned) return null
-
-  const direct = coerceToArray(tryParse(cleaned))
-  if (direct) return direct
-
-  const array = extractBalanced(cleaned, '[')
-  if (array) {
-    const parsed = coerceToArray(tryParse(array))
-    if (parsed) return parsed
-  }
-
-  const object = extractBalanced(cleaned, '{')
-  if (object) {
-    const parsed = coerceToArray(tryParse(object))
-    if (parsed) return parsed
-  }
-
-  return repairTruncatedArray(cleaned)
 }
 
 function excerpt(text: string, limit: number): string {

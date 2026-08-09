@@ -1,10 +1,20 @@
 'use client'
 
-import React, { useState, useEffect, useRef, useCallback } from 'react'
+import {
+  AnimatePresence,
+  motion,
+  useMotionValueEvent,
+  useReducedMotion,
+  useScroll,
+  useTransform,
+} from 'framer-motion'
+import React, { useEffect, useRef, useState } from 'react'
 import {
   GitBranch, FileSearch, Users, MessageSquare, BarChart3, Clock,
   ArrowRight, Mail, Shield, Database, Bell, FileText,
 } from 'lucide-react'
+
+import { Reveal, hoverCardClass } from '@/components/motion/primitives'
 
 
 /* ── Praxis sun-ray icon ─────────────────────────────────── */
@@ -407,132 +417,294 @@ function PreviewScheduler() {
 }
 
 /* ══════════════════════════════════════════════════════════
-   MAIN COMPONENT — CSS sticky scroll (no scroll-jacking)
+   MAIN COMPONENT — pinned scroll story
    ══════════════════════════════════════════════════════════ */
 const TOTAL = modules.length // 6
 
+const previewMap: Record<string, React.ReactNode> = {
+  workflows: <PreviewWorkflows />,
+  documents: <PreviewDocuments />,
+  resumes:   <PreviewResumes />,
+  chat:      <PreviewChat />,
+  analytics: <PreviewAnalytics />,
+  scheduler: <PreviewScheduler />,
+}
+
+/* Shared easing — matches the .sss-fade-slide curve already in landing.css */
+const EASE = [0.22, 1, 0.36, 1] as const
+
+/* ── Section heading (scrolls normally, never pinned) ────── */
+function SectionHeading() {
+  return (
+    <div className="mx-auto max-w-7xl px-6 pt-24 pb-14 text-center md:pt-28">
+      {/* Line-level reveals — word-by-word is reserved for the hero headline. */}
+      <Reveal y={12} duration={0.35}>
+        <span className="uppercase tracking-widest text-[11px] font-bold text-[#66615B] bg-[#EAE3D9] px-3 py-1.5 rounded-full">
+          Platform Features
+        </span>
+      </Reveal>
+      <Reveal delay={0.08}>
+        <h2
+          id="features-heading"
+          className="text-4xl md:text-[42px] tracking-tight font-extrabold mt-6 mb-4 text-[#111111]"
+        >
+          One platform. Endless possibilities.
+        </h2>
+      </Reveal>
+      <Reveal delay={0.16}>
+        <p className="text-lg text-[#66615B] m-0">
+          Scroll to explore how Praxis helps every team automate and accelerate their work.
+        </p>
+      </Reveal>
+    </div>
+  )
+}
+
+/* ── The device frame around each preview ─────────────────
+   Persistent across feature changes: only its contents crossfade, so the
+   whole thing reads as one app window changing screens rather than six
+   separate cards being swapped in and out. */
+function PreviewFrame({ children }: { children: React.ReactNode }) {
+  return (
+    <div className={`h-[520px] w-full rounded-2xl border-[1.5px] border-[#E5E0D8] bg-[#EAE3D9] p-3 shadow-[0_8px_40px_rgba(0,0,0,0.08),0_2px_8px_rgba(0,0,0,0.04)] ${hoverCardClass}`}>
+      <div className="relative h-full w-full overflow-hidden rounded-[14px] border border-black/10 bg-white shadow-[0_2px_12px_rgba(0,0,0,0.06)]">
+        {children}
+      </div>
+    </div>
+  )
+}
+
+/* ══════════════════════════════════════════════════════════
+   Reduced-motion fallback: plain stacked sections, no pinning,
+   no scroll-driven state, just a fade-in per module.
+   ══════════════════════════════════════════════════════════ */
+function StackedFallback() {
+  return (
+    <section id="features" className="relative w-full bg-[#F7F7F6]" aria-labelledby="features-heading">
+      <SectionHeading />
+      <div className="mx-auto flex max-w-7xl flex-col gap-20 px-6 pb-28">
+        {modules.map((mod) => {
+          const Icon = mod.icon
+          return (
+            <motion.div
+              key={mod.id}
+              id={`sss-nav-${mod.id}`}
+              initial={{ opacity: 0 }}
+              whileInView={{ opacity: 1 }}
+              viewport={{ once: true, amount: 0.25 }}
+              transition={{ duration: 0.3 }}
+              className="grid grid-cols-1 items-center gap-10 lg:grid-cols-12"
+            >
+              <div className="lg:col-span-5">
+                <div className="flex items-center gap-2.5">
+                  <span className="min-w-[20px] text-[11px] font-bold tracking-[0.08em] tabular-nums text-[#66615B]">
+                    {mod.num}
+                  </span>
+                  <span className="flex items-center gap-2 text-[17px] font-bold text-[#111111]">
+                    <Icon size={15} strokeWidth={2} className="flex-shrink-0" />
+                    {mod.title}
+                  </span>
+                </div>
+                <p className="mb-0 ml-[30px] mt-2 text-[13.5px] font-normal leading-[1.6] text-[#66615B]">
+                  {mod.desc}
+                </p>
+              </div>
+              <div className="lg:col-span-7">
+                <PreviewFrame>
+                  <div className="flex h-full flex-col">{previewMap[mod.id]}</div>
+                </PreviewFrame>
+              </div>
+            </motion.div>
+          )
+        })}
+      </div>
+    </section>
+  )
+}
+
 export function FeaturesSection() {
-  const [active, setActive]   = useState(0)
-  const [animKey, setAnimKey] = useState(0)
-  const sectionRef = useRef<HTMLElement>(null)
-  const prevActive = useRef(0)
+  /* Outer 600vh wrapper — this is what useScroll measures, and the only thing
+     that scrolls. The sticky child is pinned across its full travel, so there
+     is no trailing dead space. */
+  const wrapperRef = useRef<HTMLDivElement>(null)
+  const [active, setActive] = useState(0)
 
-  /* ── Passive scroll listener: map progress → active step ─ */
-  useEffect(() => {
-    const onScroll = () => {
-      const section = sectionRef.current
-      if (!section) return
+  const prefersReduced = useReducedMotion()
+  /* useReducedMotion resolves on the client only, so the first client render
+     must match the server's. Swap layouts after mount instead of during
+     hydration. Nothing has animated by then, so there is nothing to flash. */
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
 
-      const rect     = section.getBoundingClientRect()
-      const scrolled = -rect.top                         // px scrolled past section top
-      const total    = section.offsetHeight - window.innerHeight // total scrollable px
-      if (total <= 0) return
+  /* progress 0 when the wrapper's top meets the viewport top (sticky pins),
+     1 when its bottom meets the viewport bottom (sticky releases). */
+  const { scrollYProgress } = useScroll({
+    target: wrapperRef,
+    offset: ['start start', 'end end'],
+  })
 
-      const progress = Math.min(1, Math.max(0, scrolled / total))
-      // Map 0-1 evenly across TOTAL steps; clamp last step so it stays at 5
-      const step = Math.min(TOTAL - 1, Math.floor(progress * TOTAL))
+  /* 0-1 → 0-5. floor(p * 6) yields 6 exactly at p === 1, hence the clamp.
+     Being derived from continuous progress rather than discrete triggers,
+     this reverses identically on the way back up. */
+  const activeIndex = useTransform(scrollYProgress, (p) =>
+    Math.min(TOTAL - 1, Math.max(0, Math.floor(p * TOTAL))),
+  )
+  useMotionValueEvent(activeIndex, 'change', (value) => setActive(value))
 
-      if (step !== prevActive.current) {
-        prevActive.current = step
-        setAnimKey(k => k + 1)
-        setActive(step)
-      }
-    }
+  /* Gold rail fill, tied straight to scroll so it tracks sub-step movement
+     the discrete index cannot show. */
+  const railScale = useTransform(scrollYProgress, [0, 1], [1 / TOTAL, 1])
 
-    window.addEventListener('scroll', onScroll, { passive: true })
-    onScroll() // run once on mount to set correct initial step
-    return () => window.removeEventListener('scroll', onScroll)
-  }, [])
-
-  /* ── Click nav: jump to that step's scroll position ─────── */
-  const handleNavClick = (idx: number) => {
-    const section = sectionRef.current
-    if (!section) return
-    const total   = section.offsetHeight - window.innerHeight
-    const stepPct = idx / TOTAL
-    const targetY = section.offsetTop + total * stepPct
-    window.scrollTo({ top: targetY, behavior: 'smooth' })
+  /* Jump to the middle of a step, so a click never lands on a boundary. */
+  function handleNavClick(index: number) {
+    const wrapper = wrapperRef.current
+    if (!wrapper) return
+    const travel = wrapper.offsetHeight - window.innerHeight
+    if (travel <= 0) return
+    const target =
+      wrapper.offsetTop + travel * ((index + 0.5) / TOTAL)
+    window.scrollTo({ top: target, behavior: 'smooth' })
   }
 
-  const previewMap: Record<string, React.ReactNode> = {
-    workflows: <PreviewWorkflows />,
-    documents: <PreviewDocuments />,
-    resumes:   <PreviewResumes />,
-    chat:      <PreviewChat />,
-    analytics: <PreviewAnalytics />,
-    scheduler: <PreviewScheduler />,
-  }
+  if (mounted && prefersReduced) return <StackedFallback />
+
+  const activeModule = modules[active]
 
   return (
-    <section
-      id="features"
-      className="relative h-[400vh] w-full bg-[#F7F7F6]"
-      aria-labelledby="features-heading"
-      ref={sectionRef}
-    >
-      {/* Sticky Frame: Locks to the monitor. NEVER moves. */}
-      <div className="sticky top-0 left-0 h-screen w-full flex flex-col items-center justify-center overflow-hidden py-12">
+    <section id="features" className="relative w-full bg-[#F7F7F6]" aria-labelledby="features-heading">
+      {/* Scrolls past normally — appears once on entry, not pinned. */}
+      <SectionHeading />
 
-        {/* Section Header (Stays fixed at the top of the sticky view) */}
-        <div className="text-center mb-12 flex-shrink-0">
-          <span className="uppercase tracking-widest text-[11px] font-bold text-[#66615B] bg-[#EAE3D9] px-3 py-1.5 rounded-full">
-            Platform Features
-          </span>
-          <h2 id="features-heading" className="text-4xl md:text-[42px] tracking-tight font-extrabold mt-6 mb-4 text-[#111111]">
-            One platform. Endless possibilities.
-          </h2>
-          <p className="text-lg text-[#66615B] m-0">
-            Scroll to explore how Praxis helps every team automate and accelerate their work.
-          </p>
-        </div>
+      {/* 6 features × 100vh. */}
+      <div ref={wrapperRef} className="relative h-[600vh]">
+        {/* Pinned for the wrapper's whole travel. */}
+        <div className="sticky top-0 flex h-screen w-full items-center overflow-hidden">
+          <div className="mx-auto grid w-full max-w-7xl grid-cols-12 items-center gap-12 px-6">
 
-        {/* Content Grid: Fixed in the dead center of the screen */}
-        <div className="w-full max-w-7xl mx-auto px-6 grid grid-cols-12 gap-12 items-start">
+            {/* ── LEFT: feature nav ───────────────────────────── */}
+            <div className="col-span-12 lg:col-span-5">
+              <div className="relative pl-5">
+                {/* Track + gold fill that grows as the story advances. */}
+                <div className="absolute inset-y-0 left-0 w-[2px] overflow-hidden rounded-full bg-[#EAE3D9]">
+                  <motion.div
+                    className="h-full w-full origin-top rounded-full bg-[#F5CA50]"
+                    style={{ scaleY: railScale }}
+                  />
+                </div>
 
-          {/* LEFT COLUMN: STATIC LIST (DO NOT SCROLL THIS) */}
-          <div className="col-span-5 flex flex-col justify-center border-l-2 border-[#EAE3D9] space-y-1">
-            {modules.map((mod, idx) => {
-              const Icon     = mod.icon
-              const isActive = active === idx
-              return (
-                <button
-                  key={mod.id}
-                  id={`sss-nav-${mod.id}`}
-                  className={`text-left flex flex-col py-3 pl-5 -ml-[2px] border-l-2 transition-all duration-300 ${
-                    isActive ? 'opacity-100 border-[#111111]' : 'opacity-30 border-transparent hover:opacity-60'
-                  }`}
-                  onClick={() => handleNavClick(idx)}
-                  aria-current={isActive ? 'true' : undefined}
-                >
-                  {/* Title Row (Always visible) */}
-                  <div className="flex items-center gap-2.5">
-                    <span className={`text-[11px] font-bold tracking-[0.08em] tabular-nums min-w-[20px] ${isActive ? 'text-[#66615B]' : 'text-[#B5AFA9]'}`}>
-                      {mod.num}
-                    </span>
-                    <span className={`text-[15px] font-bold flex items-center gap-2 ${isActive ? 'text-[#111111]' : 'text-[#66615B]'}`}>
-                      <Icon size={14} strokeWidth={2} className="flex-shrink-0" />
-                      {mod.title}
-                    </span>
+                <ul className="m-0 flex list-none flex-col gap-1 p-0">
+                  {modules.map((mod, index) => {
+                    const Icon = mod.icon
+                    const isActive = active === index
+                    return (
+                      <li key={mod.id} className="relative">
+                        {/* Shared-layout dot: one element that slides between
+                            items rather than six that fade independently. */}
+                        {isActive && (
+                          <motion.span
+                            layoutId="sss-active-dot"
+                            className="absolute -left-[23px] top-[18px] size-[9px] rounded-full bg-[#F5CA50] shadow-[0_0_0_3px_rgba(245,202,80,0.25)]"
+                            transition={{ type: 'spring', stiffness: 420, damping: 34 }}
+                          />
+                        )}
+                        <button
+                          id={`sss-nav-${mod.id}`}
+                          type="button"
+                          onClick={() => handleNavClick(index)}
+                          aria-current={isActive ? 'true' : undefined}
+                          className="flex w-full flex-col py-3 text-left"
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <span
+                              className="min-w-[20px] text-[11px] font-bold tabular-nums tracking-[0.08em] transition-colors duration-300"
+                              style={{ color: isActive ? '#66615B' : '#A9A49C' }}
+                            >
+                              {mod.num}
+                            </span>
+                            <span
+                              className="flex items-center gap-2 text-[15px] transition-colors duration-300"
+                              style={{
+                                color: isActive ? '#111111' : '#A9A49C',
+                                fontWeight: isActive ? 800 : 600,
+                              }}
+                            >
+                              <Icon size={14} strokeWidth={2} className="flex-shrink-0" />
+                              {mod.title}
+                            </span>
+                          </div>
+
+                          {/* Description expands for the active item only. */}
+                          <AnimatePresence initial={false}>
+                            {isActive && (
+                              <motion.p
+                                key="desc"
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: 'auto' }}
+                                exit={{ opacity: 0, height: 0 }}
+                                transition={{ duration: 0.28, ease: EASE }}
+                                className="m-0 ml-[30px] overflow-hidden text-[13.5px] font-normal leading-[1.6] text-[#66615B]"
+                              >
+                                <span className="block pt-2">{mod.desc}</span>
+                              </motion.p>
+                            )}
+                          </AnimatePresence>
+                        </button>
+                      </li>
+                    )
+                  })}
+                </ul>
+              </div>
+
+              {/* Numbered tick progress bar. */}
+              <div className="mt-7 flex items-center gap-2 pl-5">
+                {modules.map((mod, index) => (
+                  <div key={mod.id} className="flex items-center gap-1.5">
+                    <motion.span
+                      className="block h-[3px] rounded-full"
+                      animate={{
+                        width: index === active ? 26 : 14,
+                        backgroundColor: index <= active ? '#F5CA50' : '#DFD6C9',
+                      }}
+                      transition={{ duration: 0.28, ease: EASE }}
+                    />
+                    {index === active && (
+                      <motion.span
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ duration: 0.22 }}
+                        className="text-[10px] font-bold tabular-nums tracking-[0.08em] text-[#66615B]"
+                      >
+                        {mod.num}
+                      </motion.span>
+                    )}
                   </div>
-                  
-                  {/* Description (ONLY visible if active) */}
-                  {isActive && (
-                    <p className="text-[13.5px] text-[#66615B] leading-[1.6] mt-2 mb-0 ml-[30px] font-normal">
-                      {mod.desc}
-                    </p>
-                  )}
-                </button>
-              )
-            })}
-          </div>
-
-          {/* RIGHT COLUMN: STATIC CANVAS (DO NOT SCROLL THIS) */}
-          <div className="col-span-7 h-[520px] w-full bg-[#EAE3D9] rounded-2xl p-3 border-[1.5px] border-[#E5E0D8] shadow-[0_8px_40px_rgba(0,0,0,0.08),0_2px_8px_rgba(0,0,0,0.04)] flex flex-col overflow-hidden">
-            <div key={animKey} className="flex-1 bg-white rounded-[14px] border border-black/10 shadow-[0_2px_12px_rgba(0,0,0,0.06)] overflow-hidden flex flex-col min-h-0 sss-fade-slide relative">
-              {previewMap[modules[active].id]}
+                ))}
+              </div>
             </div>
-          </div>
 
+            {/* ── RIGHT: product preview ──────────────────────── */}
+            <div className="col-span-12 lg:col-span-7">
+              <PreviewFrame>
+                {/* Default (sync) AnimatePresence, not mode="wait": both
+                    screens are mounted mid-transition and absolutely stacked,
+                    which is what makes this a true overlapping crossfade
+                    rather than a fade-out-then-in with a blank gap. */}
+                <AnimatePresence initial={false}>
+                  <motion.div
+                    key={activeModule.id}
+                    initial={{ opacity: 0, scale: 0.985, y: 10 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 1.012, y: -10 }}
+                    transition={{ duration: 0.45, ease: EASE }}
+                    className="absolute inset-0 flex flex-col"
+                  >
+                    {previewMap[activeModule.id]}
+                  </motion.div>
+                </AnimatePresence>
+              </PreviewFrame>
+            </div>
+
+          </div>
         </div>
       </div>
     </section>

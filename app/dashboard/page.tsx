@@ -1,5 +1,6 @@
 'use client'
 
+import { StaggerGroup, StaggerItem, hoverCardClass } from '@/components/motion/primitives'
 import { DashboardShell } from '@/components/dashboard/dashboard-shell'
 import { StatCards } from '@/components/dashboard/stat-cards'
 import { SuccessRateChart } from '@/components/dashboard/success-rate-chart'
@@ -7,6 +8,7 @@ import { UsageChart } from '@/components/dashboard/usage-chart'
 import { WorkflowRunsTable } from '@/components/dashboard/workflow-runs-table'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { StatusBadge } from '@/components/ui/status-badge'
+import { cn } from '@/lib/utils'
 import { Clock } from 'lucide-react'
 
 // Dummy data for Recent Activity
@@ -33,20 +35,21 @@ export default function DashboardPage() {
         {/* 1. Stat Cards Row */}
         <StatCards />
 
-        {/* 2. Charts Row */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-1">
+        {/* 2. Charts Row — continues the stat-row cascade rather than
+            restarting it, so the page settles as one motion. */}
+        <StaggerGroup className="grid grid-cols-1 lg:grid-cols-3 gap-6" stagger={0.07} delayChildren={0.28}>
+          <StaggerItem className="lg:col-span-1">
             <SuccessRateChart />
-          </div>
-          <div className="lg:col-span-2">
+          </StaggerItem>
+          <StaggerItem className="lg:col-span-2">
             <UsageChart />
-          </div>
-        </div>
+          </StaggerItem>
+        </StaggerGroup>
 
         {/* 3. Lists Row */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2">
-            <Card className="h-full">
+        <StaggerGroup className="grid grid-cols-1 lg:grid-cols-3 gap-6" stagger={0.07} delayChildren={0.42}>
+          <StaggerItem className="lg:col-span-2">
+            <Card className={cn('h-full', hoverCardClass)}>
               <CardHeader>
                 <CardTitle>Top Failed Workflows</CardTitle>
               </CardHeader>
@@ -54,9 +57,9 @@ export default function DashboardPage() {
                 <WorkflowRunsTable />
               </CardContent>
             </Card>
-          </div>
-          <div className="lg:col-span-1">
-            <Card className="h-full">
+          </StaggerItem>
+          <StaggerItem className="lg:col-span-1">
+            <Card className={cn('h-full', hoverCardClass)}>
               <CardHeader>
                 <CardTitle>Recent Activity</CardTitle>
               </CardHeader>
@@ -77,8 +80,8 @@ export default function DashboardPage() {
                 ))}
               </CardContent>
             </Card>
-          </div>
-        </div>
+          </StaggerItem>
+        </StaggerGroup>
       </div>
     </DashboardShell>
   )

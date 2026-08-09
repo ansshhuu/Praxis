@@ -18,9 +18,11 @@ import {
   Users,
   Briefcase
 } from 'lucide-react'
+import { AnimatePresence, motion } from 'framer-motion'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import React from 'react'
 
+import { EASE_OUT } from '@/components/motion/primitives'
 import { DashboardShell } from '@/components/dashboard/dashboard-shell'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -68,6 +70,15 @@ function formatUploadDate(iso: string): string {
 async function readError(response: Response, fallback: string): Promise<string> {
   const body = await response.json().catch(() => null)
   return (body as { error?: string } | null)?.error ?? fallback
+}
+
+/**
+ * Split a summary into sentences so they can reveal one at a time. The model
+ * returns prose, not a bullet list, so sentences are the natural unit.
+ */
+function splitSentences(text: string): string[] {
+  const parts = text.match(/[^.!?]+[.!?]+(\s|$)|[^.!?]+$/g)
+  return parts ? parts.map((s) => s.trim()).filter(Boolean) : [text]
 }
 
 function DocTypeIcon({ type }: { type: string }) {
@@ -306,38 +317,103 @@ function DocumentDetailView({
       <div className="flex-1 overflow-y-auto p-5 relative bg-gray-50/30">
         {activeTab === 'summary' && (
           <div className="flex flex-col gap-4">
-            {isProcessing ? (
-               <div className="flex flex-col gap-3">
-                 <Skeleton className="h-4 w-3/4" />
-                 <Skeleton className="h-4 w-full" />
-                 <Skeleton className="h-4 w-5/6" />
-               </div>
-            ) : aiSummary ? (
-               <div className="prose prose-sm prose-gray max-w-none">
-                 <p className="text-[13.5px] leading-relaxed text-gray-700 whitespace-pre-wrap">{aiSummary}</p>
-               </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center py-10 text-center opacity-50">
-                 <Bot className="size-8 mb-3 text-gray-400" />
-                 <p className="text-sm text-gray-500 font-medium">Summary not available</p>
-              </div>
-            )}
+            {/*
+              Crossfade between the processing skeleton and the finished
+              insights, so a document flipping from Processing to Processed
+              resolves rather than snapping. mode="wait" keeps the two states
+              from overlapping in a fixed-height panel.
+            */}
+            <AnimatePresence mode="wait" initial={false}>
+              {isProcessing ? (
+                <motion.div
+                  key="processing"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0, y: -6 }}
+                  transition={{ duration: 0.25, ease: EASE_OUT }}
+                  className="flex flex-col gap-3"
+                >
+                  <Skeleton className="h-4 w-3/4" />
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-5/6" />
+                </motion.div>
+              ) : aiSummary ? (
+                <motion.div
+                  key="summary"
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.35, ease: EASE_OUT }}
+                  className="prose prose-sm prose-gray max-w-none"
+                >
+                  {/* Sentences reveal in sequence. They stay inline spans in a
+                      single paragraph, so the text wraps exactly as before. */}
+                  <p className="text-[13.5px] leading-relaxed text-gray-700 whitespace-pre-wrap">
+                    {splitSentences(aiSummary).map((sentence, i) => (
+                      <motion.span
+                        key={i}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ duration: 0.3, delay: 0.12 + i * 0.11, ease: EASE_OUT }}
+                        style={{ display: 'inline' }}
+                      >
+                        {sentence}
+                        {i < splitSentences(aiSummary).length - 1 ? ' ' : ''}
+                      </motion.span>
+                    ))}
+                  </p>
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="none"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.25 }}
+                  className="flex flex-col items-center justify-center py-10 text-center opacity-50"
+                >
+                  <Bot className="size-8 mb-3 text-gray-400" />
+                  <p className="text-sm text-gray-500 font-medium">Summary not available</p>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         )}
 
         {activeTab === 'ocr' && (
            <div className="h-full bg-white rounded-xl border border-gray-100 p-4 shadow-sm overflow-y-auto">
-             {isProcessing ? (
-                <div className="flex items-center gap-2 text-sm text-gray-500">
-                  <Loader2 className="size-4 animate-spin" /> Processing OCR...
-                </div>
-             ) : extractedText ? (
-                <pre className="whitespace-pre-wrap font-mono text-[11px] leading-relaxed text-gray-600">
-                  {extractedText}
-                </pre>
-             ) : (
-                <p className="text-sm text-gray-500 italic">No text could be extracted.</p>
-             )}
+             <AnimatePresence mode="wait" initial={false}>
+               {isProcessing ? (
+                  <motion.div
+                    key="ocr-processing"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.25 }}
+                    className="flex items-center gap-2 text-sm text-gray-500"
+                  >
+                    <Loader2 className="size-4 animate-spin" /> Processing OCR...
+                  </motion.div>
+               ) : extractedText ? (
+                  <motion.pre
+                    key="ocr-text"
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.35, ease: EASE_OUT }}
+                    className="whitespace-pre-wrap font-mono text-[11px] leading-relaxed text-gray-600"
+                  >
+                    {extractedText}
+                  </motion.pre>
+               ) : (
+                  <motion.p
+                    key="ocr-none"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.25 }}
+                    className="text-sm text-gray-500 italic"
+                  >
+                    No text could be extracted.
+                  </motion.p>
+               )}
+             </AnimatePresence>
            </div>
         )}
 

@@ -14,9 +14,11 @@ import {
   Target,
   ShieldCheck
 } from 'lucide-react'
+import { motion } from 'framer-motion'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import React from 'react'
 
+import { EASE_OUT } from '@/components/motion/primitives'
 import { DashboardShell } from '@/components/dashboard/dashboard-shell'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -97,14 +99,20 @@ function RankBadge({ rank }: { rank: number }) {
   )
 }
 
-function ScoreBar({ score }: { score: number }) {
+function ScoreBar({ score, delay = 0 }: { score: number; delay?: number }) {
   // Use green for high score, amber for medium, red for low
   const color =
     score >= 80 ? 'bg-green-500' : score >= 60 ? 'bg-[#F5CA50]' : 'bg-red-500'
   return (
     <div className="flex items-center gap-3">
       <div className="h-2 w-24 overflow-hidden rounded-full bg-gray-100">
-        <div className={cn('h-full rounded-full transition-all duration-500', color)} style={{ width: `${score}%` }} />
+        {/* Fills from empty to the final score as the row settles. */}
+        <motion.div
+          className={cn('h-full rounded-full', color)}
+          initial={{ width: 0 }}
+          animate={{ width: `${score}%` }}
+          transition={{ duration: 0.7, delay, ease: EASE_OUT }}
+        />
       </div>
       <span className="tabular-nums text-[13px] font-bold text-gray-900">{score}%</span>
     </div>
@@ -435,10 +443,20 @@ function ResultsTable({ candidates, onSelect }: { candidates: Candidate[]; onSel
             </TableRow>
           </TableHeader>
           <TableBody>
-            {candidates.map((c) => (
-              <TableRow
+            {candidates.map((c, i) => (
+              /*
+                motion.tr rather than TableRow: the `layout` prop needs a DOM
+                ref, which TableRow does not forward. Classes are copied from
+                TableRow verbatim so the row renders identically.
+              */
+              <motion.tr
                 key={c.id}
-                className="cursor-pointer group"
+                layout
+                data-slot="table-row"
+                transition={{ layout: { duration: 0.55, ease: EASE_OUT } }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="border-b transition-colors hover:bg-gray-50/50 data-[state=selected]:bg-gray-50 cursor-pointer group"
                 onClick={() => onSelect(c.id)}
               >
                 <TableCell className="pl-6"><RankBadge rank={c.rank} /></TableCell>
@@ -453,7 +471,7 @@ function ResultsTable({ candidates, onSelect }: { candidates: Candidate[]; onSel
                     </div>
                   </div>
                 </TableCell>
-                <TableCell><ScoreBar score={c.matchScore} /></TableCell>
+                <TableCell><ScoreBar score={c.matchScore} delay={0.15 + i * 0.05} /></TableCell>
                 <TableCell>
                   <div className="flex flex-wrap gap-1.5">
                     {c.skillsMatched.slice(0, 3).map((s) => (
@@ -476,7 +494,7 @@ function ResultsTable({ candidates, onSelect }: { candidates: Candidate[]; onSel
                      <ChevronRight className="size-4" />
                   </div>
                 </TableCell>
-              </TableRow>
+              </motion.tr>
             ))}
           </TableBody>
         </Table>
@@ -532,8 +550,29 @@ export default function ResumesPage() {
         skipped: { fileName: string; reason: string }[]
       }
 
-      setCandidates(ranked)
+      /*
+        Show the candidates in the order they were uploaded first, then hand
+        the ranked order to React on the next frame. The rows carry framer's
+        `layout` prop, so that second render animates them into their ranked
+        positions (FLIP) instead of the table appearing pre-sorted.
+
+        Purely presentational: `ranked` is the same array either way, and the
+        settle is skipped entirely under reduced motion.
+      */
+      const uploadOrder = [...ranked].sort(
+        (a, b) =>
+          files.findIndex((f) => f.name === a.fileName) -
+          files.findIndex((f) => f.name === b.fileName),
+      )
+      const shouldSettle =
+        !window.matchMedia('(prefers-reduced-motion: reduce)').matches &&
+        ranked.length > 1
+
+      setCandidates(shouldSettle ? uploadOrder : ranked)
       setHasResults(true)
+      if (shouldSettle) {
+        window.setTimeout(() => setCandidates(ranked), 450)
+      }
       setScreenError(
         skipped.length > 0
           ? `Skipped ${skipped.length} file(s): ${skipped.map((s) => `${s.fileName} — ${s.reason}`).join('; ')}`

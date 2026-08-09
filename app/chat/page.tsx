@@ -3,6 +3,7 @@
 import { Bot, FileText, Loader2, Send, Sparkles } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
+import { useTypewriter } from '@/components/motion/primitives'
 import { DashboardShell } from '@/components/dashboard/dashboard-shell'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -45,8 +46,27 @@ async function readError(response: Response, fallback: string): Promise<string> 
 
 // ─── Message bubble ───────────────────────────────────────────────────────────
 
-function MessageBubble({ message }: { message: ChatMessage }) {
+/**
+ * While a response is still revealing, a partially-shown `**bold**` span would
+ * render its literal asterisks. Closing the open marker keeps the text
+ * formatting correctly as it grows.
+ */
+function balanceBold(text: string): string {
+  const markers = (text.match(/\*\*/g) ?? []).length
+  return markers % 2 === 1 ? `${text}**` : text
+}
+
+function MessageBubble({ message, stream = false }: { message: ChatMessage; stream?: boolean }) {
   const isUser = message.role === 'user'
+  /*
+    /api/chat returns the whole answer in one response — it is not a streaming
+    endpoint — so this reveals text already in hand rather than pretending to
+    receive tokens. Only the newest assistant message passes `stream`, so
+    scrolling through history never replays it.
+  */
+  const { shown, done } = useTypewriter(message.content, { enabled: stream && !isUser })
+  const visible = stream && !isUser ? balanceBold(shown) : message.content
+
   return (
     <div className={cn('flex gap-3', isUser ? 'justify-end' : 'justify-start')}>
       {!isUser && (
@@ -69,12 +89,19 @@ function MessageBubble({ message }: { message: ChatMessage }) {
               : 'rounded-tl-sm bg-white text-gray-800 border border-gray-100 font-medium',
           )}
         >
-          {message.content.split(/(\*\*[^*]+\*\*)/).map((part, i) =>
+          {visible.split(/(\*\*[^*]+\*\*)/).map((part, i) =>
             part.startsWith('**') && part.endsWith('**') ? (
               <strong key={i} className="font-bold text-gray-900">{part.slice(2, -2)}</strong>
             ) : (
               <span key={i}>{part}</span>
             ),
+          )}
+          {stream && !isUser && !done && (
+            <span
+              aria-hidden="true"
+              className="ml-0.5 inline-block h-[14px] w-[6px] translate-y-[2px] rounded-[2px] bg-[#D4A017]"
+              style={{ animation: 'blink 1.1s step-end infinite' }}
+            />
           )}
         </div>
         <span className="text-[11px] font-bold text-gray-400 px-1">{message.timestamp}</span>
@@ -110,6 +137,8 @@ function TypingIndicator() {
 
 export default function ChatPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([])
+  /** Newest assistant reply — the only one that reveals progressively. */
+  const [streamingId, setStreamingId] = useState<string | null>(null)
   const [inputValue, setInputValue] = useState('')
   const [isTyping, setIsTyping] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
@@ -168,6 +197,7 @@ export default function ChatPage() {
         toMessage(userMessage),
         toMessage(assistantMessage),
       ])
+      setStreamingId(assistantMessage.id)
     } catch (sendError) {
       setError((sendError as Error).message)
     } finally {
@@ -208,7 +238,7 @@ export default function ChatPage() {
           ) : (
             <>
               {messages.map((msg) => (
-                <MessageBubble key={msg.id} message={msg} />
+                <MessageBubble key={msg.id} message={msg} stream={msg.id === streamingId} />
               ))}
               {isTyping && <TypingIndicator />}
             </>

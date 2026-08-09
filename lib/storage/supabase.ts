@@ -1,5 +1,5 @@
 /**
- * Supabase Storage access for the Documents module.
+ * Supabase Storage access for the Documents and Meetings modules.
  *
  * Server-only: this uses the service-role key, which bypasses RLS. It must
  * never be imported from a client component. Every call site is responsible
@@ -9,6 +9,7 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 
 export const DOCUMENTS_BUCKET = 'documents'
+export const MEETINGS_BUCKET = 'meetings'
 
 /** How long extraction-time signed URLs stay valid. */
 const SIGNED_URL_TTL_SECONDS = 60 * 10
@@ -56,18 +57,22 @@ export type UploadedObject = { path: string; publicUrl: string }
  * Uploads to `/{userId}/{folder?}/{uuid}-{filename}` and returns its path plus
  * public URL. `folder` lets a module keep its files together (e.g. "resumes")
  * without escaping the caller's own directory.
+ *
+ * `bucket` defaults to `documents` so existing call sites are unaffected;
+ * Meetings passes `MEETINGS_BUCKET`.
  */
 export async function uploadDocument(
   userId: string,
   file: File,
   folder?: string,
+  bucket: string = DOCUMENTS_BUCKET,
 ): Promise<UploadedObject> {
   const client = getStorageClient()
   const segment = folder ? `${sanitizeFileName(folder)}/` : ''
   const path = `${userId}/${segment}${crypto.randomUUID()}-${sanitizeFileName(file.name)}`
 
   const { error } = await client.storage
-    .from(DOCUMENTS_BUCKET)
+    .from(bucket)
     .upload(path, await file.arrayBuffer(), {
       contentType: file.type || 'application/octet-stream',
       upsert: false,
@@ -77,7 +82,7 @@ export async function uploadDocument(
     throw new Error(`Storage upload failed: ${error.message}`)
   }
 
-  const { data } = client.storage.from(DOCUMENTS_BUCKET).getPublicUrl(path)
+  const { data } = client.storage.from(bucket).getPublicUrl(path)
   return { path, publicUrl: data.publicUrl }
 }
 
@@ -86,10 +91,13 @@ export async function uploadDocument(
  * and is harmless for public ones, so extraction doesn't depend on how the
  * bucket happens to be configured.
  */
-export async function createReadUrl(path: string): Promise<string> {
+export async function createReadUrl(
+  path: string,
+  bucket: string = DOCUMENTS_BUCKET,
+): Promise<string> {
   const client = getStorageClient()
   const { data, error } = await client.storage
-    .from(DOCUMENTS_BUCKET)
+    .from(bucket)
     .createSignedUrl(path, SIGNED_URL_TTL_SECONDS)
 
   if (error || !data?.signedUrl) {
@@ -99,9 +107,12 @@ export async function createReadUrl(path: string): Promise<string> {
 }
 
 /** Best-effort removal — a missing object must not block the DB delete. */
-export async function removeDocument(path: string): Promise<void> {
+export async function removeDocument(
+  path: string,
+  bucket: string = DOCUMENTS_BUCKET,
+): Promise<void> {
   const client = getStorageClient()
-  const { error } = await client.storage.from(DOCUMENTS_BUCKET).remove([path])
+  const { error } = await client.storage.from(bucket).remove([path])
   if (error) {
     console.error(`[storage] failed to remove ${path}:`, error.message)
   }
