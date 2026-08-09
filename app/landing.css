@@ -962,7 +962,7 @@ body:has(.landing-root) {
 }
 
 /* ════════════════════════════════════════════════════════════════════════════
-   FEATURES SECTION
+   FEATURES SECTION — old feat-card styles (kept for compatibility)
    ═══════════════════════════════════════════════════════════════════════════ */
 .features-section {
   background: #FFFFFF;
@@ -970,6 +970,7 @@ body:has(.landing-root) {
   padding: 96px 20px;
 }
 
+/* ── Shared section typography (used in multiple sections) ─ */
 .section-tag {
   display: inline-block;
   background: #F0EBE3;
@@ -1014,7 +1015,6 @@ body:has(.landing-root) {
   box-shadow: 0 6px 24px rgba(0, 0, 0, 0.08);
   transform: translateY(-3px);
 }
-
 .feat-icon-wrap {
   width: 44px;
   height: 44px;
@@ -1024,9 +1024,388 @@ body:has(.landing-root) {
   justify-content: center;
   margin-bottom: 18px;
 }
-
 .feat-title { font-size: 15px; font-weight: 700; color: #111111; margin-bottom: 8px; }
 .feat-desc  { font-size: 13.5px; color: #66615B; line-height: 1.6; }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   STICKY SCROLL SHOWCASE (SSS) — 2-column interactive feature explorer
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Outer section: tall enough to allow native scrolling (6 steps) ─ */
+.sss-section {
+  background: #F7F7F6;
+  border-top: 1px solid rgba(0,0,0,0.06);
+  width: 100%;
+  height: 300vh; /* gives exactly enough room for scroll mapping, zero blank space */
+  position: relative;
+}
+
+/* ── Inner pin wrapper: sticks to top, exactly one viewport high ───── */
+.sss-pin-wrap {
+  position: sticky;
+  top: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  overflow: hidden; /* nothing spills past the pinned viewport edges */
+}
+
+/* ── Compact header (no heavy top padding since section is viewport-pinned) */
+.sss-header {
+  text-align: center;
+  padding: 0 0 32px;
+  flex-shrink: 0;
+}
+.sss-header .section-sub {
+  margin-bottom: 0;
+}
+
+/* ── 12-column grid body ────────────────────────── */
+.sss-layout {
+  display: grid;
+  grid-template-columns: 5fr 7fr;
+  gap: 32px;
+  align-items: center;
+  width: 100%;
+  max-width: 1280px; /* max-w-7xl */
+  margin: 0 auto;
+  padding: 0 24px;   /* px-6 */
+  height: 80vh;      /* exactly 80vh as requested */
+}
+
+/* ── LEFT column ───────────────────────────────── */
+.sss-left {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+/* Nav container */
+.sss-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border-left: 2px solid #EAE3D9;
+}
+
+/* Each nav item */
+.sss-nav-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 11px 0 11px 20px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  opacity: 0.3;
+  transition: opacity 0.25s ease;
+  border-left: 2px solid transparent;
+  margin-left: -2px;
+  position: relative;
+}
+.sss-nav-item:hover {
+  opacity: 0.6;
+}
+.sss-nav-item.active {
+  opacity: 1;
+  border-left-color: #111111;
+}
+
+.sss-nav-item-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sss-nav-num {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #B5AFA9;
+  font-variant-numeric: tabular-nums;
+  min-width: 20px;
+  flex-shrink: 0;
+}
+.sss-nav-item.active .sss-nav-num { color: #66615B; }
+
+.sss-nav-title {
+  font-size: 14.5px;
+  font-weight: 700;
+  color: #66615B;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.sss-nav-item.active .sss-nav-title { color: #111111; }
+
+/* Expanded desc + link for active item */
+.sss-nav-expanded {
+  margin-top: 8px;
+  padding-left: 30px;
+  animation: sss-expand 0.25s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes sss-expand {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.sss-nav-desc {
+  font-size: 13px;
+  color: #66615B;
+  line-height: 1.6;
+  margin: 0 0 8px;
+  font-weight: 400;
+}
+
+.sss-nav-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #111111;
+  text-decoration: none;
+  border-bottom: 1.5px solid rgba(0,0,0,0.15);
+  padding-bottom: 1px;
+  transition: border-color 0.15s, color 0.15s;
+}
+.sss-nav-link:hover {
+  color: #333;
+  border-color: rgba(0,0,0,0.4);
+}
+
+/* ── RIGHT column ───────────────────────────────── */
+.sss-right {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+}
+
+/* Warm sand bezel frame */
+.sss-card-frame {
+  width: 100%;
+  height: 100%;
+  max-height: 500px;          /* hard cap: entire card fits on standard screens */
+  border-radius: 20px;
+  border: 1.5px solid #E5E0D8;
+  background: #EAE3D9;
+  padding: 12px;
+  box-shadow:
+    0 8px 40px rgba(0,0,0,0.08),
+    0 2px 8px rgba(0,0,0,0.04);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* White preview card inside the frame */
+.sss-card-preview {
+  flex: 1;
+  background: #FFFFFF;
+  border-radius: 14px;
+  border: 1px solid rgba(0,0,0,0.08);
+  box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;              /* allow flex children to shrink */
+}
+
+/* Fade + slide animation on swap */
+.sss-fade-slide {
+  animation: sss-fade-slide 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes sss-fade-slide {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Preview card internals ────────────────────────── */
+.sss-preview-inner {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* macOS-style topbar */
+.sss-preview-topbar {
+  height: 34px;
+  background: #F7F7F6;
+  border-bottom: 1px solid rgba(0,0,0,0.07);
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.sss-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* Tab row */
+.sss-tabs-row {
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid rgba(0,0,0,0.07);
+  padding: 0 14px;
+  height: 32px;
+  background: #FFFFFF;
+  flex-shrink: 0;
+}
+.sss-tab {
+  padding: 0 12px;
+  height: 32px;
+  font-size: 10.5px;
+  font-weight: 500;
+  color: #66615B;
+  border-bottom: 2px solid transparent;
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+  cursor: default;
+}
+.sss-tab.active {
+  color: #111111;
+  font-weight: 700;
+  border-bottom-color: #111111;
+}
+
+.sss-btn-sm {
+  padding: 4px 10px;
+  font-size: 10px;
+  font-weight: 700;
+  border-radius: 999px;
+  border: 1px solid rgba(0,0,0,0.12);
+  background: #fff;
+  color: #111111;
+  cursor: default;
+}
+.sss-btn-sm.primary {
+  background: #111111;
+  color: #FFE485;
+  border-color: #111111;
+}
+
+/* Canvas with dotgrid */
+.sss-canvas-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+}
+.sss-canvas-body.dotgrid {
+  background: #F9F8F7;
+  background-image: radial-gradient(circle, rgba(0,0,0,0.07) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+/* Workflow nodes row */
+.sss-nodes-row {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  padding: 16px 20px;
+  gap: 0;
+  overflow-x: auto;
+  min-height: 0;
+}
+
+/* Individual node card */
+.sss-node {
+  background: #FFFFFF;
+  border-radius: 12px;
+  border: 1.5px solid;
+  padding: 10px 12px;
+  min-width: 88px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+}
+.sss-node-badge {
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-bottom: 2px;
+}
+
+/* Zoom bar */
+.sss-zoom-bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 12px;
+  background: rgba(255,255,255,0.9);
+  border-top: 1px solid rgba(0,0,0,0.06);
+  flex-shrink: 0;
+}
+.sss-zoom-btn {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  border: 1px solid rgba(0,0,0,0.10);
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  color: #66615B;
+  cursor: default;
+}
+.sss-zoom-pct {
+  font-size: 10px;
+  font-weight: 600;
+  color: #66615B;
+  padding: 0 5px;
+}
+
+/* ── Responsive: mobile falls back to stacked scroll ── */
+@media (max-width: 900px) {
+  .sss-section {
+    height: auto;
+    overflow: visible;
+    min-height: auto;
+  }
+  .sss-pin-wrap {
+    padding: 48px 20px;
+    height: auto;
+    justify-content: flex-start;
+    gap: 32px;
+  }
+  .sss-header {
+    padding: 0 0 24px;
+  }
+  .sss-layout {
+    grid-template-columns: 1fr;
+    gap: 24px;
+    max-height: none;
+  }
+  .sss-right {
+    height: 400px;
+    max-height: 400px;
+  }
+  .sss-card-frame {
+    max-height: 400px;
+  }
+}
+
+
 
 /* ════════════════════════════════════════════════════════════════════════════
    FOOTER
