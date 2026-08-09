@@ -1,7 +1,7 @@
 'use client'
 
 import { Bell, HelpCircle, Menu, Search, User, Settings, LogOut } from 'lucide-react'
-import { signOut } from 'next-auth/react'
+import { useSession, signOut } from 'next-auth/react'
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import React from 'react'
@@ -40,6 +40,11 @@ function getBreadcrumbs(pathname: string) {
 export function Topbar({ onOpenMobileNav }: TopbarProps) {
   const pathname = usePathname()
   const breadcrumbs = getBreadcrumbs(pathname)
+  const { data: session } = useSession()
+
+  const userName = session?.user?.name || 'Jane Smith'
+  const userEmail = session?.user?.email || 'jane@xqora.ai'
+  const initials = userName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()
 
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b border-gray-100 bg-white px-4 md:px-6">
@@ -98,13 +103,17 @@ export function Topbar({ onOpenMobileNav }: TopbarProps) {
 
         <DropdownMenu>
           <DropdownMenuTrigger className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-300">
-            <Avatar className="size-8 border border-gray-100">
-              <AvatarImage src="/professional-woman-avatar.png" alt="" />
-              <AvatarFallback className="bg-[#EAE3D9] text-[#66615B] text-xs font-bold">JS</AvatarFallback>
+            <Avatar className="size-8 border border-gray-100 cursor-pointer">
+              <AvatarImage src={session?.user?.image || ""} alt={userName} />
+              <AvatarFallback className="bg-[#EAE3D9] text-[#66615B] text-xs font-bold">{initials}</AvatarFallback>
             </Avatar>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48">
-            <DropdownMenuLabel>My Account</DropdownMenuLabel>
+          <DropdownMenuContent align="end" className="w-56">
+            <div className="flex flex-col space-y-1 p-2">
+              <p className="text-sm font-medium leading-none">{userName}</p>
+              <p className="text-xs leading-none text-muted-foreground">{userEmail}</p>
+              <p className="text-xs mt-1 font-semibold text-primary">Admin</p>
+            </div>
             <DropdownMenuSeparator />
             <DropdownMenuItem>
               <User className="mr-2 size-4" />
@@ -115,7 +124,7 @@ export function Topbar({ onOpenMobileNav }: TopbarProps) {
               Settings
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onSelect={() => signOut({ callbackUrl: '/' })}>
+            <DropdownMenuItem onClick={() => signOut({ callbackUrl: '/' })}>
               <LogOut className="mr-2 size-4" />
               Log out
             </DropdownMenuItem>
