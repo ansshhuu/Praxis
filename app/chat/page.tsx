@@ -1,6 +1,8 @@
 'use client'
 
-import { Bot, FileText, Loader2, Send, Sparkles } from 'lucide-react'
+import { FileText, Loader2, Send } from 'lucide-react'
+import { useSession } from 'next-auth/react'
+import Image from 'next/image'
 import { useEffect, useRef, useState } from 'react'
 
 import { useTypewriter } from '@/components/motion/primitives'
@@ -8,6 +10,29 @@ import { DashboardShell } from '@/components/dashboard/dashboard-shell'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { suggestedPrompts } from '@/lib/mock-data/chat'
+
+const ASSISTANT_NAME = 'Praxis AI'
+
+function BotAvatar({ size = 32, className }: { size?: number; className?: string }) {
+  return (
+    <span
+      style={{ width: size, height: size }}
+      className={cn(
+        'flex shrink-0 items-center justify-center overflow-hidden rounded-full border border-[#F5CA50]/30 bg-white shadow-sm',
+        className,
+      )}
+    >
+      <Image
+        src="/praxis-bot.png"
+        alt=""
+        width={size}
+        height={size}
+        className="size-full object-cover"
+        priority={size > 40}
+      />
+    </span>
+  )
+}
 
 interface ChatMessage {
   id: string
@@ -47,18 +72,22 @@ function balanceBold(text: string): string {
   return markers % 2 === 1 ? `${text}**` : text
 }
 
-function MessageBubble({ message, stream = false }: { message: ChatMessage; stream?: boolean }) {
+function MessageBubble({
+  message,
+  stream = false,
+  userInitials,
+}: {
+  message: ChatMessage
+  stream?: boolean
+  userInitials: string
+}) {
   const isUser = message.role === 'user'
   const { shown, done } = useTypewriter(message.content, { enabled: stream && !isUser })
   const visible = stream && !isUser ? balanceBold(shown) : message.content
 
   return (
     <div className={cn('flex gap-3', isUser ? 'justify-end' : 'justify-start')}>
-      {!isUser && (
-         <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-[#FFFAEC] border border-[#F5CA50]/30 text-[#D4A017] shadow-sm">
-           <Bot className="size-4" />
-         </div>
-      )}
+      {!isUser && <BotAvatar />}
       <div className={cn('flex flex-col gap-1.5', isUser ? 'items-end' : 'items-start')}>
         {message.referencedDoc && (
           <span className="flex items-center gap-1.5 rounded-full bg-gray-100 px-3 py-1 text-[11px] font-bold text-gray-600 uppercase tracking-wide border border-gray-200">
@@ -91,6 +120,11 @@ function MessageBubble({ message, stream = false }: { message: ChatMessage; stre
         </div>
         <span className="text-[11px] font-bold text-gray-400 px-1">{message.timestamp}</span>
       </div>
+      {isUser && (
+        <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-[#EAE3D9] text-[11px] font-bold text-[#66615B]">
+          {userInitials}
+        </span>
+      )}
     </div>
   )
 }
@@ -98,9 +132,7 @@ function MessageBubble({ message, stream = false }: { message: ChatMessage; stre
 function TypingIndicator() {
   return (
     <div className="flex gap-3 justify-start">
-      <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-[#FFFAEC] border border-[#F5CA50]/30 text-[#D4A017] shadow-sm">
-        <Bot className="size-4" />
-      </div>
+      <BotAvatar />
       <div className="rounded-2xl rounded-tl-sm border border-gray-100 bg-white px-4 py-3 shadow-sm h-11 flex items-center">
         <div className="flex gap-1.5">
           {[0, 1, 2].map((i) => (
@@ -117,6 +149,14 @@ function TypingIndicator() {
 }
 
 export default function ChatPage() {
+  const { data: session } = useSession()
+  const userInitials = (session?.user?.name || 'You')
+    .split(' ')
+    .map((part) => part[0])
+    .join('')
+    .substring(0, 2)
+    .toUpperCase()
+
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [streamingId, setStreamingId] = useState<string | null>(null)
   const [inputValue, setInputValue] = useState('')
@@ -201,23 +241,37 @@ export default function ChatPage() {
 
   return (
     <DashboardShell mainClassName="flex flex-col p-0 h-[calc(100vh-64px)]">
-      <div className="flex flex-1 flex-col overflow-hidden max-w-[1000px] mx-auto w-full relative pt-6 md:pt-8">
+      <div className="flex flex-1 flex-col overflow-hidden max-w-[1000px] mx-auto w-full relative">
 
-        <div className="flex flex-1 flex-col gap-6 overflow-y-auto px-4 md:px-8 pb-32">
+        <div className="flex shrink-0 items-center gap-3 border-b border-gray-100 bg-white px-4 py-3 md:px-8">
+          <BotAvatar size={38} />
+          <div className="min-w-0">
+            <p className="text-[14.5px] font-bold text-gray-900">{ASSISTANT_NAME}</p>
+            <span className="mt-0.5 flex items-center gap-1.5 text-[11.5px] font-semibold text-green-600">
+              <span className="size-1.5 rounded-full bg-green-500 shadow-[0_0_5px_rgba(34,197,94,0.7)]" />
+              Online
+            </span>
+          </div>
+        </div>
+
+        <div className="flex flex-1 flex-col gap-6 overflow-y-auto px-4 md:px-8 pt-6 pb-32 md:pt-8">
           {isEmpty ? (
             <div className="flex flex-col items-center justify-center my-auto">
-              <div className="flex size-20 items-center justify-center rounded-3xl bg-[#FFFAEC] text-[#D4A017] shadow-sm mb-6 border border-[#F5CA50]/30 shadow-[#F5CA50]/10">
-                <Sparkles className="size-10" />
-              </div>
+              <BotAvatar size={80} className="mb-6 shadow-[0_6px_24px_rgba(212,160,23,0.18)]" />
               <h1 className="text-3xl font-bold tracking-tight text-gray-900">How can I help you?</h1>
               <p className="mt-3 text-[15px] font-medium text-gray-500 max-w-sm text-center">
-                I'm your Praxis AI Assistant. I can analyze documents, summarize workflows, and answer questions about your data.
+                I&apos;m {ASSISTANT_NAME}. I can analyze documents, summarize workflows, and answer questions about your data.
               </p>
             </div>
           ) : (
             <>
               {messages.map((msg) => (
-                <MessageBubble key={msg.id} message={msg} stream={msg.id === streamingId} />
+                <MessageBubble
+                  key={msg.id}
+                  message={msg}
+                  stream={msg.id === streamingId}
+                  userInitials={userInitials}
+                />
               ))}
               {isTyping && <TypingIndicator />}
             </>

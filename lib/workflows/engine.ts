@@ -177,10 +177,16 @@ function resolveTemplate(raw: string, context: Record<string, unknown>): unknown
 }
 
 function renderTemplate(raw: string, context: Record<string, unknown>): string {
-  return raw.replace(/\{\{\s*([\w.]+)\s*\}\}/g, (whole, path: string) => {
+  const filled = raw.replace(/\{\{\s*([\w.]+)\s*\}\}/g, (_whole, path: string) => {
     const value = resolveTemplate(`{{${path}}}`, context)
-    return value === undefined || value === null ? whole : String(value)
+    return value === undefined || value === null ? '' : String(value)
   })
+
+  return filled
+    .replace(/[ \t]{2,}/g, ' ')
+    .replace(/[ \t]+([,.!?;:])/g, '$1')
+    .replace(/[ \t]+$/gm, '')
+    .trim()
 }
 
 type EmailTarget = { workflowName: string; ownerEmail: string | null }

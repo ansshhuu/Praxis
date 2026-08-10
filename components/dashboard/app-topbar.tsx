@@ -42,7 +42,15 @@ function PraxisIcon({ size = 16, color = '#D4A017' }: { size?: number; color?: s
   )
 }
 
-export function AppTopbar({ onOpenMobileNav }: { onOpenMobileNav: () => void }) {
+export function AppTopbar({
+  onOpenMobileNav,
+  onOpenHelp,
+  helpOpen,
+}: {
+  onOpenMobileNav: () => void
+  onOpenHelp: () => void
+  helpOpen: boolean
+}) {
   const pathname = usePathname()
   const router = useRouter()
   const activeSection = findActiveSection(pathname)
@@ -53,97 +61,102 @@ export function AppTopbar({ onOpenMobileNav }: { onOpenMobileNav: () => void }) 
   const initials = userName.split(' ').map((n) => n[0]).join('').substring(0, 2).toUpperCase()
 
   return (
-    <header className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-3 border-b border-[#DFD6C9] bg-[#EAE3D9]/85 px-3 shadow-[0_1px_3px_rgba(17,17,17,0.05),0_1px_12px_rgba(17,17,17,0.04)] backdrop-blur-xl md:px-4">
-      <Button
-        variant="ghost"
-        size="icon"
-        className="text-[#66615B] hover:bg-white/60 hover:text-[#111111] lg:hidden"
-        aria-label="Open navigation menu"
-        onClick={onOpenMobileNav}
-      >
-        <Menu className="size-5" />
-      </Button>
-
-      <Link href="/dashboard" className="flex shrink-0 items-center gap-2.5 pr-1">
-        <div className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-[#F5CA50]/30 bg-[#FFFAEC]">
-          <PraxisIcon size={16} />
-        </div>
-        <span className="hidden text-sm font-bold tracking-wide text-gray-900 sm:inline">PRAXIS</span>
-      </Link>
-
-      <nav aria-label="Primary" className="hidden min-w-0 items-center gap-0.5 lg:flex">
-        {navSections.map((section) => {
-          const Icon = section.icon
-          const isActive = section.label === activeSection?.label
-          return (
-            <Link
-              key={section.label}
-              href={section.href}
-              aria-current={isActive ? 'page' : undefined}
-              className={cn(
-                'flex items-center gap-2 rounded-lg px-3 py-2 text-[13.5px] font-medium whitespace-nowrap transition-colors',
-                isActive
-                  ? 'border border-[#F5CA50]/40 bg-[#FFFAEC] text-[#D4A017] shadow-sm'
-                  : 'border border-transparent text-[#66615B] hover:bg-white/60 hover:text-[#111111]',
-              )}
-            >
-              <Icon className={cn('size-4 shrink-0', isActive ? 'text-[#D4A017]' : 'text-[#8C857D]')} />
-              {section.label}
-            </Link>
-          )
-        })}
-      </nav>
-
-      <div className="ml-auto flex shrink-0 items-center gap-2">
-        <div className="relative hidden w-56 xl:block">
-          <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-[#8C857D]" />
-          <Input
-            type="search"
-            placeholder="Search..."
-            aria-label="Search"
-            className="h-9 rounded-full border-white/70 bg-white/70 pl-9 placeholder:text-[#8C857D] focus-visible:ring-1 focus-visible:ring-[#F5CA50]/60"
-          />
-        </div>
-
+    <>
+      <header className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-3 border-b border-[#DFD6C9] bg-[#EAE3D9]/85 px-3 shadow-[0_1px_3px_rgba(17,17,17,0.05),0_1px_12px_rgba(17,17,17,0.04)] backdrop-blur-xl md:px-4">
         <Button
           variant="ghost"
           size="icon"
-          className="hidden rounded-full text-[#66615B] hover:bg-white/60 hover:text-[#111111] sm:inline-flex"
-          aria-label="Help"
+          className="text-[#66615B] hover:bg-white/60 hover:text-[#111111] lg:hidden"
+          aria-label="Open navigation menu"
+          onClick={onOpenMobileNav}
         >
-          <HelpCircle className="size-[18px]" />
+          <Menu className="size-5" />
         </Button>
 
-        <DropdownMenu>
-          <DropdownMenuTrigger className="rounded-full focus-visible:ring-2 focus-visible:ring-gray-300 focus-visible:outline-none">
-            <Avatar className="size-8 cursor-pointer border border-white/70 shadow-sm">
-              <AvatarImage src={session?.user?.image || ''} alt={userName} />
-              <AvatarFallback className="bg-white text-xs font-bold text-[#66615B]">{initials}</AvatarFallback>
-            </Avatar>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
-            <div className="flex flex-col space-y-1 p-2">
-              <p className="text-sm leading-none font-medium">{userName}</p>
-              <p className="text-xs leading-none text-muted-foreground">{userEmail}</p>
-              <p className="mt-1 text-xs font-semibold text-primary">Admin</p>
-            </div>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => router.push('/settings')}>
-              <User className="mr-2 size-4" />
-              Profile
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => router.push(settingsEntry.href)}>
-              <Settings className="mr-2 size-4" />
-              {settingsEntry.label}
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => signOut({ callbackUrl: '/' })}>
-              <LogOut className="mr-2 size-4" />
-              Log out
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-    </header>
+        <Link href="/dashboard" className="flex shrink-0 items-center gap-2.5 pr-1">
+          <div className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-[#F5CA50]/30 bg-[#FFFAEC]">
+            <PraxisIcon size={16} />
+          </div>
+          <span className="hidden text-sm font-bold tracking-wide text-gray-900 sm:inline">PRAXIS</span>
+        </Link>
+
+        <nav aria-label="Primary" className="hidden min-w-0 items-center gap-0.5 lg:flex">
+          {navSections.map((section) => {
+            const Icon = section.icon
+            const isActive = section.label === activeSection?.label
+            return (
+              <Link
+                key={section.label}
+                href={section.href}
+                aria-current={isActive ? 'page' : undefined}
+                className={cn(
+                  'flex items-center gap-2 rounded-lg px-3 py-2 text-[13.5px] font-medium whitespace-nowrap transition-colors',
+                  isActive
+                    ? 'border border-[#F5CA50]/40 bg-[#FFFAEC] text-[#D4A017] shadow-sm'
+                    : 'border border-transparent text-[#66615B] hover:bg-white/60 hover:text-[#111111]',
+                )}
+              >
+                <Icon className={cn('size-4 shrink-0', isActive ? 'text-[#D4A017]' : 'text-[#8C857D]')} />
+                {section.label}
+              </Link>
+            )
+          })}
+        </nav>
+
+        <div className="ml-auto flex shrink-0 items-center gap-2">
+          <div className="relative hidden w-56 xl:block">
+            <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-[#8C857D]" />
+            <Input
+              type="search"
+              placeholder="Search..."
+              aria-label="Search"
+              className="h-9 rounded-full border-white/70 bg-white/70 pl-9 placeholder:text-[#8C857D] focus-visible:ring-1 focus-visible:ring-[#F5CA50]/60"
+            />
+          </div>
+
+          <Button
+            variant="ghost"
+            size="icon"
+            className="hidden rounded-full text-[#66615B] hover:bg-white/60 hover:text-[#111111] sm:inline-flex"
+            aria-label="Help and instructions"
+            aria-haspopup="dialog"
+            aria-expanded={helpOpen}
+            onClick={onOpenHelp}
+          >
+            <HelpCircle className="size-[18px]" />
+          </Button>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger className="rounded-full focus-visible:ring-2 focus-visible:ring-gray-300 focus-visible:outline-none">
+              <Avatar className="size-8 cursor-pointer border border-white/70 shadow-sm">
+                <AvatarImage src={session?.user?.image || ''} alt={userName} />
+                <AvatarFallback className="bg-white text-xs font-bold text-[#66615B]">{initials}</AvatarFallback>
+              </Avatar>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <div className="flex flex-col space-y-1 p-2">
+                <p className="text-sm leading-none font-medium">{userName}</p>
+                <p className="text-xs leading-none text-muted-foreground">{userEmail}</p>
+                <p className="mt-1 text-xs font-semibold text-primary">Admin</p>
+              </div>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => router.push('/settings')}>
+                <User className="mr-2 size-4" />
+                Profile
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => router.push(settingsEntry.href)}>
+                <Settings className="mr-2 size-4" />
+                {settingsEntry.label}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => signOut({ callbackUrl: '/' })}>
+                <LogOut className="mr-2 size-4" />
+                Log out
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </header>
+    </>
   )
 }

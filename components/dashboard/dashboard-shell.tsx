@@ -1,6 +1,6 @@
 'use client'
 
-import { X } from 'lucide-react'
+import { HelpCircle, X } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
@@ -10,6 +10,7 @@ import { ResizeHandle, useResizablePanel } from '@/components/ui/resizable-panel
 import { cn } from '@/lib/utils'
 
 import { AppTopbar } from './app-topbar'
+import { HelpDrawer } from './help-drawer'
 import { findActiveSection, isEntryActive, navSections, settingsEntry } from './nav-items'
 import { SectionSidebar } from './section-sidebar'
 
@@ -33,6 +34,7 @@ export function DashboardShell({
   const hasSidebar = Boolean(activeSection?.items?.length)
 
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [helpOpen, setHelpOpen] = useState(false)
 
   const sidebarPanel = useResizablePanel({
     storageKey: SIDEBAR_STORAGE_KEY,
@@ -44,17 +46,21 @@ export function DashboardShell({
   })
 
   useEffect(() => {
-    document.body.style.overflow = mobileOpen ? 'hidden' : ''
+    document.body.style.overflow = mobileOpen || helpOpen ? 'hidden' : ''
     return () => {
       document.body.style.overflow = ''
     }
-  }, [mobileOpen])
+  }, [mobileOpen, helpOpen])
 
   useEffect(() => setMobileOpen(false), [pathname])
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
-      <AppTopbar onOpenMobileNav={() => setMobileOpen(true)} />
+      <AppTopbar
+        onOpenMobileNav={() => setMobileOpen(true)}
+        onOpenHelp={() => setHelpOpen(true)}
+        helpOpen={helpOpen}
+      />
 
       <div className="flex min-h-0 flex-1">
         {hasSidebar && activeSection && (
@@ -165,9 +171,25 @@ export function DashboardShell({
               <settingsEntry.icon className="size-4 shrink-0 text-gray-400" />
               {settingsEntry.label}
             </Link>
+
+            <button
+              type="button"
+              aria-haspopup="dialog"
+              aria-expanded={helpOpen}
+              onClick={() => {
+                setMobileOpen(false)
+                setHelpOpen(true)
+              }}
+              className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-left text-[13.5px] font-medium text-gray-500 transition-colors hover:bg-gray-50 hover:text-gray-900"
+            >
+              <HelpCircle className="size-4 shrink-0 text-gray-400" />
+              Help
+            </button>
           </nav>
         </div>
       </div>
+
+      <HelpDrawer open={helpOpen} onClose={() => setHelpOpen(false)} />
     </div>
   )
 }

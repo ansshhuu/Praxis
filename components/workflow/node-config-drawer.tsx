@@ -121,7 +121,7 @@ const fieldsByType: Partial<Record<NodeTypeKey, Field[]>> = {
       kind: 'textarea',
       key: 'message',
       label: 'Message',
-      value: 'New {{category}} ticket routed and saved.',
+      value: 'New {{classification}} ticket routed and saved.',
     },
   ],
   'api-call': [
@@ -135,13 +135,20 @@ const fieldsByType: Partial<Record<NodeTypeKey, Field[]>> = {
     },
   ],
   'email-action': [
-    { kind: 'text', key: 'to', label: 'To', value: '{{customer.email}}' },
+    {
+      kind: 'text',
+      key: 'to',
+      label: 'To',
+      inputType: 'email',
+      placeholder: 'recipient@example.com',
+      value: '',
+    },
     { kind: 'text', key: 'subject', label: 'Subject', value: 'We received your request' },
     {
       kind: 'textarea',
       key: 'body',
       label: 'Body',
-      value: 'Hi {{customer.name}}, thanks for reaching out…',
+      value: 'Thanks for reaching out — a specialist will reply shortly.',
     },
   ],
   condition: [

@@ -109,7 +109,7 @@ export const SEED_TEMPLATES: SeedTemplate[] = [
     workflowJson: chain([
       emailTrigger('invoices@eawmp.io'),
       saveDb('invoices', 'vendor -> invoices.vendor\namount -> invoices.total'),
-      notify('#ops-alerts', 'Invoice from {{vendor}} recorded and queued for approval.'),
+      notify('#ops-alerts', 'A new invoice was recorded and queued for approval.'),
     ]),
   },
   {
@@ -123,7 +123,7 @@ export const SEED_TEMPLATES: SeedTemplate[] = [
     workflowJson: chain([
       webhookTrigger('resume_intake'),
       saveDb('customers', 'candidate -> customers.name\nrole -> customers.segment'),
-      notify('In-app', 'New candidate {{candidate}} is ready for screening.'),
+      notify('In-app', 'A new candidate application is ready for screening.'),
     ]),
   },
   {
@@ -137,11 +137,11 @@ export const SEED_TEMPLATES: SeedTemplate[] = [
     workflowJson: chain([
       webhookTrigger('leave_request'),
       emailAction(
-        '{{manager.email}}',
+        '',
         'Leave request awaiting your approval',
-        'Hi {{manager.name}}, {{employee.name}} requested leave from {{start_date}} to {{end_date}}.',
+        'A leave request has been submitted and is waiting for your approval. Open the Praxis dashboard to review the dates and respond.',
       ),
-      notify('In-app', 'Leave request from {{employee.name}} sent for approval.'),
+      notify('In-app', 'A leave request was sent for approval.'),
     ]),
   },
   {
@@ -155,11 +155,11 @@ export const SEED_TEMPLATES: SeedTemplate[] = [
     workflowJson: chain([
       webhookTrigger('new_hire'),
       emailAction(
-        '{{employee.email}}',
+        '',
         'Welcome to the team!',
-        'Hi {{employee.name}}, here is everything you need for your first day.',
+        'Welcome aboard — here is everything you need for your first day. Your accounts are being provisioned and your training schedule will follow shortly.',
       ),
-      notify('#ops-alerts', 'Onboarding started for {{employee.name}}.'),
+      notify('#ops-alerts', 'Onboarding has started for a new hire.'),
     ]),
   },
   {
@@ -173,7 +173,7 @@ export const SEED_TEMPLATES: SeedTemplate[] = [
     workflowJson: chain([
       emailTrigger('expenses@eawmp.io'),
       saveDb('invoices', 'employee -> invoices.submitted_by\namount -> invoices.total'),
-      notify('#ops-alerts', 'Expense claim of {{amount}} submitted by {{employee}}.'),
+      notify('#ops-alerts', 'A new expense claim was submitted for review.'),
     ]),
   },
   {
@@ -187,11 +187,11 @@ export const SEED_TEMPLATES: SeedTemplate[] = [
     workflowJson: chain([
       emailTrigger('support@eawmp.io'),
       emailAction(
-        '{{customer.email}}',
+        '',
         'We received your request',
-        'Hi {{customer.name}}, thanks for reaching out — a specialist will reply shortly.',
+        'Thanks for reaching out — we have received your message and a specialist will reply shortly.',
       ),
-      notify('#support', 'Auto-reply sent to {{customer.email}}.'),
+      notify('#support', 'An auto-reply was sent to the customer.'),
     ]),
   },
   {
@@ -205,11 +205,11 @@ export const SEED_TEMPLATES: SeedTemplate[] = [
     workflowJson: chain([
       webhookTrigger('document_submitted'),
       emailAction(
-        '{{approver.email}}',
-        'Document awaiting sign-off: {{document.name}}',
-        'Hi {{approver.name}}, {{document.name}} needs your approval before {{deadline}}.',
+        '',
+        'A document is awaiting your sign-off',
+        'A document has been submitted and needs your approval. Open the Praxis dashboard to review it and sign off before the deadline.',
       ),
-      notify('In-app', '{{document.name}} routed for approval.'),
+      notify('In-app', 'A document was routed for approval.'),
     ]),
   },
   {
