@@ -5,7 +5,7 @@ import {
   FileSpreadsheet,
   FileText,
   FileType,
-  Image,
+  Image as ImageIcon,
   Inbox,
   Loader2,
   MessageSquare,
@@ -25,7 +25,7 @@ import React from 'react'
 import { EASE_OUT } from '@/components/motion/primitives'
 import { DashboardShell } from '@/components/dashboard/dashboard-shell'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { cn } from '@/lib/utils'
@@ -86,9 +86,9 @@ function DocTypeIcon({ type }: { type: string }) {
     XLSX: <FileSpreadsheet className="size-8 text-green-500" />,
     CSV: <FileSpreadsheet className="size-8 text-emerald-500" />,
     TXT: <FileText className="size-8 text-gray-400" />,
-    PNG: <Image className="size-8 text-purple-500" />,
-    JPG: <Image className="size-8 text-pink-500" />,
-    JPEG: <Image className="size-8 text-pink-500" />,
+    PNG: <ImageIcon className="size-8 text-purple-500" />,
+    JPG: <ImageIcon className="size-8 text-pink-500" />,
+    JPEG: <ImageIcon className="size-8 text-pink-500" />,
   }
   return icons[type] ?? <FileText className="size-8 text-gray-400" />
 }
@@ -283,14 +283,14 @@ function DocumentDetailView({
       </div>
 
       <div className="flex px-4 border-b border-gray-100 shrink-0">
-        {[
+        {([
           { id: 'summary', label: 'Summary' },
           { id: 'ocr', label: 'OCR Text' },
-          { id: 'qa', label: 'Q&A' }
-        ].map(tab => (
+          { id: 'qa', label: 'Q&A' },
+        ] as const).map(tab => (
           <button
             key={tab.id}
-            onClick={() => setActiveTab(tab.id as any)}
+            onClick={() => setActiveTab(tab.id)}
             className={cn(
               "px-4 py-3 text-[13px] font-semibold transition-colors border-b-2",
               activeTab === tab.id
@@ -462,7 +462,7 @@ export default function DocumentsPage() {
           setSelectedDocId(rows[0].id)
         }
       }
-    } catch (error) {} finally {
+    } catch {} finally {
       setIsLoading(false)
     }
   }, [selectedDocId])

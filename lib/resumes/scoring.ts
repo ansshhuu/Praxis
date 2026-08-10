@@ -142,14 +142,13 @@ async function scoreBatch(
 ): Promise<ScoredCandidate[]> {
   const raw = await callAI(buildPrompt(jobDescription, batch))
 
-  console.log(
-    `[resumes/scoring] raw AI response for ${batch.length} candidate(s), ${raw.length} chars:\n${raw}`,
-  )
-
   const rows = parseJsonArray(raw)
 
   if (!rows) {
-    console.error('[resumes/scoring] every parse strategy failed on the response above')
+    console.error(
+      `[resumes/scoring] every parse strategy failed on a ${raw.length}-char response for ` +
+        `${batch.length} candidate(s); first 200 chars: ${raw.slice(0, 200)}`,
+    )
     throw new ScoringError(
       'The AI response could not be read as candidate scores. Please try screening again.',
     )

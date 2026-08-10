@@ -11,7 +11,6 @@ import { prisma } from '@/lib/db/prisma'
 export const dynamic = 'force-dynamic'
 
 const userSelect = {
-  id: true,
   name: true,
   email: true,
   role: true,
@@ -27,12 +26,15 @@ type UserRow = {
   role: Role
   createdAt: Date
   lastLogin: Date | null
-  avatarUrl: string | null
+  avatarPath: string | null
   oauthAvatarUrl: string | null
 }
 
-function toUser({ oauthAvatarUrl, ...user }: UserRow) {
-  return { ...user, avatarUrl: effectiveAvatar({ avatarUrl: user.avatarUrl, oauthAvatarUrl }) }
+function toUser({ oauthAvatarUrl, avatarPath, ...user }: UserRow) {
+  return {
+    ...user,
+    avatarUrl: effectiveAvatar({ id: user.id, avatarPath, oauthAvatarUrl }),
+  }
 }
 
 export async function GET() {

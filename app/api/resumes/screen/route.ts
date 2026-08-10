@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 
 import { ACTIVITY_ACTIONS } from '@/lib/activity/actions'
 import { logActivity } from '@/lib/activity/log'
-import { getCurrentUserId } from '@/lib/auth/session'
+import { requireResumeAccess } from '@/lib/auth/session'
 import { prisma } from '@/lib/db/prisma'
 import { extractText } from '@/lib/documents/extract'
 import { ScoringError, scoreResumes, type ResumeInput } from '@/lib/resumes/scoring'
@@ -29,10 +29,11 @@ function extensionOf(name: string): string {
 type Skipped = { fileName: string; reason: string }
 
 export async function POST(request: Request) {
-  const userId = await getCurrentUserId()
-  if (!userId) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const auth = await requireResumeAccess()
+  if (!auth.ok) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status })
   }
+  const userId = auth.user.id
 
   let form: FormData
   try {

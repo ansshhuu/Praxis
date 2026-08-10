@@ -3,8 +3,10 @@
 import {
   animate,
   useInView,
+  useMotionTemplate,
   useMotionValue,
   useReducedMotion,
+  useSpring,
   motion,
   type Variants,
 } from 'framer-motion'
@@ -13,6 +15,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import { cn } from '@/lib/utils'
 
 export const EASE_OUT = [0.22, 1, 0.36, 1] as const
+export const EASE_EXPO = [0.16, 1, 0.3, 1] as const
 
 export function Reveal({
   children,
@@ -49,7 +52,7 @@ export function Reveal({
 
 const wordContainer: Variants = {
   hidden: {},
-  visible: { transition: { staggerChildren: 0.055, delayChildren: 0.05 } },
+  visible: { transition: { staggerChildren: 0.05, delayChildren: 0.05 } },
 }
 
 const wordChild: Variants = {
@@ -259,6 +262,187 @@ export function useTypewriter(
   }, [text, enabled, prefersReduced, minMs, maxMs])
 
   return { shown, done: shown === text }
+}
+
+export function FadeIn({
+  children,
+  delay = 0,
+  y = 24,
+  duration = 0.6,
+  className,
+}: {
+  children: React.ReactNode
+  delay?: number
+  y?: number
+  duration?: number
+  className?: string
+}) {
+  return (
+    <motion.div
+      className={className}
+      initial={{ opacity: 0, y }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: '-100px' }}
+      transition={{ duration, delay, ease: EASE_EXPO }}
+    >
+      {children}
+    </motion.div>
+  )
+}
+
+export function ScaleIn({
+  children,
+  delay = 0,
+  scale = 0.92,
+  duration = 0.5,
+  once = false,
+  className,
+}: {
+  children: React.ReactNode
+  delay?: number
+  scale?: number
+  duration?: number
+  once?: boolean
+  className?: string
+}) {
+  return (
+    <motion.div
+      className={className}
+      initial={{ opacity: 0, scale }}
+      whileInView={{ opacity: 1, scale: 1 }}
+      viewport={{ once, margin: '-80px' }}
+      transition={{ duration, delay, ease: EASE_EXPO }}
+    >
+      {children}
+    </motion.div>
+  )
+}
+
+export function AnimatedCounter({
+  value,
+  duration = 1.2,
+  prefix = '',
+  suffix = '',
+  decimals = 0,
+  className,
+}: {
+  value: number
+  duration?: number
+  prefix?: string
+  suffix?: string
+  decimals?: number
+  className?: string
+}) {
+  const formatted = `${prefix}${value.toLocaleString('en-US', {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  })}${suffix}`
+
+  return <CountUp value={formatted} duration={duration} className={className} />
+}
+
+export function Magnetic({
+  children,
+  strength = 6,
+  className,
+}: {
+  children: React.ReactNode
+  strength?: number
+  className?: string
+}) {
+  const ref = useRef<HTMLDivElement>(null)
+  const prefersReduced = useReducedMotion()
+  const x = useSpring(useMotionValue(0), { stiffness: 400, damping: 28, mass: 0.4 })
+  const y = useSpring(useMotionValue(0), { stiffness: 400, damping: 28, mass: 0.4 })
+
+  function handleMove(event: React.MouseEvent<HTMLDivElement>) {
+    if (prefersReduced || !ref.current) return
+    const rect = ref.current.getBoundingClientRect()
+    const offsetX = event.clientX - (rect.left + rect.width / 2)
+    const offsetY = event.clientY - (rect.top + rect.height / 2)
+    const clamp = (raw: number, extent: number) =>
+      Math.max(-strength, Math.min(strength, (raw / (extent / 2)) * strength))
+
+    x.set(clamp(offsetX, rect.width))
+    y.set(clamp(offsetY, rect.height))
+  }
+
+  function reset() {
+    x.set(0)
+    y.set(0)
+  }
+
+  return (
+    <motion.div
+      ref={ref}
+      className={cn('inline-flex', className)}
+      style={{ x, y }}
+      onMouseMove={handleMove}
+      onMouseLeave={reset}
+      initial="rest"
+      whileHover="hover"
+      animate="rest"
+    >
+      {children}
+    </motion.div>
+  )
+}
+
+export const magneticArrowVariants: Variants = {
+  rest: { x: 0 },
+  hover: { x: 4, transition: { type: 'spring', stiffness: 400, damping: 18 } },
+}
+
+export function MagneticArrow({ children }: { children: React.ReactNode }) {
+  return (
+    <motion.span variants={magneticArrowVariants} style={{ display: 'inline-block' }}>
+      {children}
+    </motion.span>
+  )
+}
+
+export function Spotlight({
+  children,
+  className,
+  color = 'rgba(250,204,21,0.16)',
+  size = 320,
+}: {
+  children: React.ReactNode
+  className?: string
+  color?: string
+  size?: number
+}) {
+  const ref = useRef<HTMLDivElement>(null)
+  const prefersReduced = useReducedMotion()
+  const mouseX = useMotionValue(-9999)
+  const mouseY = useMotionValue(-9999)
+  const [active, setActive] = useState(false)
+
+  const background = useMotionTemplate`radial-gradient(${size}px circle at ${mouseX}px ${mouseY}px, ${color}, transparent 70%)`
+
+  function handleMove(event: React.MouseEvent<HTMLDivElement>) {
+    if (prefersReduced || !ref.current) return
+    const rect = ref.current.getBoundingClientRect()
+    mouseX.set(event.clientX - rect.left)
+    mouseY.set(event.clientY - rect.top)
+  }
+
+  return (
+    <div
+      ref={ref}
+      onMouseMove={handleMove}
+      onMouseEnter={() => setActive(true)}
+      onMouseLeave={() => setActive(false)}
+      className={cn('relative overflow-hidden', className)}
+    >
+      <motion.div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 z-0 transition-opacity duration-300"
+        style={{ opacity: active && !prefersReduced ? 1 : 0, background }}
+      />
+      <div className="relative z-10">{children}</div>
+    </div>
+  )
 }
 
 export const hoverCardClass = 'hover-lift-glow'

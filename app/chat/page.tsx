@@ -254,12 +254,17 @@ export default function ChatPage() {
           </div>
         </div>
 
-        <div className="flex flex-1 flex-col gap-6 overflow-y-auto px-4 md:px-8 pt-6 pb-32 md:pt-8">
+        <div
+          className={cn(
+            'flex flex-1 flex-col gap-6 overflow-y-auto px-4 md:px-8 pt-6 md:pt-8',
+            isEmpty ? 'pb-56' : 'pb-32',
+          )}
+        >
           {isEmpty ? (
             <div className="flex flex-col items-center justify-center my-auto">
               <BotAvatar size={80} className="mb-6 shadow-[0_6px_24px_rgba(212,160,23,0.18)]" />
               <h1 className="text-3xl font-bold tracking-tight text-gray-900">How can I help you?</h1>
-              <p className="mt-3 text-[15px] font-medium text-gray-500 max-w-sm text-center">
+              <p className="mt-3 mb-10 text-[15px] font-medium text-gray-500 max-w-sm text-center">
                 I&apos;m {ASSISTANT_NAME}. I can analyze documents, summarize workflows, and answer questions about your data.
               </p>
             </div>

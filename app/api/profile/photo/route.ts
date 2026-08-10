@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 
+import { avatarSelect, effectiveAvatar } from '@/lib/auth/avatar'
 import { getCurrentUserId } from '@/lib/auth/session'
 import { prisma } from '@/lib/db/prisma'
 import { AVATARS_BUCKET, removeDocument, uploadDocument } from '@/lib/storage/supabase'
@@ -89,15 +90,25 @@ export async function POST(request: Request) {
   try {
     const user = await prisma.user.update({
       where: { id: userId },
-      data: { avatarUrl: stored.publicUrl, avatarPath: stored.path },
-      select: { id: true, name: true, email: true, avatarUrl: true },
+      data: { avatarUrl: null, avatarPath: stored.path },
+      select: { name: true, email: true, ...avatarSelect },
     })
 
     if (existing?.avatarPath && existing.avatarPath !== stored.path) {
       await removeDocument(existing.avatarPath, AVATARS_BUCKET)
     }
 
-    return NextResponse.json({ user }, { status: 201 })
+    return NextResponse.json(
+      {
+        user: {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          avatarUrl: effectiveAvatar(user),
+        },
+      },
+      { status: 201 },
+    )
   } catch (error) {
     console.error('[profile/photo] db update failed:', error)
     await removeDocument(stored.path, AVATARS_BUCKET)

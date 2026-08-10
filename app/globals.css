@@ -165,6 +165,14 @@
   body {
     @apply bg-background text-foreground;
   }
+  /* Guard against horizontal scroll from wide/animated content.
+     `clip` rather than `hidden` on purpose: `overflow-x: hidden` turns the root
+     into a scroll container and breaks every `position: sticky` descendant,
+     including the pinned features section and the dashboard sidebars. */
+  html,
+  body {
+    overflow-x: clip;
+  }
 }
 
 @keyframes pulse-ring {

@@ -71,8 +71,6 @@ const AMBER = '#F5CA50'
 const DARK_GOLD = '#D4A017'
 const SUCCESS = '#22c55e'
 const DESTRUCTIVE = '#ef4444'
-const LIGHT_AMBER = '#FFFAEC'
-const WARM_CREAM = '#EAE3D9'
 
 const tooltipStyle = {
   backgroundColor: '#ffffff',

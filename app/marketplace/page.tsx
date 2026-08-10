@@ -60,7 +60,6 @@ const FILTER_CATEGORIES = [
   'All',
   'Finance',
   'HR',
-  'Sales',
   'Operations',
   'Communication',
   'Compliance',

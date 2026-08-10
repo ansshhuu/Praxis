@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 
-import { getCurrentUserId } from '@/lib/auth/session'
+import { requireResumeAccess } from '@/lib/auth/session'
 import { prisma } from '@/lib/db/prisma'
 import { toCandidateDetail } from '@/lib/resumes/serialize'
 
@@ -9,10 +9,11 @@ export const dynamic = 'force-dynamic'
 type RouteContext = { params: Promise<{ id: string }> }
 
 export async function GET(_request: Request, { params }: RouteContext) {
-  const userId = await getCurrentUserId()
-  if (!userId) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const auth = await requireResumeAccess()
+  if (!auth.ok) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status })
   }
+  const userId = auth.user.id
 
   const { id } = await params
   const resume = await prisma.resume.findFirst({

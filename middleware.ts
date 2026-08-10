@@ -2,17 +2,22 @@ import { getToken } from 'next-auth/jwt'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
-const ROLE_GUARDED_ROUTES: { prefix: string; roles: string[] }[] = [
-  { prefix: '/settings/users', roles: ['ADMIN'] },
-  { prefix: '/resumes', roles: ['ADMIN', 'HR', 'MANAGER'] },
-]
+import { ROLE_GUARDED_ROUTES } from '@/lib/auth/route-roles'
 
+/** Auth entry points: signed-out visitors only — a signed-in user is sent to the dashboard. */
 const PUBLIC_ROUTES = ['/', '/login', '/register']
+
+/** Open to everyone, signed in or not, with no redirect either way. */
+const OPEN_ROUTES = ['/privacy', '/terms', '/api/contact']
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   if (pathname.startsWith('/api/auth')) {
+    return NextResponse.next()
+  }
+
+  if (OPEN_ROUTES.some((route) => pathname === route || pathname.startsWith(`${route}/`))) {
     return NextResponse.next()
   }
 
@@ -29,13 +34,20 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
+  const isApiRoute = pathname.startsWith('/api/')
+
   if (!token) {
-    const loginUrl = new URL('/login', request.url)
-    return NextResponse.redirect(loginUrl)
+    if (isApiRoute) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    return NextResponse.redirect(new URL('/login', request.url))
   }
 
   const matchedGuard = ROLE_GUARDED_ROUTES.find((guard) => pathname.startsWith(guard.prefix))
   if (matchedGuard && !matchedGuard.roles.includes(token.role as string)) {
+    if (isApiRoute) {
+      return NextResponse.json({ error: 'Unauthorized access' }, { status: 403 })
+    }
     return NextResponse.redirect(new URL('/dashboard', request.url))
   }
 

@@ -2,7 +2,9 @@ import './landing.css'
 import { LandingNav } from '@/components/landing/landing-nav'
 import { HeroSection } from '@/components/landing/hero-section'
 import { FeaturesSection } from '@/components/landing/features-section'
+import { ContactSection } from '@/components/landing/contact-section'
 import { LandingFooter } from '@/components/landing/landing-footer'
+import { PricingSection } from '@/components/landing/pricing-section'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
@@ -19,6 +21,10 @@ export default function LandingPage() {
       <HeroSection />
 
       <FeaturesSection />
+
+      <PricingSection />
+
+      <ContactSection />
 
       <LandingFooter />
     </div>

@@ -1,9 +1,10 @@
 'use client'
 
-import { HelpCircle, LogOut, Menu, Search, Settings, User } from 'lucide-react'
+import { HelpCircle, LogOut, Menu, Search, User } from 'lucide-react'
 import { signOut, useSession } from 'next-auth/react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
+import { useMemo } from 'react'
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
@@ -17,7 +18,14 @@ import {
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 
-import { findActiveSection, navSections, settingsEntry } from './nav-items'
+import { findActiveSection, visibleNavSections } from './nav-items'
+
+const roleLabels: Record<string, string> = {
+  ADMIN: 'Admin',
+  HR: 'HR',
+  MANAGER: 'Manager',
+  EMPLOYEE: 'Employee',
+}
 
 function PraxisIcon({ size = 16, color = '#D4A017' }: { size?: number; color?: string }) {
   const c = size / 2
@@ -53,12 +61,14 @@ export function AppTopbar({
 }) {
   const pathname = usePathname()
   const router = useRouter()
-  const activeSection = findActiveSection(pathname)
   const { data: session } = useSession()
+  const sections = useMemo(() => visibleNavSections(session?.user?.role), [session?.user?.role])
+  const activeSection = findActiveSection(pathname, sections)
 
   const userName = session?.user?.name || 'Jane Smith'
   const userEmail = session?.user?.email || 'jane@xqora.ai'
   const initials = userName.split(' ').map((n) => n[0]).join('').substring(0, 2).toUpperCase()
+  const roleLabel = session?.user?.role ? roleLabels[session.user.role] : null
 
   return (
     <>
@@ -81,7 +91,7 @@ export function AppTopbar({
         </Link>
 
         <nav aria-label="Primary" className="hidden min-w-0 items-center gap-0.5 lg:flex">
-          {navSections.map((section) => {
+          {sections.map((section) => {
             const Icon = section.icon
             const isActive = section.label === activeSection?.label
             return (
@@ -137,16 +147,12 @@ export function AppTopbar({
               <div className="flex flex-col space-y-1 p-2">
                 <p className="text-sm leading-none font-medium">{userName}</p>
                 <p className="text-xs leading-none text-muted-foreground">{userEmail}</p>
-                <p className="mt-1 text-xs font-semibold text-primary">Admin</p>
+                {roleLabel && <p className="mt-1 text-xs font-semibold text-primary">{roleLabel}</p>}
               </div>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => router.push('/settings')}>
                 <User className="mr-2 size-4" />
                 Profile
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => router.push(settingsEntry.href)}>
-                <Settings className="mr-2 size-4" />
-                {settingsEntry.label}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => signOut({ callbackUrl: '/' })}>

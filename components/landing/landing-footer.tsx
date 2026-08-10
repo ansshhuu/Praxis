@@ -1,5 +1,3 @@
-'use client'
-
 import Link from 'next/link'
 
 function PraxisIcon({ size = 16, color = '#D4A017' }: { size?: number; color?: string }) {
@@ -21,43 +19,26 @@ function PraxisIcon({ size = 16, color = '#D4A017' }: { size?: number; color?: s
   )
 }
 
-const footerLinks = [
-  { label: 'Features',      href: '#features' },
-  { label: 'Modules',       href: '#modules'  },
-  { label: 'Pricing',       href: '#pricing'  },
-  { label: 'Privacy',       href: '#'         },
-  { label: 'Terms',         href: '#'         },
-]
-
 export function LandingFooter() {
   return (
-    <footer className="landing-footer" role="contentinfo">
-      <div
-        style={{
-          maxWidth: 1060,
-          margin: '0 auto',
-          display: 'flex',
-          flexWrap: 'wrap',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 16,
-        }}
-      >
-        <Link href="/" aria-label="Praxis" style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none' }}>
-          <div style={{ width: 26, height: 26, borderRadius: 7, background: '#111111', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <PraxisIcon size={14} color="#D4A017" />
+    <footer className="w-full border-t border-neutral-200/60 bg-white/50 px-6 py-8" role="contentinfo">
+      <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-6 md:flex-row">
+        <Link href="/" className="lnav-logo" aria-label="Praxis home" style={{ marginRight: 0 }}>
+          <div className="lnav-logo-mark">
+            <PraxisIcon size={16} color="#D4A017" />
           </div>
-          <span style={{ fontSize: 14, fontWeight: 800, letterSpacing: '-0.02em', color: '#111111' }}>PRAXIS</span>
+          <span className="lnav-logo-text">PRAXIS</span>
         </Link>
 
-        <nav style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 20px', justifyContent: 'center' }} aria-label="Footer navigation">
-          {footerLinks.map((link) => (
-            <a key={link.label} href={link.href} className="footer-link">{link.label}</a>
-          ))}
+        <nav className="flex items-center gap-8 text-sm text-neutral-600" aria-label="Footer navigation">
+          <a href="#features" className="transition hover:text-neutral-900">Features</a>
+          <a href="#pricing" className="transition hover:text-neutral-900">Pricing</a>
+          <Link href="/privacy" className="transition hover:text-neutral-900">Privacy</Link>
+          <Link href="/terms" className="transition hover:text-neutral-900">Terms</Link>
         </nav>
 
-        <p style={{ fontSize: 12, color: '#B5AFA9', margin: 0 }}>
-          © {new Date().getFullYear()} EAWMP. All rights reserved.
+        <p className="m-0 text-xs text-neutral-500">
+          &copy; {new Date().getFullYear()} Praxis Inc. All rights reserved.
         </p>
       </div>
     </footer>

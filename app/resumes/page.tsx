@@ -6,7 +6,6 @@ import {
   ChevronRight,
   FileText,
   Loader2,
-  ScrollText,
   Sparkles,
   Upload,
   X,
@@ -22,7 +21,6 @@ import { EASE_OUT } from '@/components/motion/primitives'
 import { DashboardShell } from '@/components/dashboard/dashboard-shell'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Skeleton } from '@/components/ui/skeleton'
 import {
   Table,
   TableBody,

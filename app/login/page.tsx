@@ -6,6 +6,8 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 
+import { CREDENTIALS_ERRORS } from '@/lib/auth/errors'
+
 function PraxisIcon({ size = 24, color = '#D4A017' }: { size?: number; color?: string }) {
   const c = size / 2
   const rays = 8
@@ -41,17 +43,6 @@ function GoogleIcon() {
   )
 }
 
-function MicrosoftIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M11 11H0V0h11v11z" fill="#F25022"/>
-      <path d="M24 11H13V0h11v11z" fill="#7FBA00"/>
-      <path d="M11 24H0V13h11v11z" fill="#00A4EF"/>
-      <path d="M24 24H13V13h11v11z" fill="#FFB900"/>
-    </svg>
-  )
-}
-
 const baseInput: React.CSSProperties = {
   width: '100%', padding: '11px 14px', borderRadius: 10,
   border: '1.5px solid #E5E2DC', fontSize: 14, color: '#111111',
@@ -78,6 +69,10 @@ export default function LoginPage() {
     setLoading(true)
     const result = await signIn('credentials', { email, password, redirect: false })
     if (!result || result.error) {
+      if (result?.error === CREDENTIALS_ERRORS.userNotFound) {
+        router.replace(`/register?email=${encodeURIComponent(email)}&reason=no-account`)
+        return
+      }
       setLoading(false)
       setError('Invalid email or password. Please try again.')
       return
@@ -151,16 +146,11 @@ export default function LoginPage() {
             <div style={{ flex: 1, height: 1, background: '#EAE3D9' }} />
           </div>
 
-          <div style={{ display: 'flex', gap: 10 }}>
-            <button id="google-login-btn" type="button" disabled={oauthLoading}
-              onClick={() => { setOauthLoading(true); void signIn('google', { callbackUrl: '/dashboard' }) }}
-              style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '10px 14px', borderRadius: 10, border: '1.5px solid #E5E2DC', background: '#fff', fontSize: 13.5, fontWeight: 600, color: '#111111', cursor: oauthLoading ? 'not-allowed' : 'pointer', opacity: oauthLoading ? 0.7 : 1 }}>
-              <GoogleIcon /> {oauthLoading ? 'Redirecting…' : 'Google'}
-            </button>
-            <button id="microsoft-login-btn" type="button" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '10px 14px', borderRadius: 10, border: '1.5px solid #E5E2DC', background: '#fff', fontSize: 13.5, fontWeight: 600, color: '#111111', cursor: 'pointer' }}>
-              <MicrosoftIcon /> Microsoft
-            </button>
-          </div>
+          <button id="google-login-btn" type="button" disabled={oauthLoading}
+            onClick={() => { setOauthLoading(true); void signIn('google', { callbackUrl: '/dashboard' }) }}
+            style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '10px 14px', borderRadius: 10, border: '1.5px solid #E5E2DC', background: '#fff', fontSize: 13.5, fontWeight: 600, color: '#111111', cursor: oauthLoading ? 'not-allowed' : 'pointer', opacity: oauthLoading ? 0.7 : 1, boxSizing: 'border-box' }}>
+            <GoogleIcon /> {oauthLoading ? 'Redirecting…' : 'Google'}
+          </button>
 
           <p style={{ textAlign: 'center', marginTop: 28, fontSize: 13, color: '#66615B' }}>
             Don&apos;t have an account?{' '}

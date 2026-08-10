@@ -26,11 +26,10 @@ function PraxisIcon({ size = 20, color = '#D4A017' }: { size?: number; color?: s
 }
 
 const NAV_LINKS = [
-  { label: 'Home',          href: '#hero' },
-  { label: 'Modules',       href: '#modules' },
-  { label: 'Solutions',     href: '#features' },
-  { label: 'Pricing',       href: '#pricing' },
-  { label: 'Documentation', href: '#docs' },
+  { label: 'Home',       href: '#hero' },
+  { label: 'Solutions',  href: '#features' },
+  { label: 'Pricing',    href: '#pricing' },
+  { label: 'Contact Us', href: '#contact' },
 ]
 
 export function LandingNav() {
@@ -92,7 +91,7 @@ export function LandingNav() {
 
           <div className="lnav-actions">
             <Link href="/login" className="lnav-btn-ghost">Login</Link>
-            <Link href="/login" id="nav-signup-btn" className="lnav-btn-solid">Sign Up</Link>
+            <Link href="/register" id="nav-signup-btn" className="lnav-btn-solid">Sign Up</Link>
           </div>
 
           <button
@@ -123,7 +122,7 @@ export function LandingNav() {
             <Link href="/login" className="lnav-btn-ghost" style={{ flex: 1, textAlign: 'center' }}>
               Login
             </Link>
-            <Link href="/login" className="lnav-btn-solid" style={{ flex: 1, textAlign: 'center' }}>
+            <Link href="/register" className="lnav-btn-solid" style={{ flex: 1, textAlign: 'center' }}>
               Sign Up
             </Link>
           </div>

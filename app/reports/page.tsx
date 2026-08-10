@@ -17,7 +17,7 @@ import React from 'react'
 
 import { DashboardShell } from '@/components/dashboard/dashboard-shell'
 import { Button, buttonVariants } from '@/components/ui/button'
-import { Card, CardDescription, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
+import { Card } from '@/components/ui/card'
 import {
   Table,
   TableBody,
@@ -280,14 +280,14 @@ export default function ReportsPage() {
         </div>
 
         <div className="flex border-b border-gray-200">
-           {[
+           {([
              { id: 'all', label: 'All Reports', icon: FileBarChart },
              { id: 'scheduled', label: 'Scheduled', icon: Clock },
-             { id: 'shared', label: 'Shared with Me', icon: Share2 }
-           ].map(tab => (
+             { id: 'shared', label: 'Shared with Me', icon: Share2 },
+           ] as const).map(tab => (
              <button
                key={tab.id}
-               onClick={() => setActiveTab(tab.id as any)}
+               onClick={() => setActiveTab(tab.id)}
                className={cn(
                  "flex items-center gap-2 px-5 py-3 text-[14px] font-bold transition-colors border-b-2 relative -bottom-px",
                  activeTab === tab.id
@@ -345,7 +345,17 @@ export default function ReportsPage() {
                       </TableCell>
                     </TableRow>
                   ))}
-                  {!isLoading && reports.length === 0 && (
+                  {!isLoading && loadError && (
+                    <TableRow>
+                      <TableCell colSpan={7} className="py-20 text-center">
+                        <div role="alert" className="flex flex-col items-center justify-center">
+                          <p className="text-[14px] font-bold text-red-600">Could not load reports</p>
+                          <p className="mt-1 max-w-sm text-[13px] font-medium text-gray-500">{loadError}</p>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                  {!isLoading && !loadError && reports.length === 0 && (
                     <TableRow>
                       <TableCell colSpan={7} className="py-20 text-center">
                          <div className="flex flex-col items-center justify-center text-gray-400">

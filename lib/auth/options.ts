@@ -6,6 +6,7 @@ import GoogleProvider from 'next-auth/providers/google'
 import { ACTIVITY_ACTIONS } from '@/lib/activity/actions'
 import { logActivity } from '@/lib/activity/log'
 import { avatarSelect, effectiveAvatar } from '@/lib/auth/avatar'
+import { CREDENTIALS_ERRORS } from '@/lib/auth/errors'
 import { prisma } from '@/lib/db/prisma'
 
 const googleClientId = process.env.GOOGLE_CLIENT_ID
@@ -27,7 +28,11 @@ const providers: NextAuthOptions['providers'] = [
         where: { email: credentials.email.trim().toLowerCase() },
       })
 
-      if (!user || !user.passwordHash) {
+      if (!user) {
+        throw new Error(CREDENTIALS_ERRORS.userNotFound)
+      }
+
+      if (!user.passwordHash) {
         return null
       }
 

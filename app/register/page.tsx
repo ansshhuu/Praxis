@@ -41,17 +41,6 @@ function GoogleIcon() {
   )
 }
 
-function MicrosoftIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M11 11H0V0h11v11z" fill="#F25022"/>
-      <path d="M24 11H13V0h11v11z" fill="#7FBA00"/>
-      <path d="M11 24H0V13h11v11z" fill="#00A4EF"/>
-      <path d="M24 24H13V13h11v11z" fill="#FFB900"/>
-    </svg>
-  )
-}
-
 const baseInput: React.CSSProperties = {
   width: '100%', padding: '11px 14px', borderRadius: 10,
   border: '1.5px solid #E5E2DC', fontSize: 14, color: '#111111',
@@ -70,8 +59,16 @@ export default function RegisterPage() {
   const [error,    setError]    = useState('')
   const [loading,  setLoading]  = useState(false)
   const [oauthLoading, setOauthLoading] = useState(false)
+  const [notice,   setNotice]   = useState('')
 
   useEffect(() => { router.prefetch('/dashboard') }, [router])
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const prefill = params.get('email')
+    if (prefill) setEmail(prefill)
+    if (params.get('reason') === 'no-account') setNotice('No account found — create one below.')
+  }, [])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -118,6 +115,12 @@ export default function RegisterPage() {
 
           <h1 style={{ fontSize: 25, fontWeight: 800, color: '#111111', letterSpacing: '-0.03em', margin: '0 0 6px' }}>Create your Praxis account</h1>
           <p style={{ fontSize: 14, color: '#66615B', margin: '0 0 28px', lineHeight: 1.5 }}>Get started in less than a minute.</p>
+
+          {notice && (
+            <div role="status" id="register-notice" style={{ background: '#FFFAEC', border: '1px solid rgba(245,202,80,0.5)', borderRadius: 8, padding: '10px 14px', fontSize: 13, fontWeight: 600, color: '#8A6A0B', margin: '0 0 20px' }}>
+              {notice}
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} id="register-form">
             <div style={{ marginBottom: 16 }}>
@@ -181,16 +184,11 @@ export default function RegisterPage() {
             <div style={{ flex: 1, height: 1, background: '#EAE3D9' }} />
           </div>
 
-          <div style={{ display: 'flex', gap: 10 }}>
-            <button id="google-register-btn" type="button" disabled={oauthLoading}
-              onClick={() => { setOauthLoading(true); void signIn('google', { callbackUrl: '/dashboard' }) }}
-              style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '10px 14px', borderRadius: 10, border: '1.5px solid #E5E2DC', background: '#fff', fontSize: 13.5, fontWeight: 600, color: '#111111', cursor: oauthLoading ? 'not-allowed' : 'pointer', opacity: oauthLoading ? 0.7 : 1 }}>
-              <GoogleIcon /> {oauthLoading ? 'Redirecting…' : 'Google'}
-            </button>
-            <button id="microsoft-register-btn" type="button" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '10px 14px', borderRadius: 10, border: '1.5px solid #E5E2DC', background: '#fff', fontSize: 13.5, fontWeight: 600, color: '#111111', cursor: 'pointer' }}>
-              <MicrosoftIcon /> Microsoft
-            </button>
-          </div>
+          <button id="google-register-btn" type="button" disabled={oauthLoading}
+            onClick={() => { setOauthLoading(true); void signIn('google', { callbackUrl: '/dashboard' }) }}
+            style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '10px 14px', borderRadius: 10, border: '1.5px solid #E5E2DC', background: '#fff', fontSize: 13.5, fontWeight: 600, color: '#111111', cursor: oauthLoading ? 'not-allowed' : 'pointer', opacity: oauthLoading ? 0.7 : 1, boxSizing: 'border-box' }}>
+            <GoogleIcon /> {oauthLoading ? 'Redirecting…' : 'Google'}
+          </button>
 
           <p style={{ textAlign: 'center', marginTop: 28, fontSize: 13, color: '#66615B' }}>
             Already have an account?{' '}

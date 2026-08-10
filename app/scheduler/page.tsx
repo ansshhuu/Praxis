@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react'
 
 import { DashboardShell } from '@/components/dashboard/dashboard-shell'
 import { Button } from '@/components/ui/button'
-import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardDescription, CardTitle } from '@/components/ui/card'
 import {
   Table,
   TableBody,

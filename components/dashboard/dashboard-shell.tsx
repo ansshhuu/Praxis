@@ -1,9 +1,10 @@
 'use client'
 
 import { HelpCircle, X } from 'lucide-react'
+import { useSession } from 'next-auth/react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { ResizeHandle, useResizablePanel } from '@/components/ui/resizable-panel'
@@ -11,7 +12,7 @@ import { cn } from '@/lib/utils'
 
 import { AppTopbar } from './app-topbar'
 import { HelpDrawer } from './help-drawer'
-import { findActiveSection, isEntryActive, navSections, settingsEntry } from './nav-items'
+import { findActiveSection, isEntryActive, settingsEntry, visibleNavSections } from './nav-items'
 import { SectionSidebar } from './section-sidebar'
 
 const SIDEBAR_STORAGE_KEY = 'praxis:app.sidebar'
@@ -30,7 +31,9 @@ export function DashboardShell({
   mainClassName?: string
 }) {
   const pathname = usePathname()
-  const activeSection = findActiveSection(pathname)
+  const { data: session } = useSession()
+  const sections = useMemo(() => visibleNavSections(session?.user?.role), [session?.user?.role])
+  const activeSection = findActiveSection(pathname, sections)
   const hasSidebar = Boolean(activeSection?.items?.length)
 
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -121,7 +124,7 @@ export function DashboardShell({
           </Button>
 
           <nav aria-label="All sections" className="flex flex-col gap-5 px-3 pt-16 pb-6">
-            {navSections.map((section) => {
+            {sections.map((section) => {
               const SectionIcon = section.icon
               const entries = section.items ?? [section]
               return (

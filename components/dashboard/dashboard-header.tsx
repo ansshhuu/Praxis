@@ -1,6 +1,6 @@
 'use client'
 
-import { Download, Loader2, Plus } from 'lucide-react'
+import { Plus } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 
@@ -33,34 +33,12 @@ export function DashboardHeader({
   generatedAt: string | null
 }) {
   const router = useRouter()
-  const [exporting, setExporting] = useState(false)
-  const [exportError, setExportError] = useState<string | null>(null)
   const [, setTick] = useState(0)
 
   useEffect(() => {
     const timer = window.setInterval(() => setTick((n) => n + 1), 30000)
     return () => window.clearInterval(timer)
   }, [])
-
-  async function handleExport() {
-    if (exporting) return
-    setExporting(true)
-    setExportError(null)
-    try {
-      const res = await fetch('/api/reports/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'WORKFLOW', format: 'PDF' }),
-      })
-      const body = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(body.error || 'Report generation failed')
-      if (body.report?.fileUrl) window.open(body.report.fileUrl, '_blank', 'noopener')
-    } catch (error) {
-      setExportError((error as Error).message)
-    } finally {
-      setExporting(false)
-    }
-  }
 
   return (
     <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -99,11 +77,6 @@ export function DashboardHeader({
           </svg>
         </div>
 
-        <Button variant="outline" onClick={handleExport} disabled={exporting} className="h-9 font-semibold">
-          {exporting ? <Loader2 className="mr-1.5 size-4 animate-spin" /> : <Download className="mr-1.5 size-4" />}
-          {exporting ? 'Exporting…' : 'Export Report'}
-        </Button>
-
         <Button
           onClick={() => router.push('/workflows')}
           className="h-9 bg-[#111111] font-semibold text-white hover:brightness-125"
@@ -111,12 +84,6 @@ export function DashboardHeader({
           <Plus className="mr-1.5 size-4" />
           New Workflow
         </Button>
-
-        {exportError && (
-          <p role="alert" className="basis-full text-right text-xs font-medium text-red-600">
-            {exportError}
-          </p>
-        )}
       </div>
     </div>
   )

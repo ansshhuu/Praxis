@@ -15,6 +15,8 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 
+import { canAccessRoute } from '@/lib/auth/route-roles'
+
 export type NavEntry = {
   label: string
   icon: LucideIcon
@@ -87,8 +89,24 @@ export const settingsEntry: NavEntry = {
   href: '/settings',
 }
 
-export function findActiveSection(pathname: string): NavSection | undefined {
-  return navSections.find((section) =>
+export function visibleNavSections(role: string | undefined | null): NavSection[] {
+  return navSections.reduce<NavSection[]>((visible, section) => {
+    if (!section.items) {
+      if (canAccessRoute(section.href, role)) visible.push(section)
+      return visible
+    }
+
+    const items = section.items.filter((item) => canAccessRoute(item.href, role))
+    if (items.length) visible.push({ ...section, items })
+    return visible
+  }, [])
+}
+
+export function findActiveSection(
+  pathname: string,
+  sections: NavSection[] = navSections,
+): NavSection | undefined {
+  return sections.find((section) =>
     [section.href, ...(section.match ?? [])].some(
       (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
     ),

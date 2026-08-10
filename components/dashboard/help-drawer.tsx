@@ -11,7 +11,6 @@ import {
   MessageSquare,
   Mic,
   ScrollText,
-  Settings,
   Store,
   Workflow,
   X,
@@ -179,19 +178,6 @@ const HELP_TOPICS: HelpTopic[] = [
       'Compare the Workflow Success / Fail bars to spot bad days.',
       'Check the Response Time Trend (p50, p95, p99) for slow executions.',
       'Watch Storage Usage against your quota.',
-    ],
-  },
-  {
-    id: 'settings',
-    label: 'Settings',
-    icon: Settings,
-    description:
-      'Your profile plus workspace administration. User management is restricted to admins.',
-    steps: [
-      'Open Settings from the avatar menu in the top right.',
-      'Update your name and email under Personal Information and save.',
-      'Admins: open the Users section to see everyone in the workspace.',
-      'Admins: click Add User, set a name, email, role and temporary password to create an account.',
     ],
   },
 ]

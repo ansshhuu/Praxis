@@ -659,25 +659,27 @@ export default function SettingsPage() {
           </p>
         </div>
 
-        <div className="flex gap-1 rounded-xl border border-border bg-muted/50 p-1 w-fit" role="tablist">
-          {visibleTabs.map((tab) => (
-            <button
-              key={tab.id}
-              id={`settings-tab-${tab.id}`}
-              role="tab"
-              aria-selected={activeTab === tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={cn(
-                'rounded-lg px-4 py-1.5 text-sm font-medium transition-colors',
-                activeTab === tab.id
-                  ? 'bg-card text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground',
-              )}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
+        {visibleTabs.length > 1 && (
+          <div className="flex gap-1 rounded-xl border border-border bg-muted/50 p-1 w-fit" role="tablist">
+            {visibleTabs.map((tab) => (
+              <button
+                key={tab.id}
+                id={`settings-tab-${tab.id}`}
+                role="tab"
+                aria-selected={activeTab === tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={cn(
+                  'rounded-lg px-4 py-1.5 text-sm font-medium transition-colors',
+                  activeTab === tab.id
+                    ? 'bg-card text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground',
+                )}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        )}
 
         {activeTab === 'profile' && <ProfileTab />}
         {activeTab === 'users' && isAdmin && <UserManagementTab />}

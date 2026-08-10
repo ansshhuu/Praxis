@@ -4,7 +4,6 @@ import { useState } from 'react'
 import { ChevronDown, ChevronRight } from 'lucide-react'
 
 import { categoryStyles, nodeColor, nodeTint, paletteGroups, type NodeTypeDef } from './node-catalog'
-import { cn } from '@/lib/utils'
 
 function groupLabel(category: NodeTypeDef['category']) {
   if (category === 'trigger') return 'Triggers'
