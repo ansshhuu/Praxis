@@ -99,11 +99,27 @@ The app runs at `http://localhost:3000`.
 ### Other commands
 
 ```bash
-npm run build   # production build (type-checked)
-npm run start   # serve the production build
-npm run lint    # ESLint
-npm run seed    # re-run the database seed
+npm run build       # production build (type-checked)
+npm run start       # serve the production build
+npm run typecheck   # tsc --noEmit
+npm run lint        # ESLint
+npm test            # unit tests (Vitest)
+npm run test:watch  # unit tests in watch mode
+npm run seed        # re-run the database seed
 ```
+
+### Tests & CI
+
+Unit tests live in `tests/` and cover the pure logic most worth protecting —
+role guards, avatar resolution, AI response parsing, and input validation:
+
+```bash
+npm test
+```
+
+GitHub Actions runs typecheck, lint, tests and a production build on every push
+to `main` and every pull request (`.github/workflows/ci.yml`). The build uses a
+dummy `DATABASE_URL`: no route queries the database at build time.
 
 ## Project Structure
 

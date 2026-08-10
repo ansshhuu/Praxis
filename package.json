@@ -9,6 +9,10 @@
     "start": "next start -H 0.0.0.0",
     "postinstall": "prisma generate",
     "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
     "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
@@ -52,7 +56,9 @@
     "prisma": "^5.14.0",
     "tailwindcss": "^4.3.3",
     "tsx": "^4.23.9",
-    "typescript": "5.7.3"
+    "typescript": "5.7.3",
+    "vite-tsconfig-paths": "^6.1.1",
+    "vitest": "^4.1.10"
   },
   "pnpm": {
     "overrides": {
