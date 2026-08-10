@@ -27,23 +27,32 @@ async function seedAdmin() {
 }
 
 async function seedMarketplace(createdBy: string) {
-  const count = await prisma.marketplaceTemplate.count()
-  if (count > 0) {
-    console.log(`Marketplace already has ${count} template(s) — skipping`)
-    return
-  }
+  let created = 0
+  let updated = 0
 
-  await prisma.marketplaceTemplate.createMany({
-    data: SEED_TEMPLATES.map((template) => ({
+  for (const template of SEED_TEMPLATES) {
+    const existing = await prisma.marketplaceTemplate.findFirst({
+      where: { name: template.name },
+      select: { id: true },
+    })
+
+    const data = {
       name: template.name,
       description: template.description,
       category: template.category,
       workflowJson: template.workflowJson,
-      createdBy,
-    })),
-  })
+    }
 
-  console.log(`Seeded ${SEED_TEMPLATES.length} marketplace templates`)
+    if (existing) {
+      await prisma.marketplaceTemplate.update({ where: { id: existing.id }, data })
+      updated += 1
+    } else {
+      await prisma.marketplaceTemplate.create({ data: { ...data, createdBy } })
+      created += 1
+    }
+  }
+
+  console.log(`Marketplace templates: ${created} created, ${updated} refreshed`)
 }
 
 async function main() {
