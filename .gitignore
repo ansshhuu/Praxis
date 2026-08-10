@@ -49,3 +49,10 @@ __v0_devtools.tsx
 __v0_jsx-dev-runtime.ts
 .snowflake/
 .v0-trash/
+
+# Foreign lockfiles — this project uses npm (package-lock.json).
+# A stray pnpm/yarn lockfile makes Vercel switch package managers and fail
+# with ERR_PNPM_OUTDATED_LOCKFILE.
+pnpm-lock.yaml
+yarn.lock
+bun.lockb
