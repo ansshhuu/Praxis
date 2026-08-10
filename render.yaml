@@ -1,0 +1,61 @@
+services:
+  - type: web
+    name: praxis-app
+    runtime: node
+    region: oregon
+    plan: starter
+    buildCommand: npm ci && npx prisma migrate deploy && npm run build
+    startCommand: npm run start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+
+      # Postgres connection string.
+      - key: DATABASE_URL
+        sync: false
+
+      # Auth. NEXTAUTH_URL must be the service's public HTTPS origin
+      # (e.g. https://praxis-app.onrender.com) or OAuth callbacks fail.
+      - key: NEXTAUTH_URL
+        sync: false
+      - key: NEXTAUTH_SECRET
+        generateValue: true
+
+      # Google OAuth (optional — the provider is skipped if either is unset).
+      # Authorised redirect URI: {NEXTAUTH_URL}/api/auth/callback/google
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+
+      # AI providers. GEMINI_API_KEY is primary; Hugging Face is the fallback
+      # and also powers Whisper transcription for meetings.
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: HUGGINGFACE_API_KEY
+        sync: false
+
+      # Supabase Storage — required by documents, meetings, resumes, avatars.
+      # Buckets "documents", "meetings" and "avatars" must exist and be private.
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+
+      # Transactional email — Brevo.
+      - key: BREVO_API_KEY
+        sync: false
+      - key: BREVO_SENDER_EMAIL
+        sync: false
+      - key: BREVO_SENDER_NAME
+        value: Praxis
+
+      # Destination inbox for landing page contact submissions.
+      # Falls back to BREVO_SENDER_EMAIL when unset.
+      - key: CONTACT_INBOX_EMAIL
+        sync: false
+
+      # Storage allowance shown on the Analytics page.
+      - key: STORAGE_QUOTA_MB
+        value: "1024"
