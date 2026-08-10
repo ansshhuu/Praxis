@@ -3,12 +3,13 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  // Pooled connection (pgBouncer, port 6543) used by the app at runtime.
-  url       = env("DATABASE_URL")
-  // Direct connection (port 5432) used for migrations and introspection —
-  // DDL cannot run through pgBouncer in transaction pooling mode.
-  directUrl = env("DIRECT_URL")
+  provider = "postgresql"
+  // Session-pooled connection (port 5432) — serves both the app at runtime and
+  // migrations. Deliberately NOT the transaction pooler (6543): that cannot run
+  // DDL, which would require a separate directUrl. The app runs as a persistent
+  // Node process where Prisma manages its own pool, so transaction pooling adds
+  // little here beyond a second connection string to keep in sync.
+  url      = env("DATABASE_URL")
 }
 
 enum Role {

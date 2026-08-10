@@ -14,12 +14,11 @@ services:
       - key: NODE_ENV
         value: production
 
-      # Postgres. DATABASE_URL is the pooled runtime connection (pgBouncer,
-      # port 6543). DIRECT_URL is the direct/session connection (port 5432) and
-      # is required by `prisma migrate deploy` in the build command.
+      # Postgres. Use the SESSION pooler (port 5432, no ?pgbouncer=true) — it
+      # serves both runtime queries and `prisma migrate deploy` in the build.
+      # The transaction pooler (6543) cannot run DDL and would need a second
+      # DIRECT_URL connection string.
       - key: DATABASE_URL
-        sync: false
-      - key: DIRECT_URL
         sync: false
 
       # Auth. NEXTAUTH_URL must be the service's public HTTPS origin
