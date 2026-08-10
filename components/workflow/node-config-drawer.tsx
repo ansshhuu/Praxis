@@ -14,13 +14,15 @@ import {
 } from './node-catalog'
 import type { WorkflowNodeData } from './workflow-node'
 
-/**
- * `key` is the property name written to `node.data.config` — it is the
- * contract with the execution engine (`lib/workflows/engine.ts`), which reads
- * config by these exact names. Renaming one here breaks that node at runtime.
- */
 type Field =
-  | { kind: 'text'; key: string; label: string; placeholder?: string; value?: string }
+  | {
+      kind: 'text'
+      key: string
+      label: string
+      placeholder?: string
+      value?: string
+      inputType?: 'text' | 'email'
+    }
   | { kind: 'textarea'; key: string; label: string; placeholder?: string; value?: string }
   | { kind: 'select'; key: string; label: string; options: string[]; value?: string }
 
@@ -108,6 +110,14 @@ const fieldsByType: Partial<Record<NodeTypeKey, Field[]>> = {
       options: ['#ops-alerts', '#support', 'In-app'],
     },
     {
+      kind: 'text',
+      key: 'recipientEmail',
+      label: 'Recipient Email',
+      inputType: 'email',
+      placeholder: 'recipient@example.com',
+      value: '',
+    },
+    {
       kind: 'textarea',
       key: 'message',
       label: 'Message',
@@ -154,16 +164,11 @@ const fieldsByType: Partial<Record<NodeTypeKey, Field[]>> = {
   ],
 }
 
-/** The value a field shows before the user edits anything. */
 function fieldDefault(field: Field): string {
   if (field.value !== undefined) return field.value
   return field.kind === 'select' ? field.options[0] : ''
 }
 
-/**
- * Seed config for a freshly dropped node, so what the drawer displays is what
- * the engine actually receives — even if the user never opens the drawer.
- */
 export function defaultConfigFor(typeKey: NodeTypeKey): Record<string, string> {
   const fields = fieldsByType[typeKey] ?? []
   return Object.fromEntries(fields.map((field) => [field.key, fieldDefault(field)]))
@@ -221,6 +226,7 @@ function ConfigField({
       <Label htmlFor={id}>{field.label}</Label>
       <Input
         id={id}
+        type={field.inputType ?? 'text'}
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder={field.placeholder}
@@ -234,7 +240,6 @@ type NodeConfigDrawerProps = {
   data: WorkflowNodeData | null
   onClose: () => void
   onDelete: (id: string) => void
-  /** Writes a single config key back onto the node in React Flow state. */
   onConfigChange: (id: string, key: string, value: string) => void
 }
 

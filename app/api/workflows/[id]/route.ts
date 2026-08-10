@@ -8,7 +8,6 @@ export const dynamic = 'force-dynamic'
 
 type RouteContext = { params: Promise<{ id: string }> }
 
-/** GET /api/workflows/[id] — full graph for the builder. */
 export async function GET(_request: Request, { params }: RouteContext) {
   const userId = await getCurrentUserId()
   if (!userId) {
@@ -36,7 +35,6 @@ export async function GET(_request: Request, { params }: RouteContext) {
   return NextResponse.json({ workflow })
 }
 
-/** PATCH /api/workflows/[id] — partial update of name / nodes / edges / status. */
 export async function PATCH(request: Request, { params }: RouteContext) {
   const userId = await getCurrentUserId()
   if (!userId) {
@@ -102,7 +100,6 @@ export async function PATCH(request: Request, { params }: RouteContext) {
   return NextResponse.json({ workflow })
 }
 
-/** DELETE /api/workflows/[id] — removes the workflow and its runs (cascade). */
 export async function DELETE(_request: Request, { params }: RouteContext) {
   const userId = await getCurrentUserId()
   if (!userId) {

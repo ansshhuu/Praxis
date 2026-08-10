@@ -16,8 +16,6 @@ import {
 } from '@/components/ui/table'
 import { cn } from '@/lib/utils'
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
 interface ScheduledJob {
   id: string
   workflowId: string
@@ -51,8 +49,6 @@ async function readError(response: Response, fallback: string): Promise<string> 
   return (body as { error?: string } | null)?.error ?? fallback
 }
 
-// ─── Toggle Switch ─────────────────────────────────────────────────────────────
-
 function StatusToggle({ active, onChange, id }: { active: boolean; onChange: (v: boolean) => void; id: string }) {
   return (
     <button
@@ -75,8 +71,6 @@ function StatusToggle({ active, onChange, id }: { active: boolean; onChange: (v:
     </button>
   )
 }
-
-// ─── New Job Modal ─────────────────────────────────────────────────────────────
 
 function NewJobModal({
   onClose,
@@ -220,8 +214,6 @@ function NewJobModal({
   )
 }
 
-// ─── Main Page ─────────────────────────────────────────────────────────────────
-
 export default function SchedulerPage() {
   const [jobs, setJobs] = useState<ScheduledJob[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -272,7 +264,7 @@ export default function SchedulerPage() {
               Manage automated job schedules and cron triggers
             </p>
           </div>
-          <Button 
+          <Button
             className="bg-[#F5CA50] text-[#111111] hover:brightness-95 font-bold"
             onClick={() => setShowModal(true)}
           >

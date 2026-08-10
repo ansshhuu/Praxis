@@ -1,23 +1,5 @@
 'use client'
 
-/**
- * Shared motion primitives.
- *
- * Reduced motion is handled in two layers:
- *
- * 1. `<MotionConfig reducedMotion="user">` in components/providers.tsx makes
- *    framer-motion drop transform/layout animations app-wide for users with
- *    the OS setting, keeping opacity only. That covers every `motion.*` here
- *    without per-component branching.
- * 2. Effects that are not transform-based — the count-up and the typewriter —
- *    cannot be covered that way, so they call `useReducedMotion()` and jump
- *    straight to the final value. Both start inside effects, so reading the
- *    media query never risks a hydration mismatch.
- *
- * Durations stay in the 150-400ms band; only the count-up and typewriter run
- * longer, and both are explicitly allowed to.
- */
-
 import {
   animate,
   useInView,
@@ -30,15 +12,8 @@ import React, { useEffect, useRef, useState } from 'react'
 
 import { cn } from '@/lib/utils'
 
-/** Standard ease-out — matches the .sss-fade-slide curve in landing.css. */
 export const EASE_OUT = [0.22, 1, 0.36, 1] as const
 
-// ─── Reveal ───────────────────────────────────────────────────────────────────
-
-/**
- * Fade + slide-up as the element enters the viewport. `once` by default so
- * entrance animations don't re-fire on every pass.
- */
 export function Reveal({
   children,
   delay = 0,
@@ -72,8 +47,6 @@ export function Reveal({
   )
 }
 
-// ─── Word-by-word headline reveal ─────────────────────────────────────────────
-
 const wordContainer: Variants = {
   hidden: {},
   visible: { transition: { staggerChildren: 0.055, delayChildren: 0.05 } },
@@ -84,14 +57,6 @@ const wordChild: Variants = {
   visible: { opacity: 1, y: 0, transition: { duration: 0.42, ease: EASE_OUT } },
 }
 
-/**
- * Splits a headline into words and reveals them in sequence. Reserved for the
- * main hero headline — everything else uses line-level `Reveal`.
- *
- * The full string stays in the accessibility tree via an sr-only copy, and the
- * animated spans are hidden from it, so a screen reader hears one sentence
- * rather than a stream of disconnected words.
- */
 export function WordReveal({
   text,
   className,
@@ -129,12 +94,6 @@ export function WordReveal({
   )
 }
 
-// ─── Staggered group ──────────────────────────────────────────────────────────
-
-/**
- * Parent for a set of `StaggerItem` children that should settle into place one
- * after another. `stagger` is seconds between children.
- */
 export function StaggerGroup({
   children,
   className,
@@ -148,7 +107,6 @@ export function StaggerGroup({
   stagger?: number
   delayChildren?: number
   once?: boolean
-  /** Trigger on scroll-into-view instead of on mount. */
   inView?: boolean
 }) {
   const variants: Variants = {
@@ -188,13 +146,6 @@ export function StaggerItem({
   )
 }
 
-// ─── Count-up ─────────────────────────────────────────────────────────────────
-
-/**
- * Splits "19,204" / "99.9%" / "+12%" into a numeric part plus whatever wraps
- * it, so the label can animate without losing its prefix, suffix, decimals or
- * thousands separators.
- */
 export function parseStatValue(value: string): {
   prefix: string
   target: number
@@ -225,13 +176,6 @@ function formatValue(
   })
 }
 
-/**
- * Counts from 0 to the number inside `value` once the element scrolls into
- * view, then renders it with its original prefix/suffix intact.
- *
- * Decelerates toward the end (easeOut), never linear. Anything that isn't
- * parseable as a number is rendered untouched.
- */
 export function CountUp({
   value,
   duration = 1.2,
@@ -266,8 +210,6 @@ export function CountUp({
           `${parsed.prefix}${formatValue(latest, parsed.decimals, parsed.grouped)}${parsed.suffix}`,
         )
       },
-      // Guarantee the final frame is the exact source string — floating point
-      // rounding must never leave "99.8%" on screen for a 99.9% stat.
       onComplete: () => setDisplay(value),
     })
     return () => controls.stop()
@@ -277,25 +219,12 @@ export function CountUp({
 
   return (
     <span ref={ref} className={className}>
-      {/* The settled value for assistive tech; the ticking digits are decorative. */}
       <span className="sr-only">{value}</span>
       <span aria-hidden="true" className="tabular-nums">{display}</span>
     </span>
   )
 }
 
-// ─── Typewriter ───────────────────────────────────────────────────────────────
-
-/**
- * Progressively reveals `text` word by word.
- *
- * The backend returns the whole answer at once (`/api/chat` is not a streaming
- * endpoint), so this is a client-side reveal of text already in hand — not a
- * simulation of tokens arriving. `enabled` is set only for the newest assistant
- * message, so re-rendering history never replays it.
- *
- * Returns the full text immediately under reduced motion.
- */
 export function useTypewriter(
   text: string,
   { enabled = true, minMs = 800, maxMs = 1500 }: { enabled?: boolean; minMs?: number; maxMs?: number } = {},
@@ -315,7 +244,6 @@ export function useTypewriter(
       return
     }
 
-    // Scale total duration with length, clamped to the allowed band.
     const total = Math.min(maxMs, Math.max(minMs, words.length * 28))
     const perWord = total / words.length
 
@@ -333,17 +261,8 @@ export function useTypewriter(
   return { shown, done: shown === text }
 }
 
-// ─── Hover card ───────────────────────────────────────────────────────────────
-
-/**
- * Lift + amber glow on hover. Implemented as a CSS class (see globals.css /
- * landing.css) rather than a motion component so it can be dropped onto
- * existing markup without wrapping or restructuring it, and so the
- * prefers-reduced-motion media query can neutralise it directly.
- */
 export const hoverCardClass = 'hover-lift-glow'
 
-/** Same treatment for elements that are already motion components. */
 export function HoverLift({
   children,
   className,

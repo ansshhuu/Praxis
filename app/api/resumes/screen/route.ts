@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server'
 
+import { ACTIVITY_ACTIONS } from '@/lib/activity/actions'
+import { logActivity } from '@/lib/activity/log'
 import { getCurrentUserId } from '@/lib/auth/session'
 import { prisma } from '@/lib/db/prisma'
 import { extractText } from '@/lib/documents/extract'
@@ -9,17 +11,14 @@ import { createReadUrl, uploadDocument } from '@/lib/storage/supabase'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
-/** Upload + extraction + one or more AI batches; well past the default budget. */
 export const maxDuration = 300
 
 const MAX_FILE_BYTES = 25 * 1024 * 1024
 const MAX_RESUMES = 20
 const MIN_JD_CHARS = 20
 
-/** Resumes are documents, so extraction support is the same set. */
 const ALLOWED_EXTENSIONS = new Set(['pdf', 'docx', 'doc', 'txt'])
 
-/** Below this a resume has no usable content to score. */
 const MIN_TEXT_CHARS = 40
 
 function extensionOf(name: string): string {
@@ -29,14 +28,6 @@ function extensionOf(name: string): string {
 
 type Skipped = { fileName: string; reason: string }
 
-/**
- * POST /api/resumes/screen — multipart form with one or more `resumes` files
- * and a `jobDescription` text field.
- *
- * Each file is stored, recorded in `documents`, and extracted; all extracted
- * texts then go to the AI router in as few batched calls as the character
- * budget allows (usually exactly one).
- */
 export async function POST(request: Request) {
   const userId = await getCurrentUserId()
   if (!userId) {
@@ -75,7 +66,6 @@ export async function POST(request: Request) {
     )
   }
 
-  // ── Store + extract each resume ────────────────────────────────────────────
   const inputs: ResumeInput[] = []
   const skipped: Skipped[] = []
   const documentIds: string[] = []
@@ -154,14 +144,11 @@ export async function POST(request: Request) {
     )
   }
 
-  // ── Score (batched AI calls) ───────────────────────────────────────────────
   let scored
   try {
     scored = await scoreResumes(jobDescription, inputs)
   } catch (error) {
     console.error('[resumes/screen] scoring failed:', error)
-    // Documents stay saved and extracted; only the scoring pass failed, so the
-    // client can retry without re-uploading.
     return NextResponse.json(
       {
         error:
@@ -175,7 +162,6 @@ export async function POST(request: Request) {
     )
   }
 
-  // ── Persist the ranked list ────────────────────────────────────────────────
   const screeningId = crypto.randomUUID()
 
   await prisma.resume.createMany({
@@ -188,7 +174,6 @@ export async function POST(request: Request) {
       skills: candidate.skills,
       skillsMissing: candidate.skillsMissing,
       jdMatchScore: candidate.jdMatchScore,
-      // Assigned here, after merging every batch, so ranks are global.
       ranking: index + 1,
       yearsExperience: candidate.yearsExperience,
       currentRole: candidate.currentRole,
@@ -202,6 +187,13 @@ export async function POST(request: Request) {
     where: { screeningId },
     orderBy: { ranking: 'asc' },
     include: { document: { select: { fileName: true, fileUrl: true, extractedText: true } } },
+  })
+
+  await logActivity(userId, ACTIVITY_ACTIONS.resumeScreeningCompleted, {
+    screeningId,
+    candidates: candidates.length,
+    skipped: skipped.length,
+    topCandidate: candidates[0]?.candidateName ?? null,
   })
 
   return NextResponse.json(

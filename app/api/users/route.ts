@@ -2,6 +2,8 @@ import { Role } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 import { NextResponse } from 'next/server'
 
+import { ACTIVITY_ACTIONS } from '@/lib/activity/actions'
+import { logActivity } from '@/lib/activity/log'
 import { requireAdmin } from '@/lib/auth/session'
 import { prisma } from '@/lib/db/prisma'
 
@@ -16,7 +18,6 @@ const userSelect = {
   lastLogin: true,
 } as const
 
-/** GET /api/users — full user directory (admin only). */
 export async function GET() {
   const auth = await requireAdmin()
   if (!auth.ok) {
@@ -31,12 +32,6 @@ export async function GET() {
   return NextResponse.json({ users })
 }
 
-/**
- * POST /api/users — admin creates an account directly.
- *
- * Unlike /api/auth/register (which force-assigns EMPLOYEE), this endpoint
- * accepts a role, which is exactly why it is admin-gated.
- */
 export async function POST(request: Request) {
   const auth = await requireAdmin()
   if (!auth.ok) {
@@ -83,12 +78,18 @@ export async function POST(request: Request) {
     )
   }
 
-  // Same cost factor as /api/auth/register so hashes stay interchangeable.
   const passwordHash = await bcrypt.hash(password, 12)
 
   const user = await prisma.user.create({
     data: { name, email, passwordHash, role: role as Role },
     select: userSelect,
+  })
+
+  await logActivity(auth.user.id, ACTIVITY_ACTIONS.userCreated, {
+    createdUserId: user.id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
   })
 
   return NextResponse.json({ user }, { status: 201 })

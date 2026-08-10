@@ -30,8 +30,6 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { cn } from '@/lib/utils'
 
-// ─── Types & helpers ──────────────────────────────────────────────────────────
-
 type DocumentStatus = 'Processed' | 'Processing' | 'Failed' | 'Pending'
 
 interface ApiDocument {
@@ -72,10 +70,6 @@ async function readError(response: Response, fallback: string): Promise<string> 
   return (body as { error?: string } | null)?.error ?? fallback
 }
 
-/**
- * Split a summary into sentences so they can reveal one at a time. The model
- * returns prose, not a bullet list, so sentences are the natural unit.
- */
 function splitSentences(text: string): string[] {
   const parts = text.match(/[^.!?]+[.!?]+(\s|$)|[^.!?]+$/g)
   return parts ? parts.map((s) => s.trim()).filter(Boolean) : [text]
@@ -98,8 +92,6 @@ function DocTypeIcon({ type }: { type: string }) {
   }
   return icons[type] ?? <FileText className="size-8 text-gray-400" />
 }
-
-// ─── Upload Modal ─────────────────────────────────────────────────────────────
 
 function UploadModal({
   onClose,
@@ -215,8 +207,6 @@ function UploadModal({
   )
 }
 
-// ─── Document Detail View (Right Panel) ───────────────────────────────────────
-
 interface ChatMsg { id: string; role: 'user' | 'assistant'; content: string }
 
 function DocumentDetailView({
@@ -291,8 +281,7 @@ function DocumentDetailView({
           <StatusBadge status={status} />
         </div>
       </div>
-      
-      {/* Tabs */}
+
       <div className="flex px-4 border-b border-gray-100 shrink-0">
         {[
           { id: 'summary', label: 'Summary' },
@@ -304,8 +293,8 @@ function DocumentDetailView({
             onClick={() => setActiveTab(tab.id as any)}
             className={cn(
               "px-4 py-3 text-[13px] font-semibold transition-colors border-b-2",
-              activeTab === tab.id 
-                ? "border-[#F5CA50] text-[#111111]" 
+              activeTab === tab.id
+                ? "border-[#F5CA50] text-[#111111]"
                 : "border-transparent text-gray-500 hover:text-gray-900 hover:border-gray-200"
             )}
           >
@@ -317,12 +306,6 @@ function DocumentDetailView({
       <div className="flex-1 overflow-y-auto p-5 relative bg-gray-50/30">
         {activeTab === 'summary' && (
           <div className="flex flex-col gap-4">
-            {/*
-              Crossfade between the processing skeleton and the finished
-              insights, so a document flipping from Processing to Processed
-              resolves rather than snapping. mode="wait" keeps the two states
-              from overlapping in a fixed-height panel.
-            */}
             <AnimatePresence mode="wait" initial={false}>
               {isProcessing ? (
                 <motion.div
@@ -345,8 +328,6 @@ function DocumentDetailView({
                   transition={{ duration: 0.35, ease: EASE_OUT }}
                   className="prose prose-sm prose-gray max-w-none"
                 >
-                  {/* Sentences reveal in sequence. They stay inline spans in a
-                      single paragraph, so the text wraps exactly as before. */}
                   <p className="text-[13.5px] leading-relaxed text-gray-700 whitespace-pre-wrap">
                     {splitSentences(aiSummary).map((sentence, i) => (
                       <motion.span
@@ -464,8 +445,6 @@ function DocumentDetailView({
   )
 }
 
-// ─── Main Page ────────────────────────────────────────────────────────────────
-
 export default function DocumentsPage() {
   const [documents, setDocuments] = useState<ApiDocument[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -479,7 +458,6 @@ export default function DocumentsPage() {
       if (response.ok) {
         const { documents: rows } = (await response.json()) as { documents: ApiDocument[] }
         setDocuments(rows)
-        // Select first doc by default if none selected
         if (rows.length > 0 && !selectedDocId) {
           setSelectedDocId(rows[0].id)
         }
@@ -493,7 +471,7 @@ export default function DocumentsPage() {
 
   const handleUploaded = useCallback((doc: ApiDocument, processing: Promise<void>) => {
     setDocuments((prev) => [{ ...doc, status: 'PROCESSING' }, ...prev])
-    setSelectedDocId(doc.id) // Auto-select newly uploaded
+    setSelectedDocId(doc.id)
     void processing.finally(() => { void refresh() })
   }, [refresh])
 
@@ -510,10 +488,9 @@ export default function DocumentsPage() {
   return (
     <DashboardShell mainClassName="p-0 h-[calc(100vh-64px)] flex flex-col">
       <div className="flex h-full max-w-[1600px] mx-auto w-full">
-        
-        {/* Left Sidebar - Folders */}
+
         <div className="w-60 border-r border-gray-100 bg-white flex flex-col p-4 shrink-0 hidden md:flex">
-          <Button 
+          <Button
             className="w-full justify-start bg-[#F5CA50] text-gray-900 hover:brightness-95 shadow-sm rounded-lg h-10 font-bold mb-6"
             onClick={() => setShowUpload(true)}
           >
@@ -528,8 +505,8 @@ export default function DocumentsPage() {
                   onClick={() => setActiveFolder(f.name)}
                   className={cn(
                     "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-[13.5px] font-medium transition-colors",
-                    activeFolder === f.name 
-                      ? "bg-gray-100 text-gray-900" 
+                    activeFolder === f.name
+                      ? "bg-gray-100 text-gray-900"
                       : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"
                   )}
                 >
@@ -541,13 +518,12 @@ export default function DocumentsPage() {
           </ul>
         </div>
 
-        {/* Middle - Document List */}
         <div className="flex-1 min-w-0 bg-gray-50/30 border-r border-gray-100 flex flex-col">
           <div className="p-4 md:p-6 border-b border-gray-100 bg-white flex items-center justify-between shrink-0">
              <h2 className="text-xl font-bold text-gray-900">Documents</h2>
              <Button variant="outline" size="sm" className="md:hidden" onClick={() => setShowUpload(true)}>Upload</Button>
           </div>
-          
+
           <div className="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col gap-3">
              {isLoading ? (
                 Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-20 w-full rounded-2xl" />)
@@ -561,7 +537,7 @@ export default function DocumentsPage() {
                 </div>
              ) : (
                documents.map(doc => (
-                 <button 
+                 <button
                     key={doc.id}
                     onClick={() => setSelectedDocId(doc.id)}
                     className={cn(
@@ -591,7 +567,6 @@ export default function DocumentsPage() {
           </div>
         </div>
 
-        {/* Right - Detail View */}
         <div className="w-[360px] xl:w-[420px] bg-white p-4 md:p-6 shrink-0 hidden lg:block overflow-hidden h-full">
            {selectedDoc ? (
              <DocumentDetailView documentId={selectedDoc.id} summary={selectedDoc} />

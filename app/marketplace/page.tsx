@@ -28,9 +28,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { cn } from '@/lib/utils'
 import { TEMPLATE_PRESENTATION, type TemplateCategory } from '@/lib/marketplace/templates'
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-/** Row shape returned by GET /api/marketplace. */
 interface MarketplaceTemplate {
   id: string
   name: string
@@ -38,14 +35,7 @@ interface MarketplaceTemplate {
   category: string
 }
 
-/**
- * `marketplace_templates` stores no icon / rating / usage columns, so those
- * come from the shared catalogue, matched by name. Templates published later
- * through POST /api/marketplace fall back to neutral defaults.
- */
 const presentationFallback = { icon: 'file-check', rating: 4.5, usageCount: 0 }
-
-// ─── Icon map ─────────────────────────────────────────────────────────────────
 
 const iconMap: Record<string, React.ReactNode> = {
   receipt: <Receipt className="size-6" />,
@@ -66,8 +56,6 @@ const iconMap: Record<string, React.ReactNode> = {
   send: <Send className="size-6" />,
 }
 
-// ─── Category badge colors ────────────────────────────────────────────────────
-
 const categoryColors: Record<TemplateCategory, string> = {
   Finance: 'bg-emerald-100 text-emerald-700',
   HR: 'bg-blue-100 text-blue-700',
@@ -76,8 +64,6 @@ const categoryColors: Record<TemplateCategory, string> = {
   Communication: 'bg-pink-100 text-pink-700',
   Compliance: 'bg-amber-100 text-amber-700',
 }
-
-// ─── Template Card ────────────────────────────────────────────────────────────
 
 function TemplateCard({
   template,
@@ -110,7 +96,6 @@ function TemplateCard({
         </CardDescription>
       </CardHeader>
       <CardContent className="mt-auto pt-0">
-        {/* Rating + usage */}
         <div className="mb-3 flex items-center gap-3 text-xs text-muted-foreground">
           <span className="flex items-center gap-0.5">
             <Star className="size-3 fill-amber-400 text-amber-400" />
@@ -137,8 +122,6 @@ function TemplateCard({
     </Card>
   )
 }
-
-// ─── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function MarketplacePage() {
   const router = useRouter()
@@ -169,7 +152,6 @@ export default function MarketplacePage() {
     }
   }, [])
 
-  /** Fork the template server-side, then open the copy in the builder. */
   async function handleUse(template: MarketplaceTemplate) {
     if (usingId) return
     setUsingId(template.id)
@@ -197,7 +179,6 @@ export default function MarketplacePage() {
           </p>
         </div>
 
-        {/* Category filter chips */}
         <div className="flex flex-wrap gap-2" role="list" aria-label="Template categories">
           {(['All', 'Finance', 'HR', 'Sales', 'Operations', 'Communication', 'Compliance'] as const).map((cat) => (
             <button
@@ -220,7 +201,6 @@ export default function MarketplacePage() {
           <p className="text-sm text-destructive" role="alert">{error}</p>
         )}
 
-        {/* Template grid */}
         {loading ? (
           <div className="flex items-center gap-2 py-12 text-sm text-muted-foreground">
             <Loader2 className="size-4 animate-spin" />

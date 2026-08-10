@@ -1,20 +1,5 @@
-/**
- * Plain-text extraction for uploaded documents.
- *
- * Server-only — every backend here (pdf-parse, mammoth, xlsx, tesseract.js)
- * is a Node library and must stay out of the client bundle.
- *
- * Extraction is best-effort by design: a format we cannot read returns a
- * placeholder note rather than throwing, so the caller can still store
- * *something* and the UI never sees a crash. Genuine failures (unreachable
- * file, corrupt payload) throw `ExtractionError` so the caller can mark the
- * document FAILED.
- */
-
-/** Guard against a pathological file filling the DB row / AI prompt. */
 const MAX_TEXT_CHARS = 200_000
 
-/** Below this, a PDF is almost certainly scanned rather than text-bearing. */
 const SCANNED_PDF_THRESHOLD = 24
 
 export class ExtractionError extends Error {
@@ -30,7 +15,6 @@ export const PPT_UNSUPPORTED_NOTE =
 export const SCANNED_PDF_NOTE =
   'This PDF contains no selectable text — it appears to be a scan. OCR is available for image uploads (PNG/JPG) in this demo, but not for scanned PDFs.'
 
-/** Collapse the ragged whitespace every extractor produces. */
 function clean(text: string): string {
   const normalized = text
     .replace(/\r\n?/g, '\n')
@@ -44,10 +28,6 @@ function clean(text: string): string {
     : normalized
 }
 
-/**
- * Reduce a MIME type or file name to a bare extension-ish kind, so callers can
- * pass either `application/pdf`, `.pdf`, `pdf`, or `report.pdf`.
- */
 function normalizeKind(fileType: string): string {
   const value = fileType.trim().toLowerCase()
 
@@ -70,7 +50,6 @@ function normalizeKind(fileType: string): string {
   }
   if (mimeMap[value]) return mimeMap[value]
 
-  // "report.final.pdf" / ".pdf" / "pdf"
   const tail = value.split('.').pop() ?? value
   return tail.replace(/[^a-z0-9]/g, '')
 }
@@ -96,8 +75,6 @@ async function download(fileUrl: string): Promise<Buffer> {
 }
 
 async function extractPdf(buffer: Buffer): Promise<string> {
-  // pdf-parse v2 exposes a `PDFParse` class rather than v1's callable default
-  // export, and its package `exports` map allows only the root entry point.
   const { PDFParse } = await import('pdf-parse')
 
   const parser = new PDFParse({ data: buffer })
@@ -105,7 +82,6 @@ async function extractPdf(buffer: Buffer): Promise<string> {
   try {
     ;({ text } = await parser.getText())
   } finally {
-    // Releases the underlying pdf.js document/worker.
     await parser.destroy()
   }
   const cleaned = clean(text)
@@ -125,7 +101,6 @@ async function extractSpreadsheet(buffer: Buffer): Promise<string> {
   const sheets = workbook.SheetNames.map((name) => {
     const csv = XLSX.utils.sheet_to_csv(workbook.Sheets[name], { blankrows: false })
     if (!csv.trim()) return ''
-    // Sheet names matter for multi-tab workbooks — keep them as headings.
     return workbook.SheetNames.length > 1 ? `# ${name}\n${csv}` : csv
   }).filter(Boolean)
 
@@ -146,17 +121,9 @@ async function extractImage(buffer: Buffer): Promise<string> {
 const IMAGE_KINDS = new Set(['png', 'jpg', 'jpeg', 'webp', 'bmp', 'tiff', 'tif', 'gif'])
 const SPREADSHEET_KINDS = new Set(['xlsx', 'xls', 'xlsm', 'ods'])
 
-/**
- * Extract plain text from a stored document.
- *
- * @param fileUrl  A directly fetchable URL (public or signed).
- * @param fileType MIME type, extension, or file name — all accepted.
- * @throws {ExtractionError} when the file cannot be downloaded or parsed.
- */
 export async function extractText(fileUrl: string, fileType: string): Promise<string> {
   const kind = normalizeKind(fileType)
 
-  // Formats we knowingly cannot read: answer without spending a download.
   if (kind === 'ppt' || kind === 'pptx') {
     return PPT_UNSUPPORTED_NOTE
   }
@@ -172,7 +139,6 @@ export async function extractText(fileUrl: string, fileType: string): Promise<st
       return clean(buffer.toString('utf8'))
     }
     if (kind === 'doc') {
-      // Legacy binary .doc — mammoth only handles the OOXML container.
       return 'Legacy .doc text extraction not supported in this demo — re-save the file as .docx.'
     }
 

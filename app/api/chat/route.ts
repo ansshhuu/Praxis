@@ -6,13 +6,10 @@ import { prisma } from '@/lib/db/prisma'
 
 export const dynamic = 'force-dynamic'
 
-/** Prior turns replayed as context. Kept small — the router wants short prompts. */
 const HISTORY_TURNS = 5
 
-/** Most recent documents offered to the model as background knowledge. */
 const CONTEXT_DOCUMENTS = 3
 
-/** Per-document summary budget, in characters. */
 const SUMMARY_BUDGET = 320
 
 const MAX_MESSAGE_LENGTH = 4000
@@ -38,7 +35,6 @@ function toPayload(message: {
   }
 }
 
-/** GET /api/chat — the signed-in user's full conversation, oldest first. */
 export async function GET() {
   const userId = await getCurrentUserId()
   if (!userId) {
@@ -54,12 +50,6 @@ export async function GET() {
   return NextResponse.json({ messages: messages.map(toPayload) })
 }
 
-/**
- * POST /api/chat — record the user's message, answer it, record the answer.
- *
- * Exactly one `callAI` per request: history and document context are folded
- * into a single prompt rather than being resolved with extra round trips.
- */
 export async function POST(request: Request) {
   const userId = await getCurrentUserId()
   if (!userId) {
@@ -84,8 +74,6 @@ export async function POST(request: Request) {
     )
   }
 
-  // Read history before the new message is stored, so the prompt contains the
-  // preceding turns rather than repeating the question that follows it.
   const [priorMessages, documents] = await Promise.all([
     prisma.chatMessage.findMany({
       where: { userId },
@@ -110,8 +98,6 @@ export async function POST(request: Request) {
   try {
     answer = await callAI(buildPrompt(message, priorMessages.reverse(), documents))
   } catch (error) {
-    // The user's message stays recorded — they did say it — but no assistant
-    // row is written, so a retry doesn't reply to a half-finished exchange.
     console.error('[chat] AI call failed:', error)
     return NextResponse.json(
       {
@@ -136,12 +122,6 @@ export async function POST(request: Request) {
   )
 }
 
-/**
- * Assembles the single prompt: role instruction, any document context, the
- * recent turns, then the new question. Document summaries are included only
- * when they exist and are truncated, so the prompt stays within the budget
- * the router expects.
- */
 function buildPrompt(
   message: string,
   history: { role: 'USER' | 'ASSISTANT'; content: string }[],

@@ -9,7 +9,6 @@ export const dynamic = 'force-dynamic'
 
 type RouteContext = { params: Promise<{ id: string }> }
 
-/** Resolves a job id to a job the caller actually owns, via its workflow. */
 async function findOwnedJob(id: string, userId: string) {
   return prisma.scheduledJob.findFirst({
     where: { id, workflow: { userId } },
@@ -17,12 +16,6 @@ async function findOwnedJob(id: string, userId: string) {
   })
 }
 
-/**
- * PATCH /api/scheduler/jobs/[id] — pause or resume a job.
- *
- * `is_active` may be given explicitly; omitting it flips the current value,
- * which is what the list's toggle switch does.
- */
 export async function PATCH(request: Request, { params }: RouteContext) {
   const userId = await getCurrentUserId()
   if (!userId) {
@@ -35,7 +28,6 @@ export async function PATCH(request: Request, { params }: RouteContext) {
     return NextResponse.json({ error: 'Scheduled job not found' }, { status: 404 })
   }
 
-  // An empty body is valid here — it means "toggle".
   const body = (await request.json().catch(() => ({}))) as { is_active?: unknown }
   if (body.is_active !== undefined && typeof body.is_active !== 'boolean') {
     return NextResponse.json({ error: 'is_active must be a boolean' }, { status: 400 })
@@ -47,8 +39,6 @@ export async function PATCH(request: Request, { params }: RouteContext) {
     where: { id },
     data: {
       isActive,
-      // Resuming a job that sat paused past its fire time would otherwise keep
-      // a stale next_run on the record.
       ...(isActive ? { nextRun: nextRunFor(job.cronExpr) } : {}),
     },
     select: jobSelect,
@@ -57,7 +47,6 @@ export async function PATCH(request: Request, { params }: RouteContext) {
   return NextResponse.json({ job: toJobPayload(updated) })
 }
 
-/** DELETE /api/scheduler/jobs/[id] — remove a schedule. */
 export async function DELETE(_request: Request, { params }: RouteContext) {
   const userId = await getCurrentUserId()
   if (!userId) {

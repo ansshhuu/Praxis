@@ -167,7 +167,6 @@
   }
 }
 
-/* Workflow builder: pulsing ring for the node that is currently executing */
 @keyframes pulse-ring {
   0%,
   100% {
@@ -186,16 +185,11 @@
   animation: pulse-ring 1.2s ease-in-out infinite;
 }
 
-/*
-  Streaming-text caret (chat assistant replies). `blink` also exists in
-  landing.css, but that stylesheet is only loaded on the marketing route.
-*/
 @keyframes blink {
   0%, 100% { opacity: 1; }
   50% { opacity: 0; }
 }
 
-/* Workflow builder: a failed node shakes once, then holds its red border */
 @keyframes node-shake {
   0%, 100% { transform: translateX(0); }
   15% { transform: translateX(-4px); }
@@ -209,7 +203,6 @@
   animation: node-shake 0.4s ease-in-out 1;
 }
 
-/* Workflow builder: green flash as a node settles into success */
 @keyframes node-success-flash {
   0% { box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05), 0 0 0 0 rgba(22, 163, 74, 0.55); }
   100% { box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05), 0 0 0 10px rgba(22, 163, 74, 0); }
@@ -219,11 +212,6 @@
   animation: node-success-flash 0.6s ease-out 1;
 }
 
-/*
-  Shared card hover: subtle lift plus a soft amber glow.
-  A CSS class rather than a motion wrapper so it can be added to existing
-  cards without changing their structure.
-*/
 .hover-lift-glow {
   transition:
     transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
@@ -240,11 +228,6 @@
   border-color: rgba(245, 202, 80, 0.45);
 }
 
-/*
-  Glow-only variant, for cards that already run a looping transform animation
-  (the hero's floating overlay cards). A :hover transform would lose to the
-  running keyframes anyway, so those cards get the glow without the lift.
-*/
 .hover-glow {
   transition:
     box-shadow 220ms cubic-bezier(0.22, 1, 0.36, 1),
@@ -258,10 +241,6 @@
   border-color: rgba(245, 202, 80, 0.5);
 }
 
-/*
-  Reduced motion: keep the glow as a hover affordance but drop the movement,
-  and neutralise the looping/one-shot node animations.
-*/
 @media (prefers-reduced-motion: reduce) {
   .hover-lift-glow {
     transition: box-shadow 220ms ease, border-color 220ms ease;
@@ -274,13 +253,12 @@
   .animate-node-success {
     animation: none;
   }
-  /* The caret is decorative; a blinking element is a known motion trigger. */
+
   [style*="blink"] {
     animation: none !important;
   }
 }
 
-/* Auth pages — brand panel hides on mobile, shows on desktop */
 .auth-brand-panel {
   display: none !important;
 }

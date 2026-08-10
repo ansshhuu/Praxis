@@ -1,87 +1,156 @@
 'use client'
 
-import { StaggerGroup, StaggerItem, hoverCardClass } from '@/components/motion/primitives'
-import { DashboardShell } from '@/components/dashboard/dashboard-shell'
-import { StatCards } from '@/components/dashboard/stat-cards'
-import { SuccessRateChart } from '@/components/dashboard/success-rate-chart'
-import { UsageChart } from '@/components/dashboard/usage-chart'
-import { WorkflowRunsTable } from '@/components/dashboard/workflow-runs-table'
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
-import { StatusBadge } from '@/components/ui/status-badge'
-import { cn } from '@/lib/utils'
-import { Clock } from 'lucide-react'
+import { AlertCircle } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
-// Dummy data for Recent Activity
-const recentActivity = [
-  { id: 1, action: "Invoice Processing", status: "completed", time: "10 min ago" },
-  { id: 2, action: "Employee Onboarding", status: "failed", time: "45 min ago" },
-  { id: 3, action: "Weekly Report Gen", status: "completed", time: "2 hours ago" },
-  { id: 4, action: "Data Sync to CRM", status: "running", time: "Now" },
-]
+import { ActivityFeed } from '@/components/dashboard/activity-feed'
+import { AiUsageCard } from '@/components/dashboard/ai-usage-card'
+import { DashboardHeader } from '@/components/dashboard/dashboard-header'
+import { DashboardShell } from '@/components/dashboard/dashboard-shell'
+import { RecentRunsTable, RecentRunsTableSkeleton } from '@/components/dashboard/recent-runs-table'
+import { StatCards, StatCardsSkeleton } from '@/components/dashboard/stat-cards'
+import { SuccessRateChart } from '@/components/dashboard/success-rate-chart'
+import { Card } from '@/components/ui/card'
+import { Skeleton } from '@/components/ui/skeleton'
+import {
+  ACTIVITY_MAX,
+  ACTIVITY_PAGE_SIZE,
+  type DashboardPayload,
+  type DashboardRange,
+} from '@/lib/dashboard/types'
+
+function ChartRowSkeleton() {
+  return (
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+      {Array.from({ length: 2 }).map((_, i) => (
+        <Card key={i}>
+          <div className="px-6">
+            <Skeleton className="h-5 w-48" />
+            <Skeleton className="mt-2 h-4 w-56" />
+            <Skeleton className="mt-5 h-[240px] w-full" />
+          </div>
+        </Card>
+      ))}
+    </div>
+  )
+}
 
 export default function DashboardPage() {
+  const [range, setRange] = useState<DashboardRange>(7)
+  const [runsPage, setRunsPage] = useState(1)
+  const [activityLimit, setActivityLimit] = useState(ACTIVITY_PAGE_SIZE)
+
+  const [data, setData] = useState<DashboardPayload | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [loadingMore, setLoadingMore] = useState(false)
+
+  const requestId = useRef(0)
+
+  const load = useCallback(async () => {
+    const id = ++requestId.current
+    try {
+      const res = await fetch(
+        `/api/dashboard?range=${range}&runsPage=${runsPage}&activityLimit=${activityLimit}`,
+        { cache: 'no-store' },
+      )
+      const body = await res.json().catch(() => ({}))
+      if (id !== requestId.current) return
+      if (!res.ok) throw new Error(body.error || 'Could not load dashboard data')
+      setData(body.dashboard as DashboardPayload)
+      setError(null)
+    } catch (err) {
+      if (id !== requestId.current) return
+      setError((err as Error).message)
+    } finally {
+      if (id === requestId.current) setLoadingMore(false)
+    }
+  }, [range, runsPage, activityLimit])
+
+  useEffect(() => {
+    load()
+  }, [load])
+
+  function handleRangeChange(next: DashboardRange) {
+    setRange(next)
+    setRunsPage(1)
+  }
+
+  function handleLoadMore() {
+    setLoadingMore(true)
+    setActivityLimit((current) => Math.min(current + ACTIVITY_PAGE_SIZE, ACTIVITY_MAX))
+  }
+
   return (
     <DashboardShell>
-      <div className="flex flex-col gap-6 w-full max-w-7xl mx-auto">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-gray-900">Dashboard</h1>
-            <p className="mt-1 text-sm text-gray-500">
-              Overview of your workflows, runs, and AI usage.
-            </p>
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-6">
+        <DashboardHeader
+          range={range}
+          onRangeChange={handleRangeChange}
+          generatedAt={data?.generatedAt ?? null}
+        />
+
+        {error && (
+          <div
+            role="alert"
+            className="flex items-center gap-2.5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-[13px] font-medium text-red-700"
+          >
+            <AlertCircle className="size-4 shrink-0" />
+            {error}
           </div>
-        </div>
+        )}
 
-        {/* 1. Stat Cards Row */}
-        <StatCards />
-
-        {/* 2. Charts Row — continues the stat-row cascade rather than
-            restarting it, so the page settles as one motion. */}
-        <StaggerGroup className="grid grid-cols-1 lg:grid-cols-3 gap-6" stagger={0.07} delayChildren={0.28}>
-          <StaggerItem className="lg:col-span-1">
-            <SuccessRateChart />
-          </StaggerItem>
-          <StaggerItem className="lg:col-span-2">
-            <UsageChart />
-          </StaggerItem>
-        </StaggerGroup>
-
-        {/* 3. Lists Row */}
-        <StaggerGroup className="grid grid-cols-1 lg:grid-cols-3 gap-6" stagger={0.07} delayChildren={0.42}>
-          <StaggerItem className="lg:col-span-2">
-            <Card className={cn('h-full', hoverCardClass)}>
-              <CardHeader>
-                <CardTitle>Top Failed Workflows</CardTitle>
-              </CardHeader>
-              <CardContent className="p-0">
-                <WorkflowRunsTable />
-              </CardContent>
-            </Card>
-          </StaggerItem>
-          <StaggerItem className="lg:col-span-1">
-            <Card className={cn('h-full', hoverCardClass)}>
-              <CardHeader>
-                <CardTitle>Recent Activity</CardTitle>
-              </CardHeader>
-              <CardContent className="px-6 flex flex-col gap-4">
-                {recentActivity.map(act => (
-                  <div key={act.id} className="flex items-center justify-between border-b border-gray-100 last:border-0 pb-3 last:pb-0">
-                    <div className="flex items-center gap-3">
-                      <div className="flex size-8 rounded-full bg-gray-50 items-center justify-center">
-                        <Clock className="size-3.5 text-gray-400" />
-                      </div>
-                      <div>
-                        <p className="text-sm font-semibold text-gray-900">{act.action}</p>
-                        <p className="text-xs text-gray-500">{act.time}</p>
-                      </div>
-                    </div>
-                    <StatusBadge status={act.status} />
+        {!data ? (
+          <>
+            <StatCardsSkeleton />
+            <ChartRowSkeleton />
+            <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+              <div className="xl:col-span-2">
+                <RecentRunsTableSkeleton />
+              </div>
+              <Card>
+                <div className="px-6">
+                  <Skeleton className="h-5 w-36" />
+                  <div className="mt-4 space-y-4">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <Skeleton key={i} className="h-10 w-full" />
+                    ))}
                   </div>
-                ))}
-              </CardContent>
-            </Card>
-          </StaggerItem>
-        </StaggerGroup>
+                </div>
+              </Card>
+            </div>
+          </>
+        ) : (
+          <>
+            <StatCards stats={data.stats} />
+
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+              <SuccessRateChart
+                data={data.successRate}
+                range={data.range}
+                onRangeChange={handleRangeChange}
+              />
+              <AiUsageCard modules={data.moduleUsage} range={data.range} />
+            </div>
+
+            <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+              <div className="min-w-0 xl:col-span-2">
+                <RecentRunsTable
+                  rows={data.runs.rows}
+                  page={data.runs.page}
+                  perPage={data.runs.perPage}
+                  total={data.runs.total}
+                  onPageChange={setRunsPage}
+                />
+              </div>
+              <ActivityFeed
+                items={data.activity.items}
+                hasMore={data.activity.hasMore && activityLimit < ACTIVITY_MAX}
+                loadingMore={loadingMore}
+                onLoadMore={handleLoadMore}
+              />
+            </div>
+          </>
+        )}
       </div>
     </DashboardShell>
   )

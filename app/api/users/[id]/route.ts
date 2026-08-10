@@ -17,7 +17,6 @@ const userSelect = {
   lastLogin: true,
 } as const
 
-/** PATCH /api/users/[id] — change a user's role (admin only). */
 export async function PATCH(request: Request, { params }: RouteContext) {
   const auth = await requireAdmin()
   if (!auth.ok) {
@@ -41,8 +40,6 @@ export async function PATCH(request: Request, { params }: RouteContext) {
     )
   }
 
-  // Demoting yourself would lock the console's last admin out of its own
-  // controls mid-session, so it is refused the same way self-delete is.
   if (id === auth.user.id && role !== Role.ADMIN) {
     return NextResponse.json({ error: 'You cannot change your own role' }, { status: 400 })
   }
@@ -61,7 +58,6 @@ export async function PATCH(request: Request, { params }: RouteContext) {
   return NextResponse.json({ user })
 }
 
-/** DELETE /api/users/[id] — remove a user (admin only, never yourself). */
 export async function DELETE(_request: Request, { params }: RouteContext) {
   const auth = await requireAdmin()
   if (!auth.ok) {
@@ -81,8 +77,6 @@ export async function DELETE(_request: Request, { params }: RouteContext) {
   try {
     await prisma.user.delete({ where: { id } })
   } catch {
-    // workflows / documents / reports reference users without onDelete rules,
-    // so Postgres rejects the delete rather than orphaning their records.
     return NextResponse.json(
       { error: 'This user still owns workflows or documents and cannot be removed' },
       { status: 409 },

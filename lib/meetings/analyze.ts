@@ -1,23 +1,8 @@
-/**
- * Meeting analysis: summary + action items + attendees from a transcript.
- *
- * Cost model — exactly ONE `callAI` per meeting. Summary, action items and
- * attendee extraction are deliberately fused into a single structured-JSON
- * prompt rather than three focused ones, matching the discipline in
- * Documents and Resumes.
- */
-
 import { callAI } from '@/lib/ai/ai-router'
 import { parseJsonObject } from '@/lib/ai/json'
 
-/**
- * Transcript excerpt sent to the model. An hour of speech is ~50k characters,
- * far past the free-tier budget, so long meetings are analysed from the
- * opening stretch — where agenda, attendees and most commitments land.
- */
 const MAX_TRANSCRIPT_CHARS = 8_000
 
-/** Below this there is nothing worth spending an AI call on. */
 export const MIN_TRANSCRIPT_CHARS = 40
 
 const MAX_ACTION_ITEMS = 25
@@ -40,7 +25,6 @@ export type MeetingAnalysis = {
   summary: string | null
   actionItems: ActionItem[]
   attendees: string[]
-  /** True when the transcript was truncated before being sent to the model. */
   truncated: boolean
 }
 
@@ -73,7 +57,6 @@ function asNullableString(value: unknown): string | null {
   if (typeof value !== 'string') return null
   const trimmed = value.trim()
   if (!trimmed) return null
-  // Models routinely emit these as strings rather than a JSON null.
   if (/^(null|none|n\/a|unknown|unspecified|tbd)$/i.test(trimmed)) return null
   return trimmed
 }
@@ -83,8 +66,6 @@ function asActionItems(value: unknown): ActionItem[] {
 
   const items: ActionItem[] = []
   for (const entry of value) {
-    // Tolerate a plain array of strings, which some models return when no
-    // owner or deadline was mentioned anywhere.
     if (typeof entry === 'string') {
       const task = entry.trim()
       if (task) items.push({ task, assignee_guess: null, deadline_guess: null })
@@ -115,7 +96,6 @@ function asAttendees(value: unknown): string[] {
   const names: string[] = []
 
   for (const entry of value) {
-    // `attendees` occasionally comes back as [{ name: "..." }].
     const raw =
       typeof entry === 'string'
         ? entry
@@ -135,15 +115,6 @@ function asAttendees(value: unknown): string[] {
   return names
 }
 
-/**
- * Summarise a transcript and pull out action items and attendees.
- *
- * Exactly one AI call. Parsing is tolerant (see `lib/ai/json.ts`), but a
- * response that yields nothing usable is an error rather than a silent empty
- * result — the caller should surface that instead of showing a blank panel.
- *
- * @throws {AnalysisError} when the model is unreachable or its output is unusable.
- */
 export async function analyzeTranscript(transcript: string): Promise<MeetingAnalysis> {
   const trimmed = transcript.trim()
   if (trimmed.length < MIN_TRANSCRIPT_CHARS) {
@@ -175,7 +146,6 @@ export async function analyzeTranscript(transcript: string): Promise<MeetingAnal
   const actionItems = asActionItems(parsed.action_items ?? parsed.actionItems)
   const attendees = asAttendees(parsed.attendees)
 
-  // A parse that produced a shape but no content is still a failed analysis.
   if (!summary && actionItems.length === 0 && attendees.length === 0) {
     throw new AnalysisError(
       'The AI returned no usable summary or action items for this transcript.',

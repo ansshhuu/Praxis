@@ -43,7 +43,6 @@ export function LandingFooter() {
           gap: 16,
         }}
       >
-        {/* Logo */}
         <Link href="/" aria-label="Praxis" style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none' }}>
           <div style={{ width: 26, height: 26, borderRadius: 7, background: '#111111', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <PraxisIcon size={14} color="#D4A017" />
@@ -51,14 +50,12 @@ export function LandingFooter() {
           <span style={{ fontSize: 14, fontWeight: 800, letterSpacing: '-0.02em', color: '#111111' }}>PRAXIS</span>
         </Link>
 
-        {/* Links */}
         <nav style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 20px', justifyContent: 'center' }} aria-label="Footer navigation">
           {footerLinks.map((link) => (
             <a key={link.label} href={link.href} className="footer-link">{link.label}</a>
           ))}
         </nav>
 
-        {/* Copyright */}
         <p style={{ fontSize: 12, color: '#B5AFA9', margin: 0 }}>
           © {new Date().getFullYear()} EAWMP. All rights reserved.
         </p>

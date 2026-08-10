@@ -20,29 +20,53 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { cn } from '@/lib/utils'
-import {
-  getChannelSettings,
-  type ChannelSettings,
-  type NotificationChannel,
-  type NotificationStatus,
-} from '@/lib/mock-data/notifications'
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+type NotificationChannel = 'email' | 'sms' | 'push' | 'slack'
+type NotificationStatus = 'Sent' | 'Pending' | 'Failed'
 
-/** Row shape returned by GET /api/notifications. */
+type ChannelSettings = {
+  channel: NotificationChannel
+  label: string
+  description: string
+}
+
+const CHANNELS: ChannelSettings[] = [
+  {
+    channel: 'email',
+    label: 'Email Notifications',
+    description: 'Sent through Brevo by Notify and Email Action nodes',
+  },
+  {
+    channel: 'sms',
+    label: 'SMS Alerts',
+    description: 'No SMS provider is connected yet',
+  },
+  {
+    channel: 'push',
+    label: 'Push Notifications',
+    description: 'Recorded in the notification log only',
+  },
+  {
+    channel: 'slack',
+    label: 'Slack Integration',
+    description: 'No Slack workspace is connected yet',
+  },
+]
+
 interface ApiNotification {
   id: string
   type: 'EMAIL' | 'SMS' | 'PUSH' | 'SLACK'
   message: string
+  recipient: string | null
   status: 'PENDING' | 'SENT' | 'FAILED'
   createdAt: string
 }
 
-/** What the table renders — the API row mapped onto the existing UI vocabulary. */
 interface Notification {
   id: string
   channel: NotificationChannel
   message: string
+  recipient: string | null
   status: NotificationStatus
   timestamp: string
 }
@@ -65,6 +89,7 @@ function toNotification(row: ApiNotification): Notification {
     id: row.id,
     channel: channelByType[row.type] ?? 'push',
     message: row.message,
+    recipient: row.recipient?.trim() ? row.recipient.trim() : null,
     status: statusByApiStatus[row.status] ?? 'Pending',
     timestamp: new Date(row.createdAt).toLocaleString('en-US', {
       month: 'short',
@@ -74,8 +99,6 @@ function toNotification(row: ApiNotification): Notification {
     }),
   }
 }
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const channelIcons: Record<NotificationChannel, React.ReactNode> = {
   email: <Mail className="size-4" />,
@@ -95,7 +118,6 @@ const statusStyles: Record<NotificationStatus, string> = {
   Sent: 'bg-success/10 text-success',
   Pending: 'bg-warning/15 text-warning',
   Failed: 'bg-destructive/10 text-destructive',
-  Skipped: 'bg-muted text-muted-foreground',
 }
 
 function ChannelChip({ channel }: { channel: NotificationChannel }) {
@@ -116,7 +138,6 @@ function StatusBadge({ status }: { status: NotificationStatus }) {
           status === 'Sent' && 'bg-success',
           status === 'Pending' && 'animate-pulse bg-warning',
           status === 'Failed' && 'bg-destructive',
-          status === 'Skipped' && 'bg-muted-foreground',
         )}
       />
       {status}
@@ -124,80 +145,45 @@ function StatusBadge({ status }: { status: NotificationStatus }) {
   )
 }
 
-// ─── Toggle Switch ─────────────────────────────────────────────────────────────
-
-function Toggle({ enabled, onChange, id }: { enabled: boolean; onChange: (v: boolean) => void; id: string }) {
-  return (
-    <button
-      id={id}
-      role="switch"
-      aria-checked={enabled}
-      onClick={() => onChange(!enabled)}
-      className={cn(
-        'relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-        enabled ? 'bg-primary' : 'bg-muted',
-      )}
-    >
-      <span
-        className={cn(
-          'pointer-events-none inline-block size-4 rounded-full bg-white shadow-sm transition-transform',
-          enabled ? 'translate-x-5' : 'translate-x-0.5',
-        )}
-      />
-    </button>
-  )
-}
-
-// ─── Channel Settings ──────────────────────────────────────────────────────────
-
-/**
- * Presentation only — the toggles live in component state and are not
- * persisted. There is no per-user channel-preference table or column in the
- * schema, and nothing delivers over email/SMS/Slack yet (the engine's NOTIFY
- * node writes a `notifications` row and stops there), so there is nothing
- * meaningful for these switches to control server-side.
- */
-function ChannelSettingsSection() {
-  const initial = getChannelSettings()
-  const [settings, setSettings] = useState<ChannelSettings[]>(initial)
-
-  function toggle(channel: NotificationChannel) {
-    setSettings((prev) =>
-      prev.map((s) => (s.channel === channel ? { ...s, enabled: !s.enabled } : s)),
-    )
-  }
-
+function ChannelSettingsSection({ notifications }: { notifications: Notification[] }) {
   return (
     <Card className="shadow-sm">
       <CardHeader>
         <CardTitle>Notification Channels</CardTitle>
-        <CardDescription>Enable or disable delivery channels for system notifications</CardDescription>
+        <CardDescription>Delivery activity recorded against each channel</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
-        {settings.map((s) => (
-          <div key={s.channel} className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className={cn('flex size-9 items-center justify-center rounded-lg', channelColors[s.channel])}>
-                {channelIcons[s.channel]}
+        {CHANNELS.map((channel) => {
+          const rows = notifications.filter((n) => n.channel === channel.channel)
+          const sent = rows.filter((n) => n.status === 'Sent').length
+          const failed = rows.filter((n) => n.status === 'Failed').length
+
+          return (
+            <div key={channel.channel} className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className={cn('flex size-9 items-center justify-center rounded-lg', channelColors[channel.channel])}>
+                  {channelIcons[channel.channel]}
+                </div>
+                <div>
+                  <p className="text-sm font-medium">{channel.label}</p>
+                  <p className="text-xs text-muted-foreground">{channel.description}</p>
+                </div>
               </div>
-              <div>
-                <p className="text-sm font-medium">{s.label}</p>
-                <p className="text-xs text-muted-foreground">{s.description}</p>
+              <div className="shrink-0 text-right">
+                <p className="text-sm font-semibold tabular-nums text-foreground">
+                  {sent} sent
+                </p>
+                <p className="text-xs tabular-nums text-muted-foreground">
+                  {failed > 0 ? `${failed} failed` : rows.length === 0 ? 'no activity' : 'no failures'}
+                </p>
               </div>
             </div>
-            <Toggle
-              enabled={s.enabled}
-              onChange={() => toggle(s.channel)}
-              id={`toggle-${s.channel}`}
-            />
-          </div>
-        ))}
+          )
+        })}
       </CardContent>
     </Card>
   )
 }
-
-// ─── Notification Log ─────────────────────────────────────────────────────────
 
 function NotificationLog({
   notifications,
@@ -255,9 +241,9 @@ function NotificationLog({
                 <TableCell className="max-w-xs">
                   <p className="truncate text-sm font-medium text-foreground">{n.message}</p>
                 </TableCell>
-                {/* `notifications` has no recipient column — the NOTIFY node
-                    always targets the workflow's owner. */}
-                <TableCell className="text-sm text-muted-foreground">You</TableCell>
+                <TableCell className="max-w-[200px] truncate text-sm text-muted-foreground">
+                  {n.recipient ?? 'You'}
+                </TableCell>
                 <TableCell><StatusBadge status={n.status} /></TableCell>
                 <TableCell className="text-sm text-muted-foreground tabular-nums">{n.timestamp}</TableCell>
               </TableRow>
@@ -268,8 +254,6 @@ function NotificationLog({
     </Card>
   )
 }
-
-// ─── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function NotificationsPage() {
   const [notifications, setNotifications] = useState<Notification[]>([])
@@ -310,7 +294,7 @@ export default function NotificationsPage() {
           </p>
         </div>
 
-        <ChannelSettingsSection />
+        <ChannelSettingsSection notifications={notifications} />
         <NotificationLog notifications={notifications} loading={loading} error={error} />
       </div>
     </DashboardShell>

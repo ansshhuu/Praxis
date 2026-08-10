@@ -7,12 +7,6 @@ import { jobSelect, toJobPayload } from '@/lib/scheduler/serialize'
 
 export const dynamic = 'force-dynamic'
 
-/**
- * GET /api/scheduler/jobs — schedules for workflows the user owns.
- *
- * `scheduled_jobs` has no user column, so ownership is enforced through the
- * workflow relation on every read and write in this module.
- */
 export async function GET() {
   const userId = await getCurrentUserId()
   if (!userId) {
@@ -28,7 +22,6 @@ export async function GET() {
   return NextResponse.json({ jobs: jobs.map(toJobPayload) })
 }
 
-/** POST /api/scheduler/jobs — schedule one of the user's workflows. */
 export async function POST(request: Request) {
   const userId = await getCurrentUserId()
   if (!userId) {
@@ -54,7 +47,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: validation.error }, { status: 400 })
   }
 
-  // Scoped to the caller so a valid id belonging to someone else reads as 404.
   const workflow = await prisma.workflow.findFirst({
     where: { id: workflowId, userId },
     select: { id: true },

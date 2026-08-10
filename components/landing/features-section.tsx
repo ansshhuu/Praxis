@@ -16,8 +16,6 @@ import {
 
 import { Reveal, hoverCardClass } from '@/components/motion/primitives'
 
-
-/* ── Praxis sun-ray icon ─────────────────────────────────── */
 function PraxisIcon({ size = 22, color = '#F5CA50' }: { size?: number; color?: string }) {
   const s = size, c = s / 2, rays = 8
   return (
@@ -32,7 +30,6 @@ function PraxisIcon({ size = 22, color = '#F5CA50' }: { size?: number; color?: s
   )
 }
 
-/* ── Module data ─────────────────────────────────────────── */
 const modules = [
   {
     id: 'workflows',
@@ -84,9 +81,6 @@ const modules = [
   },
 ]
 
-/* ══════════════════════════════════════════════════════════
-   PREVIEW CARDS
-   ══════════════════════════════════════════════════════════ */
 function PreviewWorkflows() {
   const nodes = [
     { type: 'Trigger', label: 'New Email', sub: 'Gmail inbox', border: '#86efac', badgeBg: '#f0fdf4', iconColor: '#16a34a', Icon: Mail },
@@ -416,10 +410,7 @@ function PreviewScheduler() {
   )
 }
 
-/* ══════════════════════════════════════════════════════════
-   MAIN COMPONENT — pinned scroll story
-   ══════════════════════════════════════════════════════════ */
-const TOTAL = modules.length // 6
+const TOTAL = modules.length
 
 const previewMap: Record<string, React.ReactNode> = {
   workflows: <PreviewWorkflows />,
@@ -430,14 +421,11 @@ const previewMap: Record<string, React.ReactNode> = {
   scheduler: <PreviewScheduler />,
 }
 
-/* Shared easing — matches the .sss-fade-slide curve already in landing.css */
 const EASE = [0.22, 1, 0.36, 1] as const
 
-/* ── Section heading (scrolls normally, never pinned) ────── */
 function SectionHeading() {
   return (
     <div className="mx-auto max-w-7xl px-6 pt-24 pb-14 text-center md:pt-28">
-      {/* Line-level reveals — word-by-word is reserved for the hero headline. */}
       <Reveal y={12} duration={0.35}>
         <span className="uppercase tracking-widest text-[11px] font-bold text-[#66615B] bg-[#EAE3D9] px-3 py-1.5 rounded-full">
           Platform Features
@@ -460,10 +448,6 @@ function SectionHeading() {
   )
 }
 
-/* ── The device frame around each preview ─────────────────
-   Persistent across feature changes: only its contents crossfade, so the
-   whole thing reads as one app window changing screens rather than six
-   separate cards being swapped in and out. */
 function PreviewFrame({ children }: { children: React.ReactNode }) {
   return (
     <div className={`h-[520px] w-full rounded-2xl border-[1.5px] border-[#E5E0D8] bg-[#EAE3D9] p-3 shadow-[0_8px_40px_rgba(0,0,0,0.08),0_2px_8px_rgba(0,0,0,0.04)] ${hoverCardClass}`}>
@@ -474,10 +458,6 @@ function PreviewFrame({ children }: { children: React.ReactNode }) {
   )
 }
 
-/* ══════════════════════════════════════════════════════════
-   Reduced-motion fallback: plain stacked sections, no pinning,
-   no scroll-driven state, just a fade-in per module.
-   ══════════════════════════════════════════════════════════ */
 function StackedFallback() {
   return (
     <section id="features" className="relative w-full bg-[#F7F7F6]" aria-labelledby="features-heading">
@@ -523,39 +503,25 @@ function StackedFallback() {
 }
 
 export function FeaturesSection() {
-  /* Outer 600vh wrapper — this is what useScroll measures, and the only thing
-     that scrolls. The sticky child is pinned across its full travel, so there
-     is no trailing dead space. */
   const wrapperRef = useRef<HTMLDivElement>(null)
   const [active, setActive] = useState(0)
 
   const prefersReduced = useReducedMotion()
-  /* useReducedMotion resolves on the client only, so the first client render
-     must match the server's. Swap layouts after mount instead of during
-     hydration. Nothing has animated by then, so there is nothing to flash. */
   const [mounted, setMounted] = useState(false)
   useEffect(() => setMounted(true), [])
 
-  /* progress 0 when the wrapper's top meets the viewport top (sticky pins),
-     1 when its bottom meets the viewport bottom (sticky releases). */
   const { scrollYProgress } = useScroll({
     target: wrapperRef,
     offset: ['start start', 'end end'],
   })
 
-  /* 0-1 → 0-5. floor(p * 6) yields 6 exactly at p === 1, hence the clamp.
-     Being derived from continuous progress rather than discrete triggers,
-     this reverses identically on the way back up. */
   const activeIndex = useTransform(scrollYProgress, (p) =>
     Math.min(TOTAL - 1, Math.max(0, Math.floor(p * TOTAL))),
   )
   useMotionValueEvent(activeIndex, 'change', (value) => setActive(value))
 
-  /* Gold rail fill, tied straight to scroll so it tracks sub-step movement
-     the discrete index cannot show. */
   const railScale = useTransform(scrollYProgress, [0, 1], [1 / TOTAL, 1])
 
-  /* Jump to the middle of a step, so a click never lands on a boundary. */
   function handleNavClick(index: number) {
     const wrapper = wrapperRef.current
     if (!wrapper) return
@@ -572,19 +538,14 @@ export function FeaturesSection() {
 
   return (
     <section id="features" className="relative w-full bg-[#F7F7F6]" aria-labelledby="features-heading">
-      {/* Scrolls past normally — appears once on entry, not pinned. */}
       <SectionHeading />
 
-      {/* 6 features × 100vh. */}
       <div ref={wrapperRef} className="relative h-[600vh]">
-        {/* Pinned for the wrapper's whole travel. */}
         <div className="sticky top-0 flex h-screen w-full items-center overflow-hidden">
           <div className="mx-auto grid w-full max-w-7xl grid-cols-12 items-center gap-12 px-6">
 
-            {/* ── LEFT: feature nav ───────────────────────────── */}
             <div className="col-span-12 lg:col-span-5">
               <div className="relative pl-5">
-                {/* Track + gold fill that grows as the story advances. */}
                 <div className="absolute inset-y-0 left-0 w-[2px] overflow-hidden rounded-full bg-[#EAE3D9]">
                   <motion.div
                     className="h-full w-full origin-top rounded-full bg-[#F5CA50]"
@@ -598,8 +559,6 @@ export function FeaturesSection() {
                     const isActive = active === index
                     return (
                       <li key={mod.id} className="relative">
-                        {/* Shared-layout dot: one element that slides between
-                            items rather than six that fade independently. */}
                         {isActive && (
                           <motion.span
                             layoutId="sss-active-dot"
@@ -633,7 +592,6 @@ export function FeaturesSection() {
                             </span>
                           </div>
 
-                          {/* Description expands for the active item only. */}
                           <AnimatePresence initial={false}>
                             {isActive && (
                               <motion.p
@@ -654,41 +612,10 @@ export function FeaturesSection() {
                   })}
                 </ul>
               </div>
-
-              {/* Numbered tick progress bar. */}
-              <div className="mt-7 flex items-center gap-2 pl-5">
-                {modules.map((mod, index) => (
-                  <div key={mod.id} className="flex items-center gap-1.5">
-                    <motion.span
-                      className="block h-[3px] rounded-full"
-                      animate={{
-                        width: index === active ? 26 : 14,
-                        backgroundColor: index <= active ? '#F5CA50' : '#DFD6C9',
-                      }}
-                      transition={{ duration: 0.28, ease: EASE }}
-                    />
-                    {index === active && (
-                      <motion.span
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ duration: 0.22 }}
-                        className="text-[10px] font-bold tabular-nums tracking-[0.08em] text-[#66615B]"
-                      >
-                        {mod.num}
-                      </motion.span>
-                    )}
-                  </div>
-                ))}
-              </div>
             </div>
 
-            {/* ── RIGHT: product preview ──────────────────────── */}
             <div className="col-span-12 lg:col-span-7">
               <PreviewFrame>
-                {/* Default (sync) AnimatePresence, not mode="wait": both
-                    screens are mounted mid-transition and absolutely stacked,
-                    which is what makes this a true overlapping crossfade
-                    rather than a fade-out-then-in with a blank gap. */}
                 <AnimatePresence initial={false}>
                   <motion.div
                     key={activeModule.id}
@@ -710,7 +637,4 @@ export function FeaturesSection() {
     </section>
   )
 }
-
-
-
 

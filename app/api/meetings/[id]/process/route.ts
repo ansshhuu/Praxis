@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server'
 
+import { ACTIVITY_ACTIONS } from '@/lib/activity/actions'
+import { logActivity } from '@/lib/activity/log'
 import { getCurrentUserId } from '@/lib/auth/session'
 import { prisma } from '@/lib/db/prisma'
 import { analyzeAndSave } from '@/lib/meetings/process'
@@ -9,17 +11,10 @@ import { MEETINGS_BUCKET, createReadUrl } from '@/lib/storage/supabase'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
-/** Whisper on a full-length meeting runs well past the default budget. */
 export const maxDuration = 300
 
 type RouteContext = { params: Promise<{ id: string }> }
 
-/**
- * POST /api/meetings/[id]/process — transcribe the audio, then analyse it.
- *
- * Exactly one `callAI` invocation per request (inside `analyzeAndSave`);
- * transcription goes to Whisper, which is not routed through ai-router.
- */
 export async function POST(_request: Request, { params }: RouteContext) {
   const userId = await getCurrentUserId()
   if (!userId) {
@@ -43,8 +38,6 @@ export async function POST(_request: Request, { params }: RouteContext) {
     )
   }
 
-  // Claim the row so a double-fired request (React strict mode, an impatient
-  // retry) cannot run transcription — and a second AI call — twice.
   const claimed = await prisma.meeting.updateMany({
     where: { id, userId, status: { not: 'TRANSCRIBING' } },
     data: { status: 'TRANSCRIBING', statusMessage: null },
@@ -57,7 +50,6 @@ export async function POST(_request: Request, { params }: RouteContext) {
     )
   }
 
-  // ── Transcribe ─────────────────────────────────────────────────────────────
   let transcript: string
   try {
     const readUrl = existing.storagePath
@@ -73,17 +65,25 @@ export async function POST(_request: Request, { params }: RouteContext) {
         statusMessage: (error as Error).message.slice(0, 500),
       },
     })
-    // 200 with a FAILED status: the client renders the failure state (and the
-    // "paste a transcript instead" affordance) rather than treating this as a
-    // broken request.
+    await logActivity(userId, ACTIVITY_ACTIONS.meetingProcessed, {
+      meetingId: meeting.id,
+      name: meeting.fileName,
+      status: 'FAILED',
+      error: (error as Error).message.slice(0, 300),
+    })
     return NextResponse.json({ meeting: toDetail(meeting) })
   }
 
-  // Persist the transcript before analysing, so a later AI failure can never
-  // lose the expensive part of the pipeline.
   await prisma.meeting.update({ where: { id }, data: { transcript } })
 
-  // ── Analyse (one AI call) ──────────────────────────────────────────────────
   const meeting = await analyzeAndSave(id, transcript)
+
+  await logActivity(userId, ACTIVITY_ACTIONS.meetingProcessed, {
+    meetingId: meeting.id,
+    name: meeting.fileName,
+    status: meeting.status,
+    actionItems: Array.isArray(meeting.actionItems) ? meeting.actionItems.length : null,
+  })
+
   return NextResponse.json({ meeting: toDetail(meeting) })
 }

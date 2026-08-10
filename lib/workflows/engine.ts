@@ -1,18 +1,8 @@
-/**
- * Workflow execution engine (demo mode).
- *
- * Hard constraint: **at most ONE `callAI` invocation per workflow run**,
- * regardless of how many AI nodes the graph contains. All AI nodes in a run
- * share a single combined prompt/response, resolved up-front by
- * `resolveAiResult()` before the graph walk begins.
- *
- * Side effects are deliberately stubbed for the demo: API_CALL makes no real
- * request, DELAY does not wait, and LOOP logs iterations without repeating
- * work. NOTIFY is the one node that writes a real row (notifications).
- */
-
+import { ACTIVITY_ACTIONS } from '@/lib/activity/actions'
+import { logActivity } from '@/lib/activity/log'
 import { callAI } from '@/lib/ai/ai-router'
 import { prisma } from '@/lib/db/prisma'
+import { isValidEmail, sendEmail } from '@/lib/email/send'
 
 export type FlowNode = {
   id: string
@@ -51,7 +41,6 @@ export type NodeKind =
   | 'EMAIL_ACTION'
   | 'UNKNOWN'
 
-/** Canvas palette keys (`node-catalog.ts`) mapped to engine node kinds. */
 const KIND_BY_TYPE_KEY: Record<string, NodeKind> = {
   'email-trigger': 'TRIGGER',
   'schedule-trigger': 'TRIGGER',
@@ -97,7 +86,6 @@ type AiResult = {
   source: 'ai' | 'skipped'
 }
 
-/** Node-level config, whatever the drawer persisted onto `data.config`. */
 function configOf(node: FlowNode): Record<string, unknown> {
   const config = node.data?.config
   return config && typeof config === 'object' ? (config as Record<string, unknown>) : {}
@@ -111,14 +99,6 @@ function labelOf(node: FlowNode): string {
   return str(node.data?.label, node.id)
 }
 
-/* ------------------------------------------------------------------ *
- * Single combined AI call
- * ------------------------------------------------------------------ */
-
-/**
- * Build ONE prompt covering every AI node in the run and issue a single
- * `callAI`. Returns null when the graph has no AI nodes (zero AI calls).
- */
 async function resolveAiResult(
   nodes: FlowNode[],
   input: Record<string, unknown>,
@@ -130,7 +110,6 @@ async function resolveAiResult(
     return null
   }
 
-  // Keep the prompt small on purpose — the router is shared and free-tier.
   const sample = str(input.text, 'Customer email: invoice #4471 was charged twice, please refund.')
 
   const tasks: string[] = []
@@ -169,7 +148,6 @@ async function resolveAiResult(
   }
 }
 
-/** Tolerant JSON extraction — models often wrap output in prose or fences. */
 function parseJsonResponse(raw: string): Record<string, unknown> | null {
   const cleaned = raw.replace(/```(?:json)?/gi, '').trim()
   const start = cleaned.indexOf('{')
@@ -183,11 +161,6 @@ function parseJsonResponse(raw: string): Record<string, unknown> | null {
   }
 }
 
-/* ------------------------------------------------------------------ *
- * Condition evaluation
- * ------------------------------------------------------------------ */
-
-/** Resolve `{{path.to.value}}` templates against the accumulated context. */
 function resolveTemplate(raw: string, context: Record<string, unknown>): unknown {
   const match = raw.match(/^\{\{\s*([\w.]+)\s*\}\}$/)
   if (!match) return raw
@@ -201,6 +174,37 @@ function resolveTemplate(raw: string, context: Record<string, unknown>): unknown
     }
   }
   return current
+}
+
+function renderTemplate(raw: string, context: Record<string, unknown>): string {
+  return raw.replace(/\{\{\s*([\w.]+)\s*\}\}/g, (whole, path: string) => {
+    const value = resolveTemplate(`{{${path}}}`, context)
+    return value === undefined || value === null ? whole : String(value)
+  })
+}
+
+type EmailTarget = { workflowName: string; ownerEmail: string | null }
+
+async function loadEmailTarget(workflowId: string, userId: string): Promise<EmailTarget> {
+  const [workflow, owner] = await Promise.all([
+    prisma.workflow.findUnique({ where: { id: workflowId }, select: { name: true } }),
+    prisma.user.findUnique({ where: { id: userId }, select: { email: true } }),
+  ])
+  return {
+    workflowName: workflow?.name ?? 'Untitled workflow',
+    ownerEmail: isValidEmail(owner?.email) ? owner!.email : null,
+  }
+}
+
+function resolveRecipient(
+  configured: string,
+  context: Record<string, unknown>,
+  ownerEmail: string | null,
+): { to: string | null; usedFallback: boolean } {
+  const rendered = renderTemplate(configured, context).trim()
+  if (isValidEmail(rendered)) return { to: rendered, usedFallback: false }
+  if (ownerEmail) return { to: ownerEmail, usedFallback: true }
+  return { to: null, usedFallback: false }
 }
 
 function evaluateCondition(
@@ -239,11 +243,6 @@ function evaluateCondition(
   }
 }
 
-/* ------------------------------------------------------------------ *
- * Graph walk
- * ------------------------------------------------------------------ */
-
-/** Entry points: trigger nodes, else nodes with no inbound edge. */
 function findStartNodes(nodes: FlowNode[], edges: FlowEdge[]): FlowNode[] {
   const triggers = nodes.filter((n) => kindOf(n) === 'TRIGGER')
   if (triggers.length > 0) return triggers
@@ -267,9 +266,16 @@ export async function executeWorkflow(
     throw new Error('Workflow has no nodes to execute')
   }
 
-  // THE single AI call for this run — every AI node reads from this result.
   const aiResult = await resolveAiResult(nodes, input)
   let aiConsumed = false
+
+  const needsEmail = nodes.some((n) => {
+    const kind = kindOf(n)
+    return kind === 'NOTIFY' || kind === 'EMAIL_ACTION'
+  })
+  const emailTarget: EmailTarget = needsEmail
+    ? await loadEmailTarget(workflowId, userId)
+    : { workflowName: 'Untitled workflow', ownerEmail: null }
 
   if (aiResult) {
     context.classification = aiResult.classification
@@ -284,9 +290,6 @@ export async function executeWorkflow(
     outgoing.set(edge.source, list)
   }
 
-  // Breadth-first walk forward from the trigger(s). The `visited` set means a
-  // node runs at most once even when several branches converge on it, which
-  // also makes cycles terminate; MAX_STEPS is a second guard.
   const queue = findStartNodes(nodes, edges)
   if (queue.length === 0) {
     throw new Error('Workflow has no trigger or entry node')
@@ -396,26 +399,67 @@ export async function executeWorkflow(
 
       case 'NOTIFY': {
         const channel = str(config.channel, 'In-app')
-        const template = str(config.message, 'Workflow step completed.')
-        const message = template.replace(/\{\{\s*([\w.]+)\s*\}\}/g, (whole, path: string) => {
-          const value = resolveTemplate(`{{${path}}}`, context)
-          return value === undefined || value === null ? whole : String(value)
-        })
+        const message = renderTemplate(
+          str(config.message, `Workflow "${emailTarget.workflowName}" completed step "${label}".`),
+          context,
+        )
+        const { to, usedFallback } = resolveRecipient(
+          str(config.recipientEmail),
+          context,
+          emailTarget.ownerEmail,
+        )
+
         const notification = await prisma.notification.create({
           data: {
             userId,
-            type: channel.startsWith('#') ? 'SLACK' : 'PUSH',
+            type: to ? 'EMAIL' : channel.startsWith('#') ? 'SLACK' : 'PUSH',
             message,
-            status: 'SENT',
+            recipient: to,
+            status: 'PENDING',
           },
         })
+
+        const subject = `Notification from workflow: ${emailTarget.workflowName}`
+        const emailResult = to
+          ? await sendEmail({ to, subject, body: message })
+          : {
+              success: false,
+              error: 'No recipient email configured and the workflow owner has no valid email',
+            }
+
+        await prisma.notification.update({
+          where: { id: notification.id },
+          data: {
+            status: emailResult.success ? 'SENT' : 'FAILED',
+            message: emailResult.success ? message : `${message}\n\n[email failed: ${emailResult.error}]`,
+          },
+        })
+
+        await logActivity(userId, ACTIVITY_ACTIONS.notificationSent, {
+          notificationId: notification.id,
+          workflowId,
+          name: emailTarget.workflowName,
+          channel,
+          to,
+          status: emailResult.success ? 'SENT' : 'FAILED',
+          error: emailResult.error ?? null,
+        })
+
         steps.push({
           nodeId: node.id,
           label,
           kind,
           status: 'ok',
-          message: `Notification created (${channel})`,
-          output: { notificationId: notification.id, message },
+          message: emailResult.success
+            ? `Notification created (${channel}); email sent to ${to}${usedFallback ? ' (workflow owner)' : ''}`
+            : `Notification created (${channel}); email not sent — ${emailResult.error}`,
+          output: {
+            notificationId: notification.id,
+            message,
+            emailTo: to,
+            emailSent: emailResult.success,
+            emailError: emailResult.error ?? null,
+          },
         })
         break
       }
@@ -435,8 +479,6 @@ export async function executeWorkflow(
       }
 
       case 'LOOP': {
-        // Demo mode: log the iteration count only. AI work is never repeated
-        // per-iteration — the run's single AI response already covers it.
         const max = Number(str(config.maxIterations, '3')) || 3
         const iterations = Math.min(Math.max(max, 1), 50)
         steps.push({
@@ -469,7 +511,6 @@ export async function executeWorkflow(
       }
 
       case 'API_CALL': {
-        // No real outbound request is made.
         steps.push({
           nodeId: node.id,
           label,
@@ -486,15 +527,71 @@ export async function executeWorkflow(
       }
 
       case 'EMAIL_ACTION': {
+        const { to, usedFallback } = resolveRecipient(
+          str(config.to),
+          context,
+          emailTarget.ownerEmail,
+        )
+        const subject = renderTemplate(
+          str(config.subject, `Update from workflow: ${emailTarget.workflowName}`),
+          context,
+        )
+        const body = renderTemplate(
+          str(config.body, `Your workflow "${emailTarget.workflowName}" reached step "${label}".`),
+          context,
+        )
+
+        const notification = await prisma.notification.create({
+          data: {
+            userId,
+            type: 'EMAIL',
+            message: `${subject} — ${body}`,
+            recipient: to,
+            status: 'PENDING',
+          },
+        })
+
+        const emailResult = to
+          ? await sendEmail({ to, subject, body })
+          : {
+              success: false,
+              error: 'No recipient email configured and the workflow owner has no valid email',
+            }
+
+        await prisma.notification.update({
+          where: { id: notification.id },
+          data: {
+            status: emailResult.success ? 'SENT' : 'FAILED',
+            message: emailResult.success
+              ? `${subject} — ${body}`
+              : `${subject} — ${body}\n\n[email failed: ${emailResult.error}]`,
+          },
+        })
+
+        await logActivity(userId, ACTIVITY_ACTIONS.notificationSent, {
+          notificationId: notification.id,
+          workflowId,
+          name: emailTarget.workflowName,
+          channel: 'Email',
+          to,
+          status: emailResult.success ? 'SENT' : 'FAILED',
+          error: emailResult.error ?? null,
+        })
+
         steps.push({
           nodeId: node.id,
           label,
           kind,
-          status: 'ok',
-          message: 'Simulated outbound email (no real send)',
+          status: emailResult.success ? 'ok' : 'error',
+          message: emailResult.success
+            ? `Email sent to ${to}${usedFallback ? ' (workflow owner)' : ''}`
+            : `Email not sent — ${emailResult.error}`,
           output: {
-            to: str(config.to, '{{customer.email}}'),
-            subject: str(config.subject, 'We received your request'),
+            notificationId: notification.id,
+            to,
+            subject,
+            sent: emailResult.success,
+            error: emailResult.error ?? null,
           },
         })
         break

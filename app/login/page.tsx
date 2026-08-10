@@ -4,9 +4,8 @@ import { Eye, EyeOff } from 'lucide-react'
 import { signIn } from 'next-auth/react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
-/* ── Praxis sunburst icon ─────────────────────────────────────────── */
 function PraxisIcon({ size = 24, color = '#D4A017' }: { size?: number; color?: string }) {
   const c = size / 2
   const rays = 8
@@ -61,7 +60,6 @@ const baseInput: React.CSSProperties = {
 }
 const errInput: React.CSSProperties = { ...baseInput, border: '1.5px solid #dc2626' }
 
-/* ── Page ─────────────────────────────────────────────────────────── */
 export default function LoginPage() {
   const router = useRouter()
   const [email, setEmail] = useState('')
@@ -71,21 +69,24 @@ export default function LoginPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
+  useEffect(() => { router.prefetch('/dashboard') }, [router])
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError('')
     setLoading(true)
     const result = await signIn('credentials', { email, password, redirect: false })
-    setLoading(false)
-    if (!result || result.error) { setError('Invalid email or password. Please try again.'); return }
-    router.push('/dashboard')
-    router.refresh()
+    if (!result || result.error) {
+      setLoading(false)
+      setError('Invalid email or password. Please try again.')
+      return
+    }
+    router.replace('/dashboard')
   }
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', fontFamily: 'var(--font-sans, Inter, ui-sans-serif, system-ui, sans-serif)', background: '#fff' }}>
 
-      {/* ── LEFT: Form ── */}
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 24px' }}>
         <div style={{ width: '100%', maxWidth: 400 }}>
 
@@ -100,7 +101,6 @@ export default function LoginPage() {
           <p style={{ fontSize: 14, color: '#66615B', margin: '0 0 28px', lineHeight: 1.5 }}>Welcome back! Please login to your account.</p>
 
           <form onSubmit={handleSubmit} id="login-form">
-            {/* Email */}
             <div style={{ marginBottom: 18 }}>
               <label htmlFor="email-input" style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#111111', marginBottom: 6 }}>
                 Email address
@@ -109,7 +109,6 @@ export default function LoginPage() {
                 value={email} onChange={(e) => setEmail(e.target.value)} style={error ? errInput : baseInput} />
             </div>
 
-            {/* Password */}
             <div style={{ marginBottom: 20 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                 <label htmlFor="password-input" style={{ fontSize: 13, fontWeight: 600, color: '#111111' }}>Password</label>
@@ -127,7 +126,6 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* Remember me */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 }}>
               <input id="remember-me" type="checkbox" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)}
                 style={{ width: 15, height: 15, accentColor: '#111111', cursor: 'pointer', flexShrink: 0 }} />
@@ -146,14 +144,12 @@ export default function LoginPage() {
             </button>
           </form>
 
-          {/* Divider */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '22px 0' }}>
             <div style={{ flex: 1, height: 1, background: '#EAE3D9' }} />
             <span style={{ fontSize: 12, color: '#9F9A93', whiteSpace: 'nowrap' }}>or continue with</span>
             <div style={{ flex: 1, height: 1, background: '#EAE3D9' }} />
           </div>
 
-          {/* OAuth buttons — UI only */}
           <div style={{ display: 'flex', gap: 10 }}>
             <button id="google-login-btn" type="button" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '10px 14px', borderRadius: 10, border: '1.5px solid #E5E2DC', background: '#fff', fontSize: 13.5, fontWeight: 600, color: '#111111', cursor: 'pointer' }}>
               <GoogleIcon /> Google
@@ -170,15 +166,11 @@ export default function LoginPage() {
         </div>
       </div>
 
-      {/* ── RIGHT: Brand panel (hidden on mobile via .auth-brand-panel CSS class) ── */}
       <div className="auth-brand-panel"
         style={{ flex: 1, flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#EAE3D9', position: 'relative', overflow: 'hidden', padding: '48px 40px' }}>
-        {/* Dot-grid texture */}
         <div style={{ position: 'absolute', inset: 0, backgroundImage: 'radial-gradient(circle, rgba(0,0,0,0.07) 1px, transparent 1px)', backgroundSize: '28px 28px', pointerEvents: 'none' }} />
-        {/* Amber atmospheric glow */}
         <div style={{ position: 'absolute', top: '35%', left: '50%', transform: 'translateX(-50%)', width: 480, height: 380, borderRadius: '50%', background: 'radial-gradient(ellipse, rgba(245,202,80,0.25) 0%, transparent 70%)', filter: 'blur(50px)', pointerEvents: 'none' }} />
 
-        {/* Accent dots */}
         <div style={{ position: 'absolute', top: 80,  right: 80,  width: 10, height: 10, borderRadius: '50%', background: '#F5CA50', boxShadow: '0 0 10px rgba(245,202,80,0.55)' }} />
         <div style={{ position: 'absolute', top: 160, left: 60,  width: 6,  height: 6,  borderRadius: '50%', background: '#D4A017', opacity: 0.45 }} />
         <div style={{ position: 'absolute', bottom: 120, right: 100, width: 8, height: 8, borderRadius: '50%', background: '#F5CA50', opacity: 0.5 }} />
@@ -186,7 +178,6 @@ export default function LoginPage() {
         <div style={{ position: 'absolute', top: 40,   left: '42%', width: 4,  height: 4,  borderRadius: '50%', background: '#F5CA50', opacity: 0.6 }} />
 
         <div style={{ position: 'relative', zIndex: 1, textAlign: 'center', maxWidth: 360 }}>
-          {/* Logo */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, marginBottom: 52 }}>
             <div style={{ width: 48, height: 48, borderRadius: 14, background: '#FFFAEC', border: '2px solid rgba(245,202,80,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 6px 20px rgba(212,160,23,0.2)' }}>
               <PraxisIcon size={24} color="#D4A017" />

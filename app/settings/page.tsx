@@ -44,8 +44,6 @@ import {
 import { cn } from '@/lib/utils'
 import { getApiConnections, type ApiConnection } from '@/lib/mock-data/settings'
 
-// ─── Tabs ─────────────────────────────────────────────────────────────────────
-
 type Tab = 'profile' | 'api' | 'users'
 
 const tabs: { id: Tab; label: string; adminOnly?: boolean }[] = [
@@ -53,8 +51,6 @@ const tabs: { id: Tab; label: string; adminOnly?: boolean }[] = [
   { id: 'api', label: 'API Connections' },
   { id: 'users', label: 'User Management', adminOnly: true },
 ]
-
-// ─── Icon map ─────────────────────────────────────────────────────────────────
 
 const iconMap: Record<string, React.ReactNode> = {
   brain: <Brain className="size-5" />,
@@ -67,9 +63,6 @@ const iconMap: Record<string, React.ReactNode> = {
   send: <Send className="size-5" />,
 }
 
-// ─── Roles ────────────────────────────────────────────────────────────────────
-
-/** Mirrors the `Role` enum in prisma/schema.prisma. */
 type UserRole = 'ADMIN' | 'HR' | 'MANAGER' | 'EMPLOYEE'
 
 const roles: UserRole[] = ['ADMIN', 'HR', 'MANAGER', 'EMPLOYEE']
@@ -88,7 +81,6 @@ const roleColors: Record<UserRole, string> = {
   EMPLOYEE: 'bg-muted text-muted-foreground',
 }
 
-/** Row shape returned by GET /api/users. */
 interface AppUser {
   id: string
   name: string
@@ -118,8 +110,6 @@ function formatLastLogin(iso: string | null): string {
   })
 }
 
-// ─── Profile Tab ──────────────────────────────────────────────────────────────
-
 function ProfileTab() {
   const [name, setName] = useState('Ava Chen')
   const [email, setEmail] = useState('ava.chen@company.com')
@@ -133,7 +123,6 @@ function ProfileTab() {
 
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-      {/* Avatar card */}
       <Card className="shadow-sm lg:col-span-1">
         <CardHeader>
           <CardTitle className="text-base">Profile Photo</CardTitle>
@@ -157,7 +146,6 @@ function ProfileTab() {
         </CardContent>
       </Card>
 
-      {/* Info form */}
       <Card className="shadow-sm lg:col-span-2">
         <CardHeader>
           <CardTitle className="text-base">Personal Information</CardTitle>
@@ -207,8 +195,6 @@ function ProfileTab() {
     </div>
   )
 }
-
-// ─── API Connections Tab ───────────────────────────────────────────────────────
 
 function ApiConnectionsTab() {
   const initial = getApiConnections()
@@ -281,15 +267,8 @@ function ApiConnectionsTab() {
   )
 }
 
-// ─── Toast ─────────────────────────────────────────────────────────────────────
-
 type ToastState = { id: number; kind: 'success' | 'error'; message: string }
 
-/**
- * Visually mirrors components/workflow/run-toast.tsx, but fixed to the
- * viewport — that one is `absolute` because it anchors to the builder canvas,
- * which has no equivalent positioned container on this page.
- */
 function SettingsToast({ toast, onDismiss }: { toast: ToastState | null; onDismiss: () => void }) {
   useEffect(() => {
     if (!toast) return
@@ -326,8 +305,6 @@ function SettingsToast({ toast, onDismiss }: { toast: ToastState | null; onDismi
   )
 }
 
-// ─── Add User Modal ────────────────────────────────────────────────────────────
-
 const fieldClass =
   'rounded-xl border border-gray-200 bg-white px-4 py-3 text-[14px] font-medium text-gray-700 outline-none placeholder:text-gray-400 focus:ring-1 focus:ring-[#F5CA50] focus:border-[#F5CA50] shadow-sm transition-all'
 
@@ -363,8 +340,6 @@ function AddUserModal({
         body: JSON.stringify({ name: name.trim(), email: email.trim(), password, role }),
       })
       const body = await response.json().catch(() => ({}))
-      // 409 (duplicate email) and 400 (validation) both land here, keeping the
-      // modal open with the server's own message.
       if (!response.ok) throw new Error(body.error ?? 'Could not create this user.')
 
       onCreated(body.user as AppUser)
@@ -476,8 +451,6 @@ function AddUserModal({
   )
 }
 
-// ─── User Management Tab ───────────────────────────────────────────────────────
-
 function UserManagementTab() {
   const [users, setUsers] = useState<AppUser[]>([])
   const [loading, setLoading] = useState(true)
@@ -508,7 +481,6 @@ function UserManagementTab() {
     }
   }, [])
 
-  /** Optimistic, with a rollback when the server rejects the change. */
   async function updateRole(id: string, role: UserRole) {
     const previous = users.find((u) => u.id === id)?.role
     if (!previous || previous === role) return
@@ -535,7 +507,6 @@ function UserManagementTab() {
     }
   }
 
-  /** The modal owns its own errors; it only calls back once the POST landed. */
   function handleCreated(user: AppUser) {
     setUsers((prev) => [...prev, user])
     setError(null)
@@ -638,14 +609,10 @@ function UserManagementTab() {
   )
 }
 
-// ─── Main Page ─────────────────────────────────────────────────────────────────
-
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<Tab>('profile')
   const { data: session } = useSession()
 
-  // Cosmetic gate only — /api/users re-checks the role on every request, so a
-  // non-admin who forces the tab open still gets a 403 and an empty table.
   const isAdmin = session?.user?.role === 'ADMIN'
   const visibleTabs = tabs.filter((tab) => !tab.adminOnly || isAdmin)
 
@@ -659,7 +626,6 @@ export default function SettingsPage() {
           </p>
         </div>
 
-        {/* Tab bar */}
         <div className="flex gap-1 rounded-xl border border-border bg-muted/50 p-1 w-fit" role="tablist">
           {visibleTabs.map((tab) => (
             <button
@@ -680,7 +646,6 @@ export default function SettingsPage() {
           ))}
         </div>
 
-        {/* Tab content */}
         {activeTab === 'profile' && <ProfileTab />}
         {activeTab === 'api' && <ApiConnectionsTab />}
         {activeTab === 'users' && isAdmin && <UserManagementTab />}

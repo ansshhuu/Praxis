@@ -1,25 +1,48 @@
 'use client'
 
 import { X } from 'lucide-react'
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
+import { ResizeHandle, useResizablePanel } from '@/components/ui/resizable-panel'
 import { cn } from '@/lib/utils'
-import { MobileTabBar } from './mobile-nav'
-import { Sidebar } from './sidebar'
-import { Topbar } from './topbar'
+
+import { AppTopbar } from './app-topbar'
+import { findActiveSection, isEntryActive, navSections, settingsEntry } from './nav-items'
+import { SectionSidebar } from './section-sidebar'
+
+const SIDEBAR_STORAGE_KEY = 'praxis:app.sidebar'
+
+const SIDEBAR_RAIL_WIDTH = 64
+const SIDEBAR_MIN_WIDTH = 180
+const SIDEBAR_MAX_WIDTH = 400
+const SIDEBAR_DEFAULT_WIDTH = 224
+const SIDEBAR_COLLAPSE_THRESHOLD = 120
 
 export function DashboardShell({
   children,
   mainClassName,
 }: {
   children: React.ReactNode
-  /** Override the default <main> padding — e.g. for full-bleed canvases. */
   mainClassName?: string
 }) {
+  const pathname = usePathname()
+  const activeSection = findActiveSection(pathname)
+  const hasSidebar = Boolean(activeSection?.items?.length)
+
   const [mobileOpen, setMobileOpen] = useState(false)
 
-  // Prevent body scroll while the mobile drawer is open.
+  const sidebarPanel = useResizablePanel({
+    storageKey: SIDEBAR_STORAGE_KEY,
+    railWidth: SIDEBAR_RAIL_WIDTH,
+    minWidth: SIDEBAR_MIN_WIDTH,
+    maxWidth: SIDEBAR_MAX_WIDTH,
+    defaultWidth: SIDEBAR_DEFAULT_WIDTH,
+    collapseThreshold: SIDEBAR_COLLAPSE_THRESHOLD,
+  })
+
   useEffect(() => {
     document.body.style.overflow = mobileOpen ? 'hidden' : ''
     return () => {
@@ -27,22 +50,40 @@ export function DashboardShell({
     }
   }, [mobileOpen])
 
+  useEffect(() => setMobileOpen(false), [pathname])
+
   return (
-    <div className="flex min-h-screen bg-background">
-      {/* Tablet: icon-only sidebar */}
-      <aside className="sticky top-0 hidden h-screen w-[72px] shrink-0 md:block lg:hidden">
-        <Sidebar collapsed />
-      </aside>
+    <div className="flex min-h-screen flex-col bg-background">
+      <AppTopbar onOpenMobileNav={() => setMobileOpen(true)} />
 
-      {/* Desktop: full sidebar */}
-      <aside className="sticky top-0 hidden h-screen w-60 shrink-0 lg:block">
-        <Sidebar />
-      </aside>
+      <div className="flex min-h-0 flex-1">
+        {hasSidebar && activeSection && (
+          <aside
+            className={cn(
+              sidebarPanel.containerClassName,
+              'sticky top-16 hidden h-[calc(100vh-64px)] lg:flex',
+            )}
+            style={{ width: sidebarPanel.width }}
+          >
+            <SectionSidebar
+              section={activeSection}
+              pathname={pathname}
+              collapsed={sidebarPanel.collapsed}
+            />
+            <ResizeHandle panel={sidebarPanel} label={`Resize ${activeSection.label} sidebar`} />
+          </aside>
+        )}
 
-      {/* Mobile drawer */}
+        <div className="flex min-w-0 flex-1 flex-col">
+          <main className={cn('flex-1', mainClassName ?? 'px-4 pt-6 pb-8 md:px-6')}>
+            {children}
+          </main>
+        </div>
+      </div>
+
       <div
         className={cn(
-          'fixed inset-0 z-50 md:hidden',
+          'fixed inset-0 z-50 lg:hidden',
           mobileOpen ? 'pointer-events-auto' : 'pointer-events-none',
         )}
         aria-hidden={!mobileOpen}
@@ -59,7 +100,7 @@ export function DashboardShell({
           aria-modal="true"
           aria-label="Navigation"
           className={cn(
-            'absolute inset-y-0 left-0 w-64 transition-transform duration-300',
+            'absolute inset-y-0 left-0 w-72 overflow-y-auto bg-white transition-transform duration-300',
             mobileOpen ? 'translate-x-0' : '-translate-x-full',
           )}
         >
@@ -72,23 +113,61 @@ export function DashboardShell({
           >
             <X className="size-5" />
           </Button>
-          <Sidebar />
+
+          <nav aria-label="All sections" className="flex flex-col gap-5 px-3 pt-16 pb-6">
+            {navSections.map((section) => {
+              const SectionIcon = section.icon
+              const entries = section.items ?? [section]
+              return (
+                <div key={section.label}>
+                  <div className="flex items-center gap-2 px-3 pb-1.5">
+                    <SectionIcon className="size-3.5 text-gray-400" />
+                    <span className="text-[11px] font-bold tracking-[0.08em] text-gray-400 uppercase">
+                      {section.label}
+                    </span>
+                  </div>
+                  <ul className="flex flex-col gap-0.5">
+                    {entries.map((item) => {
+                      const Icon = item.icon
+                      const isActive = isEntryActive(pathname, item.href)
+                      return (
+                        <li key={item.href}>
+                          <Link
+                            href={item.href}
+                            aria-current={isActive ? 'page' : undefined}
+                            className={cn(
+                              'flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13.5px] font-medium transition-colors',
+                              isActive
+                                ? 'bg-[#FFFAEC] text-[#D4A017]'
+                                : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900',
+                            )}
+                          >
+                            <Icon className={cn('size-4 shrink-0', isActive ? 'text-[#D4A017]' : 'text-gray-400')} />
+                            {item.label}
+                          </Link>
+                        </li>
+                      )
+                    })}
+                  </ul>
+                </div>
+              )
+            })}
+
+            <Link
+              href={settingsEntry.href}
+              className={cn(
+                'mt-1 flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13.5px] font-medium transition-colors',
+                isEntryActive(pathname, settingsEntry.href)
+                  ? 'bg-[#FFFAEC] text-[#D4A017]'
+                  : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900',
+              )}
+            >
+              <settingsEntry.icon className="size-4 shrink-0 text-gray-400" />
+              {settingsEntry.label}
+            </Link>
+          </nav>
         </div>
       </div>
-
-      <div className="flex min-w-0 flex-1 flex-col">
-        <Topbar onOpenMobileNav={() => setMobileOpen(true)} />
-        <main
-          className={cn(
-            'flex-1',
-            mainClassName ?? 'px-4 pb-24 pt-6 md:px-6 md:pb-8',
-          )}
-        >
-          {children}
-        </main>
-      </div>
-
-      <MobileTabBar onMore={() => setMobileOpen(true)} />
     </div>
   )
 }

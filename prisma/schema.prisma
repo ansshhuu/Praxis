@@ -251,6 +251,10 @@ model Notification {
   status    NotificationStatus  @default(PENDING)
   createdAt DateTime            @default(now()) @map("created_at")
 
+  /// Address the notification was actually delivered to. Null for rows created
+  /// before this column existed, and for channels that have no address.
+  recipient String?
+
   user User @relation(fields: [userId], references: [id])
 
   @@index([userId, status])

@@ -9,8 +9,6 @@ import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { suggestedPrompts } from '@/lib/mock-data/chat'
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
 interface ChatMessage {
   id: string
   role: 'user' | 'assistant'
@@ -44,13 +42,6 @@ async function readError(response: Response, fallback: string): Promise<string> 
   return (body as { error?: string } | null)?.error ?? fallback
 }
 
-// ─── Message bubble ───────────────────────────────────────────────────────────
-
-/**
- * While a response is still revealing, a partially-shown `**bold**` span would
- * render its literal asterisks. Closing the open marker keeps the text
- * formatting correctly as it grows.
- */
 function balanceBold(text: string): string {
   const markers = (text.match(/\*\*/g) ?? []).length
   return markers % 2 === 1 ? `${text}**` : text
@@ -58,12 +49,6 @@ function balanceBold(text: string): string {
 
 function MessageBubble({ message, stream = false }: { message: ChatMessage; stream?: boolean }) {
   const isUser = message.role === 'user'
-  /*
-    /api/chat returns the whole answer in one response — it is not a streaming
-    endpoint — so this reveals text already in hand rather than pretending to
-    receive tokens. Only the newest assistant message passes `stream`, so
-    scrolling through history never replays it.
-  */
   const { shown, done } = useTypewriter(message.content, { enabled: stream && !isUser })
   const visible = stream && !isUser ? balanceBold(shown) : message.content
 
@@ -110,8 +95,6 @@ function MessageBubble({ message, stream = false }: { message: ChatMessage; stre
   )
 }
 
-// ─── Typing indicator ─────────────────────────────────────────────────────────
-
 function TypingIndicator() {
   return (
     <div className="flex gap-3 justify-start">
@@ -133,11 +116,8 @@ function TypingIndicator() {
   )
 }
 
-// ─── Main Page ─────────────────────────────────────────────────────────────────
-
 export default function ChatPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([])
-  /** Newest assistant reply — the only one that reveals progressively. */
   const [streamingId, setStreamingId] = useState<string | null>(null)
   const [inputValue, setInputValue] = useState('')
   const [isTyping, setIsTyping] = useState(false)
@@ -222,8 +202,7 @@ export default function ChatPage() {
   return (
     <DashboardShell mainClassName="flex flex-col p-0 h-[calc(100vh-64px)]">
       <div className="flex flex-1 flex-col overflow-hidden max-w-[1000px] mx-auto w-full relative pt-6 md:pt-8">
-        
-        {/* Messages area */}
+
         <div className="flex flex-1 flex-col gap-6 overflow-y-auto px-4 md:px-8 pb-32">
           {isEmpty ? (
             <div className="flex flex-col items-center justify-center my-auto">
@@ -246,10 +225,8 @@ export default function ChatPage() {
           <div ref={bottomRef} />
         </div>
 
-        {/* Input Bar Fixed to Bottom */}
         <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-gray-50 via-gray-50 to-transparent pb-6 pt-10 px-4 md:px-8">
-          
-          {/* Suggested Prompts */}
+
           {isEmpty && (
             <div className="mb-4 flex flex-wrap justify-center gap-2">
               {suggestedPrompts.map((prompt) => (
@@ -269,7 +246,7 @@ export default function ChatPage() {
               {error}
             </div>
           )}
-          
+
           <form
             onSubmit={handleSubmit}
             className="flex items-end gap-3 rounded-2xl border border-gray-200 bg-white p-2 shadow-lg max-w-3xl mx-auto focus-within:ring-2 focus-within:ring-[#F5CA50]/50 focus-within:border-[#F5CA50] transition-all"

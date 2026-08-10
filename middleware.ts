@@ -18,14 +18,12 @@ export async function middleware(request: NextRequest) {
 
   const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET })
 
-  // Treat exactly '/', and anything starting with '/login' or '/register' as public routes
-  const isPublicRoute = PUBLIC_ROUTES.some((route) => 
+  const isPublicRoute = PUBLIC_ROUTES.some((route) =>
     pathname === route || (route !== '/' && pathname.startsWith(`${route}/`))
   )
 
   if (isPublicRoute) {
     if (token) {
-      // Authenticated users shouldn't see marketing / login / register pages
       return NextResponse.redirect(new URL('/dashboard', request.url))
     }
     return NextResponse.next()

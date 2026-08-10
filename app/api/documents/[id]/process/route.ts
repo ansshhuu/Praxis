@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server'
 
+import { ACTIVITY_ACTIONS } from '@/lib/activity/actions'
+import { logActivity } from '@/lib/activity/log'
 import { callAI } from '@/lib/ai/ai-router'
 import { getCurrentUserId } from '@/lib/auth/session'
 import { prisma } from '@/lib/db/prisma'
@@ -13,18 +15,14 @@ import { createReadUrl } from '@/lib/storage/supabase'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
-/** OCR on a large scan can run well past the default serverless budget. */
 export const maxDuration = 300
 
-/** Excerpt sent to the model. Keeps a summary well inside the free-tier budget. */
 const SUMMARY_INPUT_CHARS = 3000
 
-/** Below this there is nothing worth spending an AI call on. */
 const MIN_TEXT_FOR_SUMMARY = 40
 
 type RouteContext = { params: Promise<{ id: string }> }
 
-/** Notes the extractor returns in place of real text — never summarise these. */
 const PLACEHOLDER_TEXTS = new Set([PPT_UNSUPPORTED_NOTE, SCANNED_PDF_NOTE])
 
 function buildSummaryPrompt(text: string): string {
@@ -41,12 +39,6 @@ function buildSummaryPrompt(text: string): string {
   ].join('\n')
 }
 
-/**
- * POST /api/documents/[id]/process — extract text, then summarise it.
- *
- * Exactly one `callAI` invocation per request, and it is skipped entirely when
- * there is no real text to summarise.
- */
 export async function POST(_request: Request, { params }: RouteContext) {
   const userId = await getCurrentUserId()
   if (!userId) {
@@ -63,8 +55,6 @@ export async function POST(_request: Request, { params }: RouteContext) {
     return NextResponse.json({ error: 'Document not found' }, { status: 404 })
   }
 
-  // Claim the document so a double-fired request (React strict mode, an
-  // impatient retry) cannot run extraction — and a second AI call — twice.
   const claimed = await prisma.document.updateMany({
     where: { id, userId, status: { not: 'PROCESSING' } },
     data: { status: 'PROCESSING', statusMessage: null },
@@ -77,7 +67,6 @@ export async function POST(_request: Request, { params }: RouteContext) {
     )
   }
 
-  // ── Extract ────────────────────────────────────────────────────────────────
   let text: string
   try {
     const readUrl = existing.storagePath
@@ -95,8 +84,12 @@ export async function POST(_request: Request, { params }: RouteContext) {
         statusMessage: (error as Error).message.slice(0, 500),
       },
     })
-    // 200 with a FAILED status: the client renders the failure state rather
-    // than treating this as a broken request.
+    await logActivity(userId, ACTIVITY_ACTIONS.documentProcessed, {
+      documentId: document.id,
+      name: document.fileName,
+      status: 'FAILED',
+      error: (error as Error).message.slice(0, 300),
+    })
     return NextResponse.json({ document: toDetail(document) })
   }
 
@@ -115,10 +108,15 @@ export async function POST(_request: Request, { params }: RouteContext) {
           : 'No readable text found in this document, so no summary was generated.',
       },
     })
+    await logActivity(userId, ACTIVITY_ACTIONS.documentProcessed, {
+      documentId: document.id,
+      name: document.fileName,
+      status: 'PROCESSED',
+      summarised: false,
+    })
     return NextResponse.json({ document: toDetail(document) })
   }
 
-  // ── Summarise (one AI call) ────────────────────────────────────────────────
   let summary: string | null = null
   let summaryError: string | null = null
   try {
@@ -128,8 +126,6 @@ export async function POST(_request: Request, { params }: RouteContext) {
     summaryError = `AI summary unavailable: ${(error as Error).message}`.slice(0, 500)
   }
 
-  // Extraction succeeded, so the document is PROCESSED even if the model was
-  // unreachable — the text is still useful and the message explains the gap.
   const document = await prisma.document.update({
     where: { id },
     data: {
@@ -138,6 +134,13 @@ export async function POST(_request: Request, { params }: RouteContext) {
       status: 'PROCESSED',
       statusMessage: summaryError,
     },
+  })
+
+  await logActivity(userId, ACTIVITY_ACTIONS.documentProcessed, {
+    documentId: document.id,
+    name: document.fileName,
+    status: 'PROCESSED',
+    summarised: Boolean(summary),
   })
 
   return NextResponse.json({ document: toDetail(document) })

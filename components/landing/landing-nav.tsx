@@ -4,7 +4,6 @@ import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { Menu, X } from 'lucide-react'
 
-/* ── Sunburst logo icon ────────────────────────────────────────────── */
 function PraxisIcon({ size = 20, color = '#D4A017' }: { size?: number; color?: string }) {
   const c = size / 2
   const rays = 8
@@ -40,14 +39,13 @@ export function LandingNav() {
   const [mobileOpen, setMobileOpen]   = useState(false)
   const lastScrollY                   = useRef(0)
   const scrollDelta                   = useRef(0)
-  const HIDE_THRESHOLD                = 12   // px of continuous scroll before toggling
-  const TOP_LOCK                      = 50   // always visible within first 50px
+  const HIDE_THRESHOLD                = 12
+  const TOP_LOCK                      = 50
 
   useEffect(() => {
     const onScroll = () => {
       const current = window.scrollY
 
-      // Always show when at the very top of the page
       if (current < TOP_LOCK) {
         setHidden(false)
         setScrolled(false)
@@ -61,10 +59,9 @@ export function LandingNav() {
       const delta = current - lastScrollY.current
       scrollDelta.current += delta
 
-      // Only toggle after enough continuous scroll to avoid micro-jitter
       if (Math.abs(scrollDelta.current) >= HIDE_THRESHOLD) {
-        setHidden(scrollDelta.current > 0)  // hide on down, show on up
-        scrollDelta.current = 0             // reset accumulator after state change
+        setHidden(scrollDelta.current > 0)
+        scrollDelta.current = 0
       }
 
       lastScrollY.current = current
@@ -74,14 +71,10 @@ export function LandingNav() {
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
 
-
-
   return (
     <>
-      {/* Floating capsule nav — auto-hides on scroll-down, reappears on scroll-up */}
       <div className={`lnav-wrap${hidden ? ' lnav-hidden' : ''}`}>
         <nav className={`lnav${scrolled ? ' scrolled' : ''}`} aria-label="Main navigation">
-          {/* Logo */}
           <Link href="/" className="lnav-logo" aria-label="Praxis home">
             <div className="lnav-logo-mark">
               <PraxisIcon size={16} color="#D4A017" />
@@ -89,7 +82,6 @@ export function LandingNav() {
             <span className="lnav-logo-text">PRAXIS</span>
           </Link>
 
-          {/* Center links — desktop */}
           <div className="lnav-links">
             {NAV_LINKS.map((link) => (
               <a key={link.label} href={link.href} className="lnav-link">
@@ -98,13 +90,11 @@ export function LandingNav() {
             ))}
           </div>
 
-          {/* Auth — desktop */}
           <div className="lnav-actions">
             <Link href="/login" className="lnav-btn-ghost">Login</Link>
             <Link href="/login" id="nav-signup-btn" className="lnav-btn-solid">Sign Up</Link>
           </div>
 
-          {/* Hamburger — mobile */}
           <button
             className="lnav-mobile-btn"
             onClick={() => setMobileOpen(!mobileOpen)}
@@ -116,7 +106,6 @@ export function LandingNav() {
         </nav>
       </div>
 
-      {/* Mobile drawer */}
       <div className={`lnav-mobile-drawer${mobileOpen ? ' open' : ''}`} aria-hidden={!mobileOpen}>
         <div style={{ padding: '16px 12px', display: 'flex', flexDirection: 'column', gap: 2 }}>
           {NAV_LINKS.map((link) => (

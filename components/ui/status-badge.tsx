@@ -9,10 +9,10 @@ interface StatusBadgeProps {
 
 export function StatusBadge({ status, className }: StatusBadgeProps) {
   const s = status.toLowerCase()
-  
+
   let variantClass = "bg-gray-100 text-gray-600"
   let dotClass = "bg-gray-400"
-  
+
   if (["success", "active", "completed"].includes(s)) {
     variantClass = "bg-green-100 text-green-700"
     dotClass = "bg-green-500"
@@ -27,7 +27,6 @@ export function StatusBadge({ status, className }: StatusBadgeProps) {
     dotClass = "bg-gray-400"
   }
 
-  // Capitalize first letter for display
   const label = status.charAt(0).toUpperCase() + status.slice(1)
 
   return (

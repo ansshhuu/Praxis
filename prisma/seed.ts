@@ -5,7 +5,6 @@ import { SEED_TEMPLATES } from '../lib/marketplace/templates'
 
 const prisma = new PrismaClient()
 
-/** Idempotent: reuses the admin when a previous seed already created it. */
 async function seedAdmin() {
   const existing = await prisma.user.findUnique({ where: { email: 'admin@company.com' } })
   if (existing) {
@@ -27,11 +26,6 @@ async function seedAdmin() {
   return admin
 }
 
-/**
- * Populates the marketplace gallery. Skipped entirely once the table has any
- * row, so re-running the seed never duplicates templates or clobbers ones an
- * admin published through POST /api/marketplace.
- */
 async function seedMarketplace(createdBy: string) {
   const count = await prisma.marketplaceTemplate.count()
   if (count > 0) {

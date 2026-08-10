@@ -2,12 +2,6 @@ import type { Meeting, MeetingStatus } from '@prisma/client'
 
 import type { ActionItem } from '@/lib/meetings/analyze'
 
-/**
- * Shapes a Meeting row for the client. Kept in one place so the list, detail,
- * upload and process responses can never drift apart (mirrors
- * `lib/documents/serialize.ts`).
- */
-
 export function formatDuration(seconds: number | null): string {
   if (seconds === null || !Number.isFinite(seconds) || seconds <= 0) return '—'
   const total = Math.round(seconds)
@@ -20,10 +14,6 @@ export function formatDuration(seconds: number | null): string {
   return `${secs}s`
 }
 
-/**
- * `action_items` is `Json?`, so it comes back as whatever was written. Narrow
- * it defensively rather than trusting the column shape.
- */
 export function readActionItems(value: unknown): ActionItem[] {
   if (!Array.isArray(value)) return []
   return value.flatMap((entry) => {

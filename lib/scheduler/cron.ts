@@ -1,32 +1,11 @@
-/**
- * Cron expression handling for the Scheduler module.
- *
- * There is deliberately no background runner behind these schedules — the
- * module stores the schedule records and computes `next_run` so the UI can
- * show when a job *would* fire. Nothing in the app executes jobs on a timer.
- */
-
 import { CronExpressionParser } from 'cron-parser'
 
-/**
- * cron-parser also accepts a 6-field form (leading seconds) and a 7-field form
- * with a year. The UI documents "standard 5-field cron", so anything else is
- * rejected here rather than silently parsed as a different schedule than the
- * user typed.
- */
 const CRON_FIELD_COUNT = 5
 
 export type CronValidation =
   | { ok: true; nextRun: Date }
   | { ok: false; error: string }
 
-/**
- * Validates a 5-field cron expression and computes its next fire time.
- *
- * Returns a result object rather than throwing so routes can turn a bad
- * expression into a 400 with the parser's own message, which names the
- * offending field.
- */
 export function validateCron(expression: string, from: Date = new Date()): CronValidation {
   const expr = expression.trim().replace(/\s+/g, ' ')
 
@@ -50,11 +29,6 @@ export function validateCron(expression: string, from: Date = new Date()): CronV
   }
 }
 
-/**
- * Next fire time for an expression already known to be valid (i.e. one read
- * back out of the database). Falls back to `from` if the stored expression
- * somehow no longer parses, so a listing can never 500 on one bad row.
- */
 export function nextRunFor(expression: string, from: Date = new Date()): Date {
   const result = validateCron(expression, from)
   return result.ok ? result.nextRun : from
@@ -70,11 +44,6 @@ function formatTime(minute: string, hour: string): string {
   return `${hour12}:${String(m).padStart(2, '0')} ${suffix}`
 }
 
-/**
- * Best-effort English rendering of the common schedules the UI offers as
- * presets. Anything outside those shapes falls back to the raw expression —
- * a wrong description would be worse than showing the cron itself.
- */
 export function describeCron(expression: string): string {
   const [minute, hour, dom, month, dow] = expression.trim().split(/\s+/)
   if (!dow) return expression

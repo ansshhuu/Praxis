@@ -33,10 +33,8 @@ import {
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { cn } from '@/lib/utils'
 import {
   categoryStyles,
   nodeTypesByKey,
@@ -54,12 +52,6 @@ import {
 
 const rfNodeTypes = { workflow: WorkflowNode }
 
-/**
- * Guarantee every node carries a full `data.config`. Without this the engine
- * would run on empty config for any node the user never opened the drawer on
- * — e.g. a Condition would compare "" to "" and always take the true branch.
- * Existing keys always win, so saved edits survive a reload.
- */
 function withConfigDefaults(nodes: Node[]): Node[] {
   return nodes.map((node) => {
     const data = node.data as WorkflowNodeData
@@ -112,24 +104,18 @@ const initialEdges: Edge[] = [
 
 type Snapshot = { nodes: Node[]; edges: Edge[] }
 
-/* ── Execution playback ────────────────────────────────────
-   Timings kept snappy: a node lights up, settles 260ms later, and the next
-   follows 380ms after the last one started. */
 const STEP_MS = 380
 const SETTLE_MS = 260
-/** How long the finished graph holds before returning to rest. */
 const HOLD_MS = 1600
 
 type PlaybackStep = { nodeId: string; status: WorkflowNodeStatus }
 
-/** Engine step status → node visual status. */
 const STATUS_BY_STEP: Record<string, WorkflowNodeStatus> = {
   ok: 'done',
   error: 'failed',
   skipped: 'skipped',
 }
 
-/** Narrow the run response's `steps[]` into a playback script. */
 function toPlayback(steps: unknown): PlaybackStep[] {
   if (!Array.isArray(steps)) return []
   return steps.flatMap((entry) => {
@@ -147,13 +133,6 @@ function toPlayback(steps: unknown): PlaybackStep[] {
 
 type WorkflowStatus = 'DRAFT' | 'ACTIVE' | 'PAUSED'
 
-const statusLabels: Record<WorkflowStatus, string> = {
-  DRAFT: 'Draft',
-  ACTIVE: 'Active',
-  PAUSED: 'Paused',
-}
-
-/** Drop transient run-animation state before persisting the graph. */
 function serializeNodes(nodes: Node[]) {
   return nodes.map(({ id, type, position, data }) => {
     const { status: _status, ...rest } = (data ?? {}) as WorkflowNodeData
@@ -281,7 +260,6 @@ function Flow() {
     [screenToFlowPosition, commit, setNodes],
   )
 
-  /** Persist a drawer edit onto the node so Save/Run send it to the server. */
   const updateNodeConfig = useCallback(
     (id: string, key: string, value: string) => {
       setNodes((nds) =>
@@ -305,10 +283,6 @@ function Flow() {
     [commit, setNodes, setEdges],
   )
 
-  // Load a workflow into the canvas: the one named by `?id=` when present
-  // (that is how "Use Template" hands off a freshly forked copy), otherwise
-  // the user's most recently updated one. When the account has none, the
-  // canvas keeps its starter graph and the first Save creates a new record.
   useEffect(() => {
     let cancelled = false
 
@@ -333,12 +307,10 @@ function Flow() {
         setName(workflow.name)
         setStatus(workflow.status as WorkflowStatus)
         if (Array.isArray(workflow.nodes) && workflow.nodes.length > 0) {
-          // Backfills config on graphs saved before the drawer was wired up.
           setNodes(withConfigDefaults(workflow.nodes as Node[]))
           setEdges((Array.isArray(workflow.edges) ? workflow.edges : []) as Edge[])
         }
       } catch {
-        // Offline / unauthenticated — leave the starter graph in place.
       }
     }
 
@@ -348,7 +320,6 @@ function Flow() {
     }
   }, [setNodes, setEdges])
 
-  /** POST when the workflow has never been saved, PATCH afterwards. */
   const persist = useCallback(
     async (overrides: { status?: WorkflowStatus } = {}) => {
       const payload = {
@@ -394,15 +365,11 @@ function Flow() {
   const handleRun = useCallback(async () => {
     if (running) return
     setRunning(true)
-    // Clear any previous outcome and mark the graph as awaiting results. No
-    // per-node progress is invented while the request is in flight — the
-    // engine reports statuses only when it finishes.
     setPlayback(null)
     setNodes((nds) => nds.map((n) => ({ ...n, data: { ...n.data, status: 'idle' } })))
     setEdges((eds) => eds.map((e) => ({ ...e, animated: true })))
 
     try {
-      // Persist first so the run executes the graph currently on the canvas.
       const id = await persist()
 
       const response = await fetch(`/api/workflows/${id}/run`, { method: 'POST' })
@@ -429,15 +396,6 @@ function Flow() {
     }
   }, [persist, running, showToast, setNodes, setEdges])
 
-  /**
-   * Replay the run's real execution order.
-   *
-   * `/api/workflows/[id]/run` returns final results only, but its `steps[]`
-   * carries the true order the engine walked the graph in and each node's own
-   * outcome — so this is a replay of what actually happened, not a guess at
-   * it. Nodes the engine never reached are left `idle` rather than being
-   * marked done.
-   */
   useEffect(() => {
     if (!playback || playback.length === 0) return
 
@@ -447,7 +405,6 @@ function Flow() {
       )
     }
 
-    // Reduced motion: show the outcome, skip the sequence.
     if (prefersReduced) {
       setNodes((nds) =>
         nds.map((n) => {
@@ -470,7 +427,6 @@ function Flow() {
       )
     })
 
-    // Hold the finished state briefly, then return the canvas to rest.
     timers.push(
       window.setTimeout(() => {
         setEdges((eds) => eds.map((e) => ({ ...e, animated: false })))
@@ -496,7 +452,6 @@ function Flow() {
 
   return (
     <div className="flex h-[calc(100dvh-4rem)] flex-col">
-      {/* Page header */}
       <div className="flex flex-wrap items-center gap-3 border-b border-border bg-card px-4 py-3 md:px-6">
         <Input
           value={name}
@@ -504,24 +459,6 @@ function Flow() {
           aria-label="Workflow name"
           className="h-9 w-48 border-transparent bg-transparent px-2 text-base font-semibold shadow-none hover:border-border focus-visible:border-ring md:w-64"
         />
-        <Badge
-          variant="outline"
-          className={cn(
-            'gap-1.5',
-            status === 'ACTIVE'
-              ? 'border-[#16a34a]/30 bg-[#16a34a]/10 text-[#16a34a]'
-              : 'text-muted-foreground',
-          )}
-        >
-          <span
-            className={cn(
-              'size-1.5 rounded-full',
-              status === 'ACTIVE' ? 'bg-[#16a34a]' : 'bg-muted-foreground',
-            )}
-          />
-          {statusLabels[status]}
-        </Badge>
-
         <div className="ml-auto flex items-center gap-3">
           <Button
             variant="ghost"
@@ -549,17 +486,14 @@ function Flow() {
             ) : (
               <Play className="size-4 mr-1.5" />
             )}
-            {running ? 'Deploying…' : 'Deploy'}
+            {running ? 'Running…' : 'Run'}
           </Button>
         </div>
       </div>
 
-      {/* Builder area */}
       <div className="flex min-h-0 flex-1">
-        {/* Palette (resizable + collapsible; width persisted in localStorage) */}
         <PaletteSidebar />
 
-        {/* Canvas — flex-1 so it reclaims whatever the palette gives up */}
         <div className="relative min-w-0 flex-1" ref={wrapperRef}>
           <ReactFlow
             nodes={nodes}
@@ -590,7 +524,6 @@ function Flow() {
               className="!bottom-4 !right-4 overflow-hidden rounded-lg border border-border !bg-card shadow-sm"
             />
 
-            {/* Floating toolbar */}
             <Panel position="bottom-left">
               <div className="flex items-center gap-0.5 rounded-lg border border-border bg-card p-1 shadow-sm">
                 <ToolbarButton label="Undo" onClick={undo} disabled={past.length === 0}>
@@ -613,7 +546,6 @@ function Flow() {
             </Panel>
           </ReactFlow>
 
-          {/* Empty state overlay */}
           {isEmpty && (
             <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-6">
               <div className="flex flex-col items-center gap-4 text-center">
@@ -633,7 +565,6 @@ function Flow() {
             </div>
           )}
 
-          {/* Config drawer */}
           <NodeConfigDrawer
             nodeId={selectedId}
             data={(selectedNode?.data as WorkflowNodeData) ?? null}
@@ -642,7 +573,6 @@ function Flow() {
             onConfigChange={updateNodeConfig}
           />
 
-          {/* Execution history (overlay — canvas layout untouched) */}
           <RunHistory
             workflowId={workflowId}
             open={historyOpen}
@@ -660,14 +590,12 @@ function Flow() {
 export function WorkflowBuilder() {
   return (
     <>
-      {/* Desktop / large screens: full builder */}
       <div className="hidden lg:block">
         <ReactFlowProvider>
           <Flow />
         </ReactFlowProvider>
       </div>
 
-      {/* Mobile & tablet: not supported */}
       <div className="flex min-h-[calc(100dvh-4rem)] items-center justify-center px-6 lg:hidden">
         <div className="flex max-w-sm flex-col items-center gap-4 text-center">
           <span className="flex size-14 items-center justify-center rounded-2xl bg-accent text-accent-foreground">

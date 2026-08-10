@@ -10,18 +10,10 @@ export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 export const maxDuration = 300
 
-/** Guards against a paste that would blow past any provider's input budget. */
 const MAX_TRANSCRIPT_CHARS = 200_000
 
 type RouteContext = { params: Promise<{ id: string }> }
 
-/**
- * POST /api/meetings/[id]/manual-transcript — analyse a pasted transcript.
- *
- * The alternative entry point to the audio pipeline: same single AI call, same
- * persistence, no Whisper. Works whether the meeting was created from an audio
- * upload whose transcription failed, or from a transcript alone.
- */
 export async function POST(request: Request, { params }: RouteContext) {
   const userId = await getCurrentUserId()
   if (!userId) {
@@ -61,8 +53,6 @@ export async function POST(request: Request, { params }: RouteContext) {
     return NextResponse.json({ error: 'Meeting not found' }, { status: 404 })
   }
 
-  // Same claim as the audio path, so pasting twice in quick succession cannot
-  // spend two AI calls on one meeting.
   const claimed = await prisma.meeting.updateMany({
     where: { id, userId, status: { not: 'TRANSCRIBING' } },
     data: { status: 'TRANSCRIBING', statusMessage: null },

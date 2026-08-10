@@ -28,7 +28,7 @@ export async function POST(request: Request) {
       email:        body.email,
       passwordHash,
       name:         body.name,
-      role:         'EMPLOYEE', // always force lowest privilege — never trust the client
+      role:         'EMPLOYEE',
     },
     select: {
       id: true,

@@ -34,8 +34,6 @@ import {
 import { StatCard } from '@/components/ui/stat-card'
 import { cn } from '@/lib/utils'
 
-// ─── Types & helpers ──────────────────────────────────────────────────────────
-
 interface Candidate {
   id: string
   documentId: string
@@ -78,8 +76,6 @@ async function readError(response: Response, fallback: string): Promise<string> 
   return (body as { error?: string } | null)?.error ?? fallback
 }
 
-// ─── Rank badge ───────────────────────────────────────────────────────────────
-
 function RankBadge({ rank }: { rank: number }) {
   const styles: Record<number, string> = {
     1: 'bg-[#FFFAEC] text-[#D4A017] border-[#F5CA50]/30',
@@ -100,13 +96,11 @@ function RankBadge({ rank }: { rank: number }) {
 }
 
 function ScoreBar({ score, delay = 0 }: { score: number; delay?: number }) {
-  // Use green for high score, amber for medium, red for low
   const color =
     score >= 80 ? 'bg-green-500' : score >= 60 ? 'bg-[#F5CA50]' : 'bg-red-500'
   return (
     <div className="flex items-center gap-3">
       <div className="h-2 w-24 overflow-hidden rounded-full bg-gray-100">
-        {/* Fills from empty to the final score as the row settles. */}
         <motion.div
           className={cn('h-full rounded-full', color)}
           initial={{ width: 0 }}
@@ -118,8 +112,6 @@ function ScoreBar({ score, delay = 0 }: { score: number; delay?: number }) {
     </div>
   )
 }
-
-// ─── Candidate Detail Drawer ──────────────────────────────────────────────────
 
 function CandidateDrawer({
   candidate: initial,
@@ -145,7 +137,6 @@ function CandidateDrawer({
         setCandidate(detail)
         setQuestions(detail.interviewQuestions)
       } catch {
-        // Keep the row data already on screen.
       }
     }
 
@@ -207,7 +198,6 @@ function CandidateDrawer({
         </div>
 
         <div className="flex flex-col gap-6 p-4 md:p-6">
-          {/* Summary */}
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-sm">AI Assessment</CardTitle>
@@ -219,7 +209,6 @@ function CandidateDrawer({
             </CardContent>
           </Card>
 
-          {/* Score */}
           <div className="flex items-center gap-5">
             <div className="flex size-16 flex-col items-center justify-center rounded-2xl bg-[#FFFAEC] border border-[#F5CA50]/30 text-[#D4A017]">
               <span className="text-2xl font-bold tabular-nums">{view.matchScore}</span>
@@ -233,7 +222,6 @@ function CandidateDrawer({
             </div>
           </div>
 
-          {/* Skills breakdown */}
           <div>
             <p className="mb-3 text-[13px] font-bold text-gray-900 uppercase tracking-wide">Skills Matched</p>
             <div className="flex flex-wrap gap-2">
@@ -257,7 +245,6 @@ function CandidateDrawer({
             </div>
           )}
 
-          {/* Interview questions */}
           <div className="pt-2 border-t border-gray-50">
             <p className="mb-4 text-[13px] font-bold text-gray-900 uppercase tracking-wide">AI-Generated Interview Questions</p>
             {questions.length > 0 ? (
@@ -294,8 +281,6 @@ function CandidateDrawer({
     </div>
   )
 }
-
-// ─── Upload Zone ──────────────────────────────────────────────────────────────
 
 function UploadZone({
   onScreen,
@@ -419,8 +404,6 @@ function UploadZone({
   )
 }
 
-// ─── Results Table ────────────────────────────────────────────────────────────
-
 function ResultsTable({ candidates, onSelect }: { candidates: Candidate[]; onSelect: (id: string) => void }) {
   return (
     <Card className="overflow-hidden">
@@ -444,11 +427,6 @@ function ResultsTable({ candidates, onSelect }: { candidates: Candidate[]; onSel
           </TableHeader>
           <TableBody>
             {candidates.map((c, i) => (
-              /*
-                motion.tr rather than TableRow: the `layout` prop needs a DOM
-                ref, which TableRow does not forward. Classes are copied from
-                TableRow verbatim so the row renders identically.
-              */
               <motion.tr
                 key={c.id}
                 layout
@@ -503,8 +481,6 @@ function ResultsTable({ candidates, onSelect }: { candidates: Candidate[]; onSel
   )
 }
 
-// ─── Main Page ────────────────────────────────────────────────────────────────
-
 export default function ResumesPage() {
   const [candidates, setCandidates] = useState<Candidate[]>([])
   const [hasResults, setHasResults] = useState(false)
@@ -550,15 +526,6 @@ export default function ResumesPage() {
         skipped: { fileName: string; reason: string }[]
       }
 
-      /*
-        Show the candidates in the order they were uploaded first, then hand
-        the ranked order to React on the next frame. The rows carry framer's
-        `layout` prop, so that second render animates them into their ranked
-        positions (FLIP) instead of the table appearing pre-sorted.
-
-        Purely presentational: `ranked` is the same array either way, and the
-        settle is skipped entirely under reduced motion.
-      */
       const uploadOrder = [...ranked].sort(
         (a, b) =>
           files.findIndex((f) => f.name === a.fileName) -
@@ -587,7 +554,7 @@ export default function ResumesPage() {
 
   const selectedCandidate = candidates.find((c) => c.id === selectedCandidateId) ?? null
 
-  const avgMatch = hasResults && candidates.length > 0 
+  const avgMatch = hasResults && candidates.length > 0
     ? Math.round(candidates.reduce((acc, c) => acc + c.matchScore, 0) / candidates.length)
     : 0
 
@@ -615,7 +582,6 @@ export default function ResumesPage() {
           )}
         </div>
 
-        {/* Top Stat Row */}
         {hasResults && !isProcessing && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6 mb-2">
             <StatCard title="Total Resumes" value={candidates.length.toString()} icon={Users} />

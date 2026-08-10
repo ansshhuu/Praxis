@@ -14,16 +14,12 @@ export const metadata: Metadata = {
 export default function LandingPage() {
   return (
     <div className="landing-root">
-      {/* Frosted glass nav — sits over glowing hero background */}
       <LandingNav />
 
-      {/* Full-viewport hero with ambient glow background + floating cards */}
       <HeroSection />
 
-      {/* 4-column feature module highlights */}
       <FeaturesSection />
 
-      {/* Minimal footer */}
       <LandingFooter />
     </div>
   )

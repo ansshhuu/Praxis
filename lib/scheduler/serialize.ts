@@ -1,10 +1,3 @@
-/**
- * Shapes a ScheduledJob row for the client, joined with its workflow.
- *
- * Shared by the collection and item routes so a job looks identical whether it
- * arrived from a list, a create or a toggle.
- */
-
 import { describeCron, nextRunFor } from './cron'
 
 export interface ScheduledJobPayload {
@@ -19,7 +12,6 @@ export interface ScheduledJobPayload {
   triggeredBy: string
 }
 
-/** Selection every scheduler route reads, so payload shape can't drift. */
 export const jobSelect = {
   id: true,
   workflowId: true,
@@ -49,9 +41,6 @@ export type JobRow = {
 }
 
 export function toJobPayload(job: JobRow): ScheduledJobPayload {
-  // Nothing executes these schedules, so a stored `next_run` goes stale as
-  // soon as it passes. Recompute for display rather than showing a fire time
-  // in the past; the stored value is left alone.
   const nextRun = job.nextRun.getTime() > Date.now() ? job.nextRun : nextRunFor(job.cronExpr)
 
   return {

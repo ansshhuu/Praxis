@@ -2,6 +2,8 @@ import bcrypt from 'bcryptjs'
 import type { NextAuthOptions } from 'next-auth'
 import CredentialsProvider from 'next-auth/providers/credentials'
 
+import { ACTIVITY_ACTIONS } from '@/lib/activity/actions'
+import { logActivity } from '@/lib/activity/log'
 import { prisma } from '@/lib/db/prisma'
 
 export const authOptions: NextAuthOptions = {
@@ -40,6 +42,11 @@ export const authOptions: NextAuthOptions = {
         await prisma.user.update({
           where: { id: user.id },
           data: { lastLogin: new Date() },
+        })
+
+        await logActivity(user.id, ACTIVITY_ACTIONS.userLogin, {
+          email: user.email,
+          role: user.role,
         })
 
         return {

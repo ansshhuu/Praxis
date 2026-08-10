@@ -1,25 +1,5 @@
-/* ═══════════════════════════════════════════════════════════════════════════
-   LANDING PAGE — EAWMP  ·  Warm off-white / amber-lime palette
-   Palette:
-     bg:        #F7F7F6 → #FFFFFF
-     sand:      #EAE3D9 / #DFD6C9
-     amber:     #FFE485 / #F5CA50
-     lime:      #76E012
-     heading:   #111111
-     body:      #66615B
-   ═══════════════════════════════════════════════════════════════════════════ */
-
-/* ── Body/html override when on landing page ────────────────────────────── */
-/*
-  IMPORTANT: overflow-x:hidden must live on html/body — NOT on .landing-root.
-  Setting overflow:hidden on a non-body ancestor creates a new stacking context
-  which causes position:fixed children (the navbar) to behave like position:absolute
-  and scroll with the page instead of staying pinned. Keeping it on the scroll root
-  (html/body) is safe and does not break fixed positioning.
-*/
-html:has(.landing-root),
-body:has(.landing-root) {
-  overflow-x: hidden;
+html:has(.landing-root) {
+  overflow-x: clip;
 }
 body:has(.landing-root) {
   background: #F7F7F6 !important;
@@ -31,12 +11,9 @@ body:has(.landing-root) {
   color: #111111;
   min-height: 100vh;
   font-family: var(--font-sans, 'Inter', ui-sans-serif, system-ui, sans-serif);
-  /* NO overflow:hidden here — that breaks position:fixed on descendant navbar */
+
 }
 
-/* ════════════════════════════════════════════════════════════════════════════
-   NAVIGATION — floating frosted capsule
-   ═══════════════════════════════════════════════════════════════════════════ */
 .lnav-wrap {
   position: fixed;
   top: 0;
@@ -47,7 +24,7 @@ body:has(.landing-root) {
   justify-content: center;
   padding: 14px 20px 0;
   pointer-events: none;
-  /* Premium spring-like slide — feels buttery, not mechanical */
+
   transform: translateY(0);
   opacity: 1;
   transition:
@@ -55,13 +32,12 @@ body:has(.landing-root) {
     opacity   0.4s ease;
   will-change: transform, opacity;
 }
-/* Hidden state — slides fully above viewport with graceful fade */
+
 .lnav-wrap.lnav-hidden {
   transform: translateY(-120%);
   opacity: 0;
   pointer-events: none;
 }
-
 
 .lnav {
   pointer-events: auto;
@@ -82,7 +58,6 @@ body:has(.landing-root) {
     0 1px 4px rgba(0, 0, 0, 0.04);
   transition: box-shadow 0.3s;
 }
-
 
 .lnav.scrolled {
   box-shadow:
@@ -178,7 +153,6 @@ body:has(.landing-root) {
 .lnav-btn-solid:hover { background: #222222; transform: translateY(-1px); }
 .lnav-btn-solid:active { transform: translateY(0); }
 
-/* Mobile hamburger */
 .lnav-mobile-btn {
   display: none;
   align-items: center;
@@ -200,7 +174,6 @@ body:has(.landing-root) {
   .lnav-mobile-btn { display: flex !important; }
 }
 
-/* Mobile drawer */
 .lnav-mobile-drawer {
   position: fixed;
   top: 78px;
@@ -222,9 +195,6 @@ body:has(.landing-root) {
   opacity: 1;
 }
 
-/* ════════════════════════════════════════════════════════════════════════════
-   HERO SECTION
-   ═══════════════════════════════════════════════════════════════════════════ */
 .hero-section {
   min-height: 100vh;
   display: flex;
@@ -237,11 +207,10 @@ body:has(.landing-root) {
   padding-right: 20px;
   position: relative;
   overflow: hidden;
-  /* Warm atmospheric background */
+
   background: #FAF8F4;
 }
 
-/* ── Warm radial glow — main light source behind content ─── */
 .hero-blob-amber {
   position: absolute;
   top: 50%;
@@ -261,7 +230,7 @@ body:has(.landing-root) {
   pointer-events: none;
   z-index: 0;
 }
-/* Warm rays streaking outward — upper right */
+
 .hero-blob-lime {
   position: absolute;
   top: -120px;
@@ -274,7 +243,7 @@ body:has(.landing-root) {
   pointer-events: none;
   z-index: 0;
 }
-/* Warm rays — lower left */
+
 .hero-blob-sand {
   position: absolute;
   bottom: 0;
@@ -287,7 +256,7 @@ body:has(.landing-root) {
   pointer-events: none;
   z-index: 0;
 }
-/* Extra central warm glow — soft sun-like core */
+
 .hero-blob-core {
   position: absolute;
   top: 38%;
@@ -302,7 +271,6 @@ body:has(.landing-root) {
   z-index: 0;
 }
 
-/* ── Hero badge ─────────────────────────────────────────────────────────── */
 .hero-badge {
   display: inline-flex;
   align-items: center;
@@ -320,7 +288,6 @@ body:has(.landing-root) {
   box-shadow: 0 2px 8px rgba(0,0,0,0.06);
 }
 
-/* ── Hero text area ──────────────────────────────────────────────────────── */
 .hero-text-area {
   position: relative;
   z-index: 10;
@@ -352,8 +319,6 @@ body:has(.landing-root) {
   font-weight: 400;
 }
 
-
-/* ── CTA row ─────────────────────────────────────────────────────────────── */
 .hero-cta-row {
   display: flex;
   align-items: center;
@@ -426,18 +391,16 @@ body:has(.landing-root) {
   flex-shrink: 0;
 }
 
-/* ── Dashboard mockup container ─────────────────────────────────────────── */
 .dashboard-scene {
   position: relative;
   z-index: 10;
   width: 100%;
   max-width: 1100px;
   margin: 48px auto 0;
-  /* Extra side space for overlay cards */
+
   padding: 40px 30px 60px;
 }
 
-/* Central window frame */
 .dashboard-window {
   width: 100%;
   background: #FFFFFF;
@@ -450,7 +413,6 @@ body:has(.landing-root) {
   overflow: hidden;
 }
 
-/* Title bar */
 .dashboard-titlebar {
   height: 36px;
   background: #F7F7F6;
@@ -471,7 +433,6 @@ body:has(.landing-root) {
   height: 380px;
 }
 
-/* Left sidebar */
 .db-sidebar {
   width: 160px;
   flex-shrink: 0;
@@ -511,7 +472,6 @@ body:has(.landing-root) {
 }
 .db-sidebar-item:not(.active):hover { background: rgba(0,0,0,0.04); }
 
-/* Main canvas area */
 .db-canvas {
   flex: 1;
   padding: 20px;
@@ -528,7 +488,6 @@ body:has(.landing-root) {
   letter-spacing: -0.01em;
 }
 
-/* Workflow nodes chain */
 .workflow-chain {
   display: flex;
   align-items: center;
@@ -561,7 +520,6 @@ body:has(.landing-root) {
   width: 32px;
 }
 
-/* Mini stats row below workflow */
 .db-stats-row {
   display: flex;
   gap: 10px;
@@ -577,7 +535,6 @@ body:has(.landing-root) {
 .db-stat-label { font-size: 10px; color: #66615B; margin-bottom: 2px; }
 .db-stat-value { font-size: 16px; font-weight: 800; color: #111111; letter-spacing: -0.02em; }
 
-/* ── Overlay cards (flat, 2.5D) ─────────────────────────────────────────── */
 .overlay-card {
   position: absolute;
   background: #FFFFFF;
@@ -597,7 +554,6 @@ body:has(.landing-root) {
   transform: translateY(-4px);
 }
 
-/* Amber accent border + under-glow */
 .overlay-card.accent-amber {
   border-color: #F5CA50;
   box-shadow:
@@ -611,7 +567,6 @@ body:has(.landing-root) {
     0 20px 60px -8px rgba(245, 202, 80, 0.35);
 }
 
-/* Lime accent border + under-glow */
 .overlay-card.accent-lime {
   border-color: #76E012;
   box-shadow:
@@ -625,7 +580,6 @@ body:has(.landing-root) {
     0 20px 60px -8px rgba(118, 224, 18, 0.28);
 }
 
-/* Card positioning — flat offsets, no rotation */
 .oc-doc-intel {
   top: 10px;
   left: -10px;
@@ -651,7 +605,6 @@ body:has(.landing-root) {
   z-index: 42;
 }
 
-/* ── BIG Workflow Builder Card ──────────────────────────────────────────── */
 .wf-builder-card {
   position: relative;
   z-index: 25;
@@ -667,7 +620,6 @@ body:has(.landing-root) {
   isolation: isolate;
 }
 
-/* Inner top bar of builder card */
 .wfb-topbar {
   height: 38px;
   background: #F9F8F7;
@@ -682,7 +634,6 @@ body:has(.landing-root) {
 .wfb-breadcrumb { font-size: 10.5px; color: #66615B; margin-left: 8px; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .wfb-topbar-icons { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 
-/* Tabs row */
 .wfb-tabs {
   display: flex;
   align-items: center;
@@ -719,10 +670,8 @@ body:has(.landing-root) {
 }
 .wfb-btn-sm.primary { background: #111111; color: #FFE485; border-color: #111111; }
 
-/* Builder body layout */
 .wfb-body { display: flex; overflow: hidden; }
 
-/* Thin node palette column */
 .wfb-palette {
   width: 52px;
   flex-shrink: 0;
@@ -752,7 +701,6 @@ body:has(.landing-root) {
 .wfb-palette-item:hover { background: rgba(0,0,0,0.05); }
 .wfb-palette-item.active { background: rgba(245,202,80,0.18); color: #D4A017; }
 
-/* Sidebar with nav items */
 .wfb-sidebar {
   width: 130px;
   flex-shrink: 0;
@@ -763,7 +711,7 @@ body:has(.landing-root) {
   flex-direction: column;
   gap: 1px;
   overflow: hidden;
-  /* Ensure fully opaque — no see-through */
+
   opacity: 1;
 }
 .wfb-sidebar-logo {
@@ -788,7 +736,6 @@ body:has(.landing-root) {
 }
 .wfb-sidebar-item.active { background: #111111; color: #fff; font-weight: 700; }
 
-/* Main canvas */
 .wfb-canvas {
   flex: 1;
   background: #F9F8F7;
@@ -801,7 +748,6 @@ body:has(.landing-root) {
   flex-direction: column;
 }
 
-/* Canvas nodes area */
 .wfb-nodes-area {
   flex: 1;
   display: flex;
@@ -811,7 +757,6 @@ body:has(.landing-root) {
   overflow-x: auto;
 }
 
-/* Workflow node card */
 .wfb-node-card {
   background: #FFFFFF;
   border-radius: 12px;
@@ -825,7 +770,7 @@ body:has(.landing-root) {
   box-shadow: 0 2px 8px rgba(0,0,0,0.07);
   position: relative;
 }
-/* Colored rounded-square icon badge */
+
 .wfb-node-badge {
   width: 28px;
   height: 28px;
@@ -860,10 +805,8 @@ body:has(.landing-root) {
   flex-shrink: 0;
 }
 
-/* Elbow connector */
 .wfb-elbow { width: 40px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
 
-/* Zoom controls */
 .wfb-zoom-bar {
   display: flex;
   align-items: center;
@@ -888,7 +831,6 @@ body:has(.landing-root) {
 }
 .wfb-zoom-pct { font-size: 10.5px; font-weight: 600; color: #66615B; padding: 0 6px; }
 
-/* card internals */
 .oc-title { font-size: 11px; font-weight: 700; color: #111111; margin-bottom: 8px; }
 .oc-sub { font-size: 9.5px; color: #66615B; }
 .oc-badge {
@@ -910,7 +852,6 @@ body:has(.landing-root) {
   color: #92700a;
 }
 
-/* ── Animations ──────────────────────────────────────────────────────────── */
 @keyframes fade-up {
   from { opacity: 0; transform: translateY(22px); }
   to   { opacity: 1; transform: translateY(0); }
@@ -922,7 +863,6 @@ body:has(.landing-root) {
 .fu-4 { animation: fade-up 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.36s both; }
 .fu-5 { animation: fade-up 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.50s both; }
 
-/* Subtle float for overlay cards */
 @keyframes float-card-a {
   0%, 100% { transform: translateY(0px); }
   50%       { transform: translateY(-6px); }
@@ -936,7 +876,6 @@ body:has(.landing-root) {
 .oc-analytics  { animation: fade-up 0.8s cubic-bezier(0.22,1,0.36,1) 0.75s both, float-card-a 7s ease-in-out 1.8s infinite; }
 .oc-ai-chat    { animation: fade-up 0.8s cubic-bezier(0.22,1,0.36,1) 0.85s both, float-card-b 5.5s ease-in-out 2.0s infinite; }
 
-/* ── Scroll pill at bottom of hero ─────────────────────────────────────── */
 .scroll-pill {
   position: absolute;
   bottom: 28px;
@@ -961,16 +900,12 @@ body:has(.landing-root) {
   cursor: default;
 }
 
-/* ════════════════════════════════════════════════════════════════════════════
-   FEATURES SECTION — old feat-card styles (kept for compatibility)
-   ═══════════════════════════════════════════════════════════════════════════ */
 .features-section {
   background: #FFFFFF;
   border-top: 1px solid rgba(0, 0, 0, 0.06);
   padding: 96px 20px;
 }
 
-/* ── Shared section typography (used in multiple sections) ─ */
 .section-tag {
   display: inline-block;
   background: #F0EBE3;
@@ -1027,20 +962,14 @@ body:has(.landing-root) {
 .feat-title { font-size: 15px; font-weight: 700; color: #111111; margin-bottom: 8px; }
 .feat-desc  { font-size: 13.5px; color: #66615B; line-height: 1.6; }
 
-/* ════════════════════════════════════════════════════════════════════════════
-   STICKY SCROLL SHOWCASE (SSS) — 2-column interactive feature explorer
-   ═══════════════════════════════════════════════════════════════════════════ */
-
-/* ── Outer section: tall enough to allow native scrolling (6 steps) ─ */
 .sss-section {
   background: #F7F7F6;
   border-top: 1px solid rgba(0,0,0,0.06);
   width: 100%;
-  height: 300vh; /* gives exactly enough room for scroll mapping, zero blank space */
+  height: 300vh;
   position: relative;
 }
 
-/* ── Inner pin wrapper: sticks to top, exactly one viewport high ───── */
 .sss-pin-wrap {
   position: sticky;
   top: 0;
@@ -1050,10 +979,9 @@ body:has(.landing-root) {
   align-items: center;
   justify-content: center;
   height: 100vh;
-  overflow: hidden; /* nothing spills past the pinned viewport edges */
+  overflow: hidden;
 }
 
-/* ── Compact header (no heavy top padding since section is viewport-pinned) */
 .sss-header {
   text-align: center;
   padding: 0 0 32px;
@@ -1063,27 +991,24 @@ body:has(.landing-root) {
   margin-bottom: 0;
 }
 
-/* ── 12-column grid body ────────────────────────── */
 .sss-layout {
   display: grid;
   grid-template-columns: 5fr 7fr;
   gap: 32px;
   align-items: center;
   width: 100%;
-  max-width: 1280px; /* max-w-7xl */
+  max-width: 1280px;
   margin: 0 auto;
-  padding: 0 24px;   /* px-6 */
-  height: 80vh;      /* exactly 80vh as requested */
+  padding: 0 24px;
+  height: 80vh;
 }
 
-/* ── LEFT column ───────────────────────────────── */
 .sss-left {
   display: flex;
   flex-direction: column;
   justify-content: center;
 }
 
-/* Nav container */
 .sss-nav {
   display: flex;
   flex-direction: column;
@@ -1091,7 +1016,6 @@ body:has(.landing-root) {
   border-left: 2px solid #EAE3D9;
 }
 
-/* Each nav item */
 .sss-nav-item {
   display: flex;
   flex-direction: column;
@@ -1142,7 +1066,6 @@ body:has(.landing-root) {
 }
 .sss-nav-item.active .sss-nav-title { color: #111111; }
 
-/* Expanded desc + link for active item */
 .sss-nav-expanded {
   margin-top: 8px;
   padding-left: 30px;
@@ -1178,7 +1101,6 @@ body:has(.landing-root) {
   border-color: rgba(0,0,0,0.4);
 }
 
-/* ── RIGHT column ───────────────────────────────── */
 .sss-right {
   display: flex;
   align-items: center;
@@ -1186,11 +1108,10 @@ body:has(.landing-root) {
   height: 100%;
 }
 
-/* Warm sand bezel frame */
 .sss-card-frame {
   width: 100%;
   height: 100%;
-  max-height: 500px;          /* hard cap: entire card fits on standard screens */
+  max-height: 500px;
   border-radius: 20px;
   border: 1.5px solid #E5E0D8;
   background: #EAE3D9;
@@ -1203,7 +1124,6 @@ body:has(.landing-root) {
   flex-direction: column;
 }
 
-/* White preview card inside the frame */
 .sss-card-preview {
   flex: 1;
   background: #FFFFFF;
@@ -1213,10 +1133,9 @@ body:has(.landing-root) {
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  min-height: 0;              /* allow flex children to shrink */
+  min-height: 0;
 }
 
-/* Fade + slide animation on swap */
 .sss-fade-slide {
   animation: sss-fade-slide 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
@@ -1225,7 +1144,6 @@ body:has(.landing-root) {
   to   { opacity: 1; transform: translateY(0); }
 }
 
-/* ── Preview card internals ────────────────────────── */
 .sss-preview-inner {
   display: flex;
   flex-direction: column;
@@ -1234,7 +1152,6 @@ body:has(.landing-root) {
   overflow: hidden;
 }
 
-/* macOS-style topbar */
 .sss-preview-topbar {
   height: 34px;
   background: #F7F7F6;
@@ -1252,7 +1169,6 @@ body:has(.landing-root) {
   flex-shrink: 0;
 }
 
-/* Tab row */
 .sss-tabs-row {
   display: flex;
   align-items: center;
@@ -1296,7 +1212,6 @@ body:has(.landing-root) {
   border-color: #111111;
 }
 
-/* Canvas with dotgrid */
 .sss-canvas-body {
   flex: 1;
   display: flex;
@@ -1310,7 +1225,6 @@ body:has(.landing-root) {
   background-size: 20px 20px;
 }
 
-/* Workflow nodes row */
 .sss-nodes-row {
   flex: 1;
   display: flex;
@@ -1321,7 +1235,6 @@ body:has(.landing-root) {
   min-height: 0;
 }
 
-/* Individual node card */
 .sss-node {
   background: #FFFFFF;
   border-radius: 12px;
@@ -1345,7 +1258,6 @@ body:has(.landing-root) {
   margin-bottom: 2px;
 }
 
-/* Zoom bar */
 .sss-zoom-bar {
   display: flex;
   align-items: center;
@@ -1375,7 +1287,6 @@ body:has(.landing-root) {
   padding: 0 5px;
 }
 
-/* ── Responsive: mobile falls back to stacked scroll ── */
 @media (max-width: 900px) {
   .sss-section {
     height: auto;
@@ -1405,11 +1316,6 @@ body:has(.landing-root) {
   }
 }
 
-
-
-/* ════════════════════════════════════════════════════════════════════════════
-   FOOTER
-   ═══════════════════════════════════════════════════════════════════════════ */
 .landing-footer {
   background: #F7F7F6;
   border-top: 1px solid rgba(0, 0, 0, 0.07);
@@ -1424,10 +1330,8 @@ body:has(.landing-root) {
 }
 .footer-link:hover { color: #111111; }
 
-/* ── Section scroll animation ────────────────────────────────────────────── */
 .section-fade-up { animation: fade-up 0.65s cubic-bezier(0.22, 1, 0.36, 1) 0.1s both; }
 
-/* ── Responsive ─────────────────────────────────────────────────────────── */
 @media (max-width: 900px) {
   .overlay-card { display: none; }
   .dashboard-scene { margin-top: 36px; }
@@ -1439,17 +1343,15 @@ body:has(.landing-root) {
   .dashboard-body { height: 260px; }
   .dashboard-scene { margin-top: 28px; }
   .lnav { max-width: calc(100vw - 40px); }
-  /* Allow headline to wrap on very small screens rather than overflow */
+
   .hero-headline { white-space: normal; }
 }
 
-/* ── Blink cursor for AI chat card ──────────────────────────────────────── */
 @keyframes blink {
   0%, 100% { opacity: 1; }
   50%       { opacity: 0; }
 }
 
-/* ── Pulse for status dots ───────────────────────────────────────────────── */
 @keyframes pulse {
   0%, 100% { opacity: 1; }
   50%       { opacity: 0.4; }

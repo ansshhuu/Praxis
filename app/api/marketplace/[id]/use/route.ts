@@ -8,13 +8,6 @@ export const dynamic = 'force-dynamic'
 
 type RouteContext = { params: Promise<{ id: string }> }
 
-/**
- * POST /api/marketplace/[id]/use — fork a template into the caller's own
- * workflows.
- *
- * The copy is a plain DRAFT owned by the caller; the template row is never
- * touched, so the same template can be forked any number of times.
- */
 export async function POST(_request: Request, { params }: RouteContext) {
   const userId = await getCurrentUserId()
   if (!userId) {

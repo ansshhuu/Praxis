@@ -6,7 +6,6 @@ import { toReportSummary } from '@/lib/reports/serialize'
 
 export const dynamic = 'force-dynamic'
 
-/** GET /api/reports — the signed-in user's generated reports, newest first. */
 export async function GET() {
   const userId = await getCurrentUserId()
   if (!userId) {

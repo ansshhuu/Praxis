@@ -19,14 +19,10 @@ export type NodeCategory = 'trigger' | 'ai' | 'logic' | 'action'
 
 export type CategoryStyle = {
   label: string
-  /** Left-border + icon accent color */
   color: string
-  /** Soft tint for the icon chip background */
   tint: string
 }
 
-// ── Category-level color themes ───────────────────────────────────────────────
-// trigger → green | ai → indigo/purple | logic → orange | action → amber
 export const categoryStyles: Record<NodeCategory, CategoryStyle> = {
   trigger: { label: 'Trigger', color: '#16a34a', tint: 'rgba(22, 163, 74, 0.12)' },
   ai:      { label: 'AI',      color: '#6366f1', tint: 'rgba(99, 102, 241, 0.12)' },
@@ -55,29 +51,19 @@ export type NodeTypeDef = {
   category: NodeCategory
   icon: LucideIcon
   description: string
-  /**
-   * Optional per-node accent color (hex). Overrides the category color for
-   * the icon badge and left-border. Falls back to categoryStyles[category].color.
-   */
   colorOverride?: string
-  /**
-   * Optional per-node icon-chip tint. Falls back to categoryStyles[category].tint.
-   */
   tintOverride?: string
 }
 
-/** Resolve the effective accent color for any node def. */
 export function nodeColor(def: NodeTypeDef): string {
   return def.colorOverride ?? categoryStyles[def.category].color
 }
 
-/** Resolve the effective chip-background tint for any node def. */
 export function nodeTint(def: NodeTypeDef): string {
   return def.tintOverride ?? categoryStyles[def.category].tint
 }
 
 export const nodeTypes: NodeTypeDef[] = [
-  // ── Triggers (green) ─────────────────────────────────────────────────────
   {
     key: 'email-trigger',
     label: 'Email Trigger',
@@ -100,7 +86,6 @@ export const nodeTypes: NodeTypeDef[] = [
     description: 'Triggers from an inbound HTTP request',
   },
 
-  // ── AI (indigo) ───────────────────────────────────────────────────────────
   {
     key: 'ai-classify',
     label: 'AI Classify',
@@ -116,7 +101,6 @@ export const nodeTypes: NodeTypeDef[] = [
     description: 'Pull structured fields from text',
   },
 
-  // ── Actions (amber default; DB overridden to orange-red) ─────────────────
   {
     key: 'save-db',
     label: 'Save to DB',
@@ -155,7 +139,6 @@ export const nodeTypes: NodeTypeDef[] = [
     description: 'Send an outbound email',
   },
 
-  // ── Logic (orange) ────────────────────────────────────────────────────────
   {
     key: 'condition',
     label: 'Condition',

@@ -12,17 +12,12 @@ import {
   type NodeTypeKey,
 } from './node-catalog'
 
-/**
- * Mirrors `StepLog['status']` in lib/workflows/engine.ts, plus the two states
- * the engine has no opinion on: `idle` (never run) and `running` (in flight).
- */
 export type WorkflowNodeStatus = 'idle' | 'running' | 'done' | 'failed' | 'skipped'
 
 export type WorkflowNodeData = {
   typeKey: NodeTypeKey
   label: string
   status?: WorkflowNodeStatus
-  /** Per-node settings from the config drawer; read by the execution engine. */
   config?: Record<string, string>
 }
 
@@ -44,15 +39,11 @@ export function WorkflowNode({ data, selected }: NodeProps) {
         status === 'running' && 'animate-pulse-ring',
         status === 'done' && 'animate-node-success',
         status === 'failed' && 'animate-node-shake',
-        // A skipped branch stays legible but visibly out of the path taken.
         status === 'skipped' && 'opacity-55',
       )}
       style={{
         borderLeft: `4px solid ${color}`,
-        // Subtle category-tinted full border when selected
         ...(selected ? { borderColor: color, borderLeftWidth: '4px' } : {}),
-        // Terminal states override the resting border so the outcome reads at
-        // a glance without hunting for the corner badge.
         ...(status === 'done' ? { borderColor: '#16a34a' } : {}),
         ...(status === 'failed' ? { borderColor: '#dc2626', borderLeftColor: '#dc2626' } : {}),
       }}
@@ -64,7 +55,6 @@ export function WorkflowNode({ data, selected }: NodeProps) {
         style={{ background: color }}
       />
 
-      {/* ── Icon badge: 44 × 44 px rounded-xl chip ── */}
       <span
         className="flex size-11 shrink-0 items-center justify-center rounded-xl"
         style={{ background: tint, color }}

@@ -21,8 +21,6 @@ import {
   YAxis,
 } from 'recharts'
 
-// ─── Wire format returned by /api/analytics ───────────────────────────────────
-
 interface TrendPoint {
   label: string
   value: number
@@ -69,8 +67,6 @@ interface Analytics {
   storage: StorageUsage
 }
 
-// ─── Shared chart config ──────────────────────────────────────────────────────
-
 const AMBER = '#F5CA50'
 const DARK_GOLD = '#D4A017'
 const SUCCESS = '#22c55e'
@@ -80,16 +76,14 @@ const WARM_CREAM = '#EAE3D9'
 
 const tooltipStyle = {
   backgroundColor: '#ffffff',
-  border: '1px solid #f3f4f6', // gray-100
+  border: '1px solid #f3f4f6',
   borderRadius: '0.75rem',
-  color: '#111827', // gray-900
+  color: '#111827',
   fontSize: 12,
   fontWeight: 600,
   boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.05)',
   padding: '8px 12px',
 }
-
-// ─── AI Usage Chart ───────────────────────────────────────────────────────────
 
 function AiUsageChart({ data }: { data: TrendPoint[] }) {
   return (
@@ -118,8 +112,6 @@ function AiUsageChart({ data }: { data: TrendPoint[] }) {
     </Card>
   )
 }
-
-// ─── Workflow Success/Fail Chart ──────────────────────────────────────────────
 
 function WorkflowStatusChart({ data }: { data: WorkflowStatusPoint[] }) {
   return (
@@ -151,8 +143,6 @@ function WorkflowStatusChart({ data }: { data: WorkflowStatusPoint[] }) {
     </Card>
   )
 }
-
-// ─── Response Time Trend ──────────────────────────────────────────────────────
 
 function ResponseTimeChart({ data }: { data: ResponseTimePoint[] }) {
   return (
@@ -186,8 +176,6 @@ function ResponseTimeChart({ data }: { data: ResponseTimePoint[] }) {
   )
 }
 
-// ─── API Calls Chart ──────────────────────────────────────────────────────────
-
 function ApiCallsChart({ data }: { data: ApiCallPoint[] }) {
   return (
     <Card className="overflow-hidden">
@@ -215,8 +203,6 @@ function ApiCallsChart({ data }: { data: ApiCallPoint[] }) {
     </Card>
   )
 }
-
-// ─── Storage Gauge ────────────────────────────────────────────────────────────
 
 function StorageGauge({ storage }: { storage: StorageUsage }) {
   const usedPct = storage.total > 0 ? Math.round((storage.used / storage.total) * 100) : 0
@@ -280,8 +266,6 @@ function StorageGauge({ storage }: { storage: StorageUsage }) {
     </Card>
   )
 }
-
-// ─── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function AnalyticsPage() {
   const [analytics, setAnalytics] = useState<Analytics | null>(null)

@@ -29,9 +29,6 @@ export function StatCard({ title, value, icon: Icon, iconColor = "text-[#D4A017]
         <div className="flex flex-col gap-1 min-w-0 flex-1">
           <p className="text-sm font-medium text-gray-500 truncate">{title}</p>
           <div className="flex items-baseline gap-2">
-            {/* Count up only for plain string values; a ReactNode value is
-                rendered as given. CountUp itself passes through anything that
-                isn't parseable as a number. */}
             <h3 className="text-2xl font-bold text-gray-900 truncate">
               {typeof value === "string" ? <CountUp value={value} /> : value}
             </h3>

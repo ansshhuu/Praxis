@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server'
 
+import { ACTIVITY_ACTIONS } from '@/lib/activity/actions'
+import { logActivity } from '@/lib/activity/log'
 import { callAI } from '@/lib/ai/ai-router'
 import { getCurrentUserId } from '@/lib/auth/session'
 import { prisma } from '@/lib/db/prisma'
@@ -10,18 +12,8 @@ import { uploadDocument } from '@/lib/storage/supabase'
 
 export const dynamic = 'force-dynamic'
 
-/** Generated report files live under `{userId}/reports/` in the bucket. */
 const REPORTS_FOLDER = 'reports'
 
-/**
- * POST /api/reports/generate — build a real report file and store it.
- *
- * The sequence is: pull real rows for the requested type, spend exactly one
- * `callAI` turning those rows into a written summary, render the file, upload
- * it, then record the report. Nothing is written to the database until the
- * file actually exists in storage, so the list can treat every row as ready
- * to download.
- */
 export async function POST(request: Request) {
   const userId = await getCurrentUserId()
   if (!userId) {
@@ -96,10 +88,16 @@ export async function POST(request: Request) {
     },
   })
 
+  await logActivity(userId, ACTIVITY_ACTIONS.reportGenerated, {
+    reportId: report.id,
+    type,
+    format,
+    fileUrl: report.fileUrl,
+  })
+
   return NextResponse.json({ report: toReportSummary(report) }, { status: 201 })
 }
 
-/** The one prompt this route sends, over the already-compacted data digest. */
 function buildSummaryPrompt(digest: string): string {
   return [
     'You are writing the "Summary & Insights" section of a business report for an enterprise workflow platform.',

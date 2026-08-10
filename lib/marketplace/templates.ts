@@ -1,15 +1,3 @@
-/**
- * Marketplace seed catalogue — the single source of truth shared by
- * `prisma/seed.ts` (which writes these into `marketplace_templates`) and the
- * marketplace page (which reads the presentation-only bits below).
- *
- * `marketplace_templates` stores no icon / rating / usage columns, so those
- * three stay here as display metadata keyed by template name.
- *
- * Kept free of server-only imports so both a client component and a plain
- * `tsx` script can import it.
- */
-
 export type TemplateCategory =
   | 'Finance'
   | 'HR'
@@ -18,7 +6,6 @@ export type TemplateCategory =
   | 'Communication'
   | 'Compliance'
 
-/** Graph blob persisted in `marketplace_templates.workflow_json`. */
 export type TemplateWorkflowJson = {
   nodes: {
     id: string
@@ -40,7 +27,6 @@ export type SeedTemplate = {
   name: string
   description: string
   category: TemplateCategory
-  /** Key into the marketplace page's lucide icon map. */
   icon: string
   usageCount: number
   rating: number
@@ -49,10 +35,6 @@ export type SeedTemplate = {
 
 type Step = { typeKey: string; label: string; config: Record<string, string> }
 
-/**
- * Builds a straight left-to-right chain. Positions/edge styling mirror what
- * the builder produces itself, so a copied template opens looking native.
- */
 function chain(steps: Step[]): TemplateWorkflowJson {
   const nodes: TemplateWorkflowJson['nodes'] = steps.map((step, index) => ({
     id: `n${index + 1}`,
@@ -72,10 +54,6 @@ function chain(steps: Step[]): TemplateWorkflowJson {
 
   return { nodes, edges }
 }
-
-// ── Reusable steps ────────────────────────────────────────────────────────────
-// Config keys must match `fieldsByType` in components/workflow/node-config-drawer.tsx
-// — the execution engine reads config by those exact names.
 
 const emailTrigger = (mailbox: string): Step => ({
   typeKey: 'email-trigger',
@@ -118,8 +96,6 @@ const notify = (channel: string, message: string): Step => ({
   label: 'Notify',
   config: { channel, message },
 })
-
-// ── The catalogue ─────────────────────────────────────────────────────────────
 
 export const SEED_TEMPLATES: SeedTemplate[] = [
   {
@@ -252,7 +228,6 @@ export const SEED_TEMPLATES: SeedTemplate[] = [
   },
 ]
 
-/** Display-only metadata the DB does not store, keyed by template name. */
 export const TEMPLATE_PRESENTATION: Record<
   string,
   { icon: string; usageCount: number; rating: number }

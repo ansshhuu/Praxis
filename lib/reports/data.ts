@@ -1,27 +1,12 @@
-/**
- * Report data collection — the real rows behind each report type.
- *
- * Every collector reads the database only; the single AI call per report
- * happens later, in the route, over the `ReportData` produced here.
- */
-
 import type { ReportType } from '@prisma/client'
 
 import { prisma } from '@/lib/db/prisma'
 
 export interface ReportData {
-  /** Document title, e.g. "Workflow Performance Report". */
   title: string
-  /** Headline figures rendered above the table. */
   highlights: { label: string; value: string }[]
-  /** Table header row. */
   columns: string[]
-  /** Table body. Empty when the user has no data of this kind yet. */
   rows: (string | number)[][]
-  /**
-   * Caveat printed in the document and fed to the AI, used where a report
-   * type has no first-class data source in the schema.
-   */
   note?: string
 }
 
@@ -42,7 +27,6 @@ function formatDuration(ms: number | null): string {
   return ms < 1000 ? `${Math.round(ms)} ms` : `${(ms / 1000).toFixed(1)} s`
 }
 
-/** Platform user directory, grouped by role. */
 async function collectEmployee(): Promise<ReportData> {
   const [users, byRole] = await Promise.all([
     prisma.user.findMany({
@@ -73,7 +57,6 @@ async function collectEmployee(): Promise<ReportData> {
   }
 }
 
-/** Per-workflow execution stats from workflow_runs. */
 async function collectWorkflow(userId: string): Promise<ReportData> {
   const workflows = await prisma.workflow.findMany({
     where: { userId },
@@ -138,12 +121,6 @@ async function collectWorkflow(userId: string): Promise<ReportData> {
   }
 }
 
-/**
- * No sales system is connected to this platform and the schema has no orders,
- * deals or revenue. Rather than invent figures, this reports the document
- * pipeline activity that a sales report would normally be built from, and
- * says so in the document itself.
- */
 async function collectSales(userId: string): Promise<ReportData> {
   const documents = await prisma.document.findMany({
     where: { userId },
@@ -174,7 +151,6 @@ async function collectSales(userId: string): Promise<ReportData> {
   }
 }
 
-/** Candidate screening results from the Resumes module. */
 async function collectHr(userId: string): Promise<ReportData> {
   const resumes = await prisma.resume.findMany({
     where: { document: { userId } },
@@ -216,12 +192,6 @@ async function collectHr(userId: string): Promise<ReportData> {
   }
 }
 
-/**
- * AI consumption. There is no per-call usage ledger in the schema, so this
- * counts the operations that each spend exactly one model call: document
- * summarisation, resume scoring and assistant chat replies, alongside
- * workflow executions which may or may not invoke a model.
- */
 async function collectAiUsage(userId: string): Promise<ReportData> {
   const [documentsProcessed, documentsTotal, resumes, assistantMessages, runs, runsFailed] =
     await Promise.all([
@@ -257,7 +227,6 @@ async function collectAiUsage(userId: string): Promise<ReportData> {
   }
 }
 
-/** Fetches the real data behind `type` for the given user. */
 export async function collectReportData(type: ReportType, userId: string): Promise<ReportData> {
   switch (type) {
     case 'EMPLOYEE':
@@ -273,11 +242,6 @@ export async function collectReportData(type: ReportType, userId: string): Promi
   }
 }
 
-/**
- * Compact text rendering of the collected data, used as the AI prompt context.
- * Row count is capped hard: the router's contract is short prompts, and a
- * 200-row table would blow the free-tier token budget in a single report.
- */
 export function summarizeForPrompt(data: ReportData): string {
   const MAX_PROMPT_ROWS = 15
   const lines = [

@@ -6,13 +6,6 @@ import { toCandidateSummary } from '@/lib/resumes/serialize'
 
 export const dynamic = 'force-dynamic'
 
-/**
- * GET /api/resumes — every candidate the user has screened, ranked.
- *
- * Newest screening first, then rank within it: each screening numbers its own
- * candidates from 1, so ordering by rank alone would interleave batches.
- * `screeningId` is included so the client can show just the latest run.
- */
 export async function GET() {
   const userId = await getCurrentUserId()
   if (!userId) {

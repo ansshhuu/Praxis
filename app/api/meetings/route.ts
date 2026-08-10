@@ -19,7 +19,6 @@ const summarySelect = {
   actionItems: true,
 } as const
 
-/** GET /api/meetings — the caller's meetings, newest first. */
 export async function GET() {
   const userId = await getCurrentUserId()
   if (!userId) {
@@ -35,13 +34,6 @@ export async function GET() {
   return NextResponse.json({ meetings: meetings.map(toSummary) })
 }
 
-/**
- * POST /api/meetings — create a transcript-only meeting (no audio).
- *
- * The entry point for the "paste a transcript instead" flow: it mints the row
- * that POST /api/meetings/[id]/manual-transcript then analyses. Audio-backed
- * meetings come from /api/meetings/upload instead.
- */
 export async function POST(request: Request) {
   const userId = await getCurrentUserId()
   if (!userId) {
@@ -64,7 +56,6 @@ export async function POST(request: Request) {
     data: {
       userId,
       fileName: name.slice(0, 200),
-      // No audio object behind a pasted transcript.
       fileUrl: '',
       storagePath: null,
       status: 'PENDING',

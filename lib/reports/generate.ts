@@ -1,12 +1,3 @@
-/**
- * Report file generation — turns collected `ReportData` plus the AI summary
- * into a real downloadable PDF, Word or Excel file.
- *
- * Server-only. `docx` and `pdf-lib` are pure JavaScript (pdf-lib embeds the
- * standard fonts rather than reading them off disk), so nothing here depends
- * on the filesystem at runtime.
- */
-
 import {
   AlignmentType,
   Document as WordDocument,
@@ -54,12 +45,6 @@ export interface GeneratedFile {
   mimeType: string
 }
 
-/**
- * pdf-lib's standard fonts are WinAnsi-encoded and throw on anything outside
- * CP1252. Report data is user-supplied (file names, candidate names), so any
- * unencodable character is swapped for a plain equivalent rather than being
- * allowed to fail the whole download.
- */
 function toWinAnsi(text: string): string {
   return text
     .replace(/[‘’]/g, "'")
@@ -69,7 +54,7 @@ function toWinAnsi(text: string): string {
     .replace(/[^\x20-\x7E\xA0-\xFF]/g, '?')
 }
 
-const PAGE_WIDTH = 595.28 // A4 portrait, points
+const PAGE_WIDTH = 595.28
 const PAGE_HEIGHT = 841.89
 const MARGIN = 48
 
@@ -86,7 +71,6 @@ async function generatePdf(
   let page = pdf.addPage([PAGE_WIDTH, PAGE_HEIGHT])
   let y = PAGE_HEIGHT - MARGIN
 
-  /** Starts a new page when `needed` points no longer fit above the margin. */
   function ensureSpace(needed: number) {
     if (y - needed >= MARGIN) return
     page = pdf.addPage([PAGE_WIDTH, PAGE_HEIGHT])
@@ -111,12 +95,9 @@ async function generatePdf(
     })
   }
 
-  /** Greedy word wrap against the real glyph widths of the chosen font. */
   function wrap(text: string, size: number, width: number, useBold = false): string[] {
     const usedFont = useBold ? bold : font
     const lines: string[] = []
-    // Split on the newline before sanitising — `toWinAnsi` would otherwise
-    // rewrite it to "?" and run the paragraphs together.
     for (const paragraph of text.split('\n').map(toWinAnsi)) {
       let current = ''
       for (const word of paragraph.split(/\s+/).filter(Boolean)) {
@@ -133,7 +114,6 @@ async function generatePdf(
     return lines
   }
 
-  // ── Title block ────────────────────────────────────────────────────────────
   drawText(data.title, { size: 20, bold: true })
   drawText(
     `Generated ${generatedAt.toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}`,
@@ -141,7 +121,6 @@ async function generatePdf(
   )
   y -= 10
 
-  // ── Key figures ────────────────────────────────────────────────────────────
   if (data.highlights.length) {
     drawText('Key Figures', { size: 13, bold: true })
     y -= 2
@@ -151,7 +130,6 @@ async function generatePdf(
     y -= 10
   }
 
-  // ── AI summary ─────────────────────────────────────────────────────────────
   drawText('Summary & Insights', { size: 13, bold: true })
   y -= 2
   for (const line of wrap(aiSummary, 10, contentWidth)) {
@@ -159,7 +137,6 @@ async function generatePdf(
   }
   y -= 10
 
-  // ── Data table ─────────────────────────────────────────────────────────────
   if (data.rows.length) {
     drawText('Data', { size: 13, bold: true })
     y -= 4
@@ -167,7 +144,6 @@ async function generatePdf(
     const columnWidth = contentWidth / data.columns.length
     const cellSize = 8
 
-    /** Truncates a cell to the column width, with an ellipsis when clipped. */
     function fitCell(value: string): string {
       const text = toWinAnsi(value)
       const max = columnWidth - 6
@@ -194,7 +170,6 @@ async function generatePdf(
     }
 
     drawRow(data.columns, true)
-    // Rule under the header, at the current baseline.
     page.drawLine({
       start: { x: MARGIN, y: y - 3 },
       end: { x: PAGE_WIDTH - MARGIN, y: y - 3 },
@@ -318,7 +293,6 @@ function generateExcel(
 ): GeneratedFile {
   const workbook = XLSX.utils.book_new()
 
-  // Sheet 1: the tabular data itself, so it stays sortable/filterable.
   const dataSheet = XLSX.utils.aoa_to_sheet(
     data.rows.length
       ? [data.columns, ...data.rows]
@@ -327,7 +301,6 @@ function generateExcel(
   dataSheet['!cols'] = data.columns.map(() => ({ wch: 22 }))
   XLSX.utils.book_append_sheet(workbook, dataSheet, 'Data')
 
-  // Sheet 2: title, key figures and the AI narrative.
   const summaryRows: (string | number)[][] = [
     [data.title],
     [`Generated ${generatedAt.toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' })}`],
@@ -348,7 +321,6 @@ function generateExcel(
   return { bytes: new Uint8Array(output), ...FORMAT_META.EXCEL }
 }
 
-/** Builds the report file in the requested format. */
 export async function generateReportFile(
   format: ReportFormat,
   data: ReportData,

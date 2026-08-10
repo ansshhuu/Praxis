@@ -25,8 +25,6 @@ import { StatCard } from '@/components/ui/stat-card'
 import { StatusBadge } from '@/components/ui/status-badge'
 import { cn } from '@/lib/utils'
 
-// ─── Types & helpers ──────────────────────────────────────────────────────────
-
 type ApiStatus = 'PENDING' | 'TRANSCRIBING' | 'PROCESSED' | 'FAILED'
 
 interface ActionItem {
@@ -56,7 +54,6 @@ interface ApiMeetingDetail extends ApiMeeting {
   actionItems: ActionItem[]
 }
 
-/** Mapped onto the shared StatusBadge vocabulary. */
 const badgeStatus: Record<ApiStatus, string> = {
   PENDING: 'pending',
   TRANSCRIBING: 'running',
@@ -84,10 +81,6 @@ async function readError(response: Response, fallback: string): Promise<string> 
   return (body as { error?: string } | null)?.error ?? fallback
 }
 
-/**
- * Read playback length client-side. The server cannot get this without
- * decoding the container, and the browser already has a decoder.
- */
 function readDuration(file: File): Promise<number | null> {
   return new Promise((resolve) => {
     const url = URL.createObjectURL(file)
@@ -101,12 +94,9 @@ function readDuration(file: File): Promise<number | null> {
       done(Number.isFinite(audio.duration) ? audio.duration : null)
     audio.onerror = () => done(null)
     audio.src = url
-    // Never block the upload on a container the browser cannot read.
     window.setTimeout(() => done(null), 5000)
   })
 }
-
-// ─── Upload / paste modal ─────────────────────────────────────────────────────
 
 const fieldClass =
   'rounded-xl border border-gray-200 bg-white px-4 py-3 text-[14px] font-medium text-gray-700 outline-none placeholder:text-gray-400 focus:ring-1 focus:ring-[#F5CA50] focus:border-[#F5CA50] shadow-sm transition-all'
@@ -140,7 +130,6 @@ function NewMeetingModal({
 
     const { meeting } = (await response.json()) as { meeting: ApiMeeting }
 
-    // Transcription runs for minutes — fire it and let the list poll.
     const processing = fetch(`/api/meetings/${meeting.id}/process`, {
       method: 'POST',
     }).then(() => undefined)
@@ -197,7 +186,6 @@ function NewMeetingModal({
           </Button>
         </div>
 
-        {/* Mode switch */}
         <div className="mb-5 flex gap-1 rounded-xl border border-gray-200 bg-gray-50 p-1">
           {([
             { id: 'audio', label: 'Upload audio' },
@@ -311,8 +299,6 @@ function NewMeetingModal({
   )
 }
 
-// ─── Inline transcript fallback (shown on a FAILED meeting) ───────────────────
-
 function TranscriptFallback({
   meetingId,
   onDone,
@@ -387,8 +373,6 @@ function TranscriptFallback({
   )
 }
 
-// ─── Detail panel ─────────────────────────────────────────────────────────────
-
 function MeetingDetailView({
   meetingId,
   summary,
@@ -400,7 +384,6 @@ function MeetingDetailView({
 }) {
   const [meeting, setMeeting] = useState<ApiMeetingDetail | null>(null)
   const [activeTab, setActiveTab] = useState<'summary' | 'transcript'>('summary')
-  /** Local only — the checklist is a working aid, not persisted state. */
   const [checked, setChecked] = useState<Record<number, boolean>>({})
 
   const status = meeting?.status ?? summary.status
@@ -419,7 +402,6 @@ function MeetingDetailView({
         const body = (await response.json()) as { meeting: ApiMeetingDetail }
         if (!cancelled) setMeeting(body.meeting)
       } catch {
-        // Transient — the poll will try again.
       }
     }
     void load()
@@ -436,7 +418,6 @@ function MeetingDetailView({
 
   return (
     <Card className="h-full flex flex-col overflow-hidden rounded-2xl shadow-sm border-gray-100 p-0">
-      {/* Header */}
       <div className="p-5 border-b border-gray-100 shrink-0">
         <h3 className="font-bold text-gray-900 text-base truncate pr-2">
           {meeting?.fileName ?? summary.fileName}
@@ -480,7 +461,6 @@ function MeetingDetailView({
 
         {status === 'PROCESSED' && (
           <>
-            {/* Tabs */}
             <div className="flex gap-1 border-b border-gray-100 px-5 pt-4">
               {([
                 { id: 'summary', label: 'Summary & Actions' },
@@ -509,7 +489,6 @@ function MeetingDetailView({
                   </p>
                 )}
 
-                {/* Attendees */}
                 <section>
                   <h4 className="mb-2.5 flex items-center gap-2 text-[12px] font-bold uppercase tracking-wider text-gray-400">
                     <Users className="size-3.5" /> Attendees
@@ -532,7 +511,6 @@ function MeetingDetailView({
                   )}
                 </section>
 
-                {/* Summary */}
                 <section>
                   <h4 className="mb-2.5 flex items-center gap-2 text-[12px] font-bold uppercase tracking-wider text-gray-400">
                     <Sparkles className="size-3.5" /> AI Summary
@@ -548,7 +526,6 @@ function MeetingDetailView({
                   )}
                 </section>
 
-                {/* Action items */}
                 <section>
                   <h4 className="mb-2.5 flex items-center gap-2 text-[12px] font-bold uppercase tracking-wider text-gray-400">
                     <ListChecks className="size-3.5" /> Action Items
@@ -626,8 +603,6 @@ function MeetingDetailView({
   )
 }
 
-// ─── Main page ────────────────────────────────────────────────────────────────
-
 export default function MeetingsPage() {
   const [meetings, setMeetings] = useState<ApiMeeting[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -642,7 +617,6 @@ export default function MeetingsPage() {
       setMeetings(rows)
       setSelectedId((current) => current ?? rows[0]?.id ?? null)
     } catch {
-      // Leave whatever is already on screen.
     } finally {
       setIsLoading(false)
     }
@@ -652,7 +626,6 @@ export default function MeetingsPage() {
     void refresh()
   }, [refresh])
 
-  // Keep the list in step while anything is still transcribing.
   const hasWork = meetings.some((m) => m.status === 'TRANSCRIBING' || m.status === 'PENDING')
   useEffect(() => {
     if (!hasWork) return
@@ -679,7 +652,6 @@ export default function MeetingsPage() {
   return (
     <DashboardShell>
       <div className="mx-auto flex max-w-7xl flex-col gap-6">
-        {/* Header */}
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-gray-900">Meetings</h1>
@@ -697,7 +669,6 @@ export default function MeetingsPage() {
           </Button>
         </div>
 
-        {/* Stats */}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard title="Meetings" value={String(meetings.length)} icon={Mic} />
           <StatCard
@@ -723,9 +694,7 @@ export default function MeetingsPage() {
           />
         </div>
 
-        {/* List + detail */}
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">
-          {/* List */}
           <div className="flex flex-col gap-3">
             {isLoading ? (
               Array.from({ length: 3 }).map((_, i) => (
@@ -786,7 +755,6 @@ export default function MeetingsPage() {
             )}
           </div>
 
-          {/* Detail */}
           <div className="min-h-[520px]">
             {selected ? (
               <MeetingDetailView

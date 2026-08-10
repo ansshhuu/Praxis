@@ -28,8 +28,6 @@ import {
 } from '@/components/ui/table'
 import { cn } from '@/lib/utils'
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
 type ReportType = 'Employee' | 'Workflow' | 'Sales' | 'HR' | 'AI Usage'
 type ReportFormat = 'PDF' | 'Word' | 'Excel'
 type ReportStatus = 'Ready' | 'Generating' | 'Failed'
@@ -73,8 +71,6 @@ async function readError(response: Response, fallback: string): Promise<string> 
   const body = await response.json().catch(() => null)
   return (body as { error?: string } | null)?.error ?? fallback
 }
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const typeColors: Record<ReportType, string> = {
   Employee: 'bg-blue-50 text-blue-700 border border-blue-100',
@@ -121,8 +117,6 @@ function FormatIcon({ format }: { format: ReportFormat }) {
   if (format === 'Word') return <FileType className="size-4 text-blue-600" />
   return <FileText className="size-4 text-red-500" />
 }
-
-// ─── Generate Report Modal ─────────────────────────────────────────────────────
 
 const reportTypes: ReportType[] = ['Employee', 'Workflow', 'Sales', 'HR', 'AI Usage']
 const reportFormats: ReportFormat[] = ['PDF', 'Word', 'Excel']
@@ -240,8 +234,6 @@ function GenerateReportModal({
   )
 }
 
-// ─── Main Page ─────────────────────────────────────────────────────────────────
-
 export default function ReportsPage() {
   const [reports, setReports] = useState<Report[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -270,8 +262,7 @@ export default function ReportsPage() {
   return (
     <DashboardShell>
       <div className="mx-auto flex max-w-[1400px] w-full flex-col gap-6 md:p-6 p-4">
-        
-        {/* Header */}
+
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-gray-900">Reports</h1>
@@ -279,8 +270,8 @@ export default function ReportsPage() {
               Generate and download automated reports from your platform data
             </p>
           </div>
-          <Button 
-            className="bg-[#F5CA50] text-[#111111] hover:brightness-95 font-bold shrink-0" 
+          <Button
+            className="bg-[#F5CA50] text-[#111111] hover:brightness-95 font-bold shrink-0"
             onClick={() => setShowModal(true)}
           >
             <Plus className="size-4 mr-1.5" />
@@ -288,7 +279,6 @@ export default function ReportsPage() {
           </Button>
         </div>
 
-        {/* Tab Row */}
         <div className="flex border-b border-gray-200">
            {[
              { id: 'all', label: 'All Reports', icon: FileBarChart },
@@ -300,8 +290,8 @@ export default function ReportsPage() {
                onClick={() => setActiveTab(tab.id as any)}
                className={cn(
                  "flex items-center gap-2 px-5 py-3 text-[14px] font-bold transition-colors border-b-2 relative -bottom-px",
-                 activeTab === tab.id 
-                   ? "border-[#F5CA50] text-[#111111]" 
+                 activeTab === tab.id
+                   ? "border-[#F5CA50] text-[#111111]"
                    : "border-transparent text-gray-500 hover:text-gray-900 hover:border-gray-300"
                )}
              >
@@ -311,7 +301,6 @@ export default function ReportsPage() {
            ))}
         </div>
 
-        {/* Content */}
         {activeTab === 'all' && (
           <Card className="overflow-hidden">
             <div className="overflow-x-auto bg-white">
@@ -372,7 +361,7 @@ export default function ReportsPage() {
             </div>
           </Card>
         )}
-        
+
         {activeTab !== 'all' && (
           <Card className="flex flex-col items-center justify-center py-20 text-center">
             <div className="size-16 rounded-full bg-gray-50 flex items-center justify-center mb-4 border border-gray-100">

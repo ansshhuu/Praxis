@@ -6,7 +6,6 @@ import { prisma } from '@/lib/db/prisma'
 
 export const dynamic = 'force-dynamic'
 
-/** GET /api/marketplace — every published template, for the gallery. */
 export async function GET() {
   const userId = await getCurrentUserId()
   if (!userId) {
@@ -15,15 +14,12 @@ export async function GET() {
 
   const templates = await prisma.marketplaceTemplate.findMany({
     orderBy: { name: 'asc' },
-    // workflowJson is deliberately omitted — the gallery never renders the
-    // graph, and /use reads it server-side.
     select: { id: true, name: true, description: true, category: true },
   })
 
   return NextResponse.json({ templates })
 }
 
-/** POST /api/marketplace — publish a template (admin only). */
 export async function POST(request: Request) {
   const auth = await requireAdmin()
   if (!auth.ok) {

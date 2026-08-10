@@ -27,10 +27,6 @@ function duration(run: WorkflowRunRecord) {
   return ms < 1000 ? `${ms}ms` : `${(ms / 1000).toFixed(1)}s`
 }
 
-/**
- * Execution history panel. Rendered alongside the canvas as an overlay so the
- * builder layout itself is untouched.
- */
 export function RunHistory({
   workflowId,
   open,
@@ -39,7 +35,6 @@ export function RunHistory({
 }: {
   workflowId: string | null
   open: boolean
-  /** Bump to force a refetch (e.g. after a run finishes). */
   refreshToken: number
   onClose: () => void
 }) {

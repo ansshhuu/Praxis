@@ -1,11 +1,5 @@
 import type { Document, DocumentStatus } from '@prisma/client'
 
-/**
- * Shapes a Document row for the client. Kept in one place so the list, detail
- * and upload responses can never drift apart.
- */
-
-/** Extension shown in the type column, derived from the stored file type. */
 export function displayType(fileType: string, fileName: string): string {
   const fromName = fileName.includes('.') ? fileName.split('.').pop() : ''
   const raw = (fromName || fileType.split('/').pop() || fileType).toLowerCase()

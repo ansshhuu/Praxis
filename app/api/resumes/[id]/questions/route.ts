@@ -19,10 +19,6 @@ function excerpt(text: string, limit: number): string {
   return trimmed.length > limit ? `${trimmed.slice(0, limit)}…[truncated]` : trimmed
 }
 
-/**
- * Salvage a list from a model that answered in prose instead of JSON — strips
- * "1." / "-" / quotes from each line and keeps the substantial ones.
- */
 function parseLooseList(raw: string): string[] {
   return raw
     .split('\n')
@@ -30,15 +26,6 @@ function parseLooseList(raw: string): string[] {
     .filter((line) => line.length > 15)
 }
 
-/**
- * POST /api/resumes/[id]/questions — generates interview questions on demand.
- *
- * One `callAI` per request, and only when the user asks: the screening pass
- * deliberately does not pre-generate these for every candidate. Results are
- * cached on the row, so re-opening a candidate costs nothing. Body accepts
- * `{ jobDescription?, regenerate? }`; the JD stored at screening time is used
- * when none is supplied.
- */
 export async function POST(request: Request, { params }: RouteContext) {
   const userId = await getCurrentUserId()
   if (!userId) {
@@ -60,7 +47,6 @@ export async function POST(request: Request, { params }: RouteContext) {
     return NextResponse.json({ error: 'Candidate not found' }, { status: 404 })
   }
 
-  // Cached answer — no AI call at all.
   if (resume.interviewQuestions.length > 0 && body.regenerate !== true) {
     return NextResponse.json({ questions: resume.interviewQuestions, cached: true })
   }

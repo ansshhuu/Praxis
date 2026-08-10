@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server'
 
+import { ACTIVITY_ACTIONS } from '@/lib/activity/actions'
+import { logActivity } from '@/lib/activity/log'
 import { getCurrentUserId } from '@/lib/auth/session'
 import { prisma } from '@/lib/db/prisma'
 import { toSummary } from '@/lib/documents/serialize'
@@ -8,7 +10,6 @@ import { uploadDocument } from '@/lib/storage/supabase'
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
-/** Matches the limit advertised in the upload dropzone. */
 const MAX_FILE_BYTES = 50 * 1024 * 1024
 
 const ALLOWED_EXTENSIONS = new Set([
@@ -34,13 +35,6 @@ function extensionOf(name: string): string {
   return parts.length > 1 ? parts[parts.length - 1] : ''
 }
 
-/**
- * POST /api/documents/upload — stores the file and creates its row.
- *
- * Deliberately does NOT extract text: extraction can take tens of seconds for
- * a scanned image, so the client gets the record back immediately and then
- * calls POST /api/documents/[id]/process.
- */
 export async function POST(request: Request) {
   const userId = await getCurrentUserId()
   if (!userId) {
@@ -92,8 +86,6 @@ export async function POST(request: Request) {
         fileName: file.name,
         fileUrl: stored.publicUrl,
         storagePath: stored.path,
-        // Extension rather than the browser-supplied MIME type: browsers omit
-        // or mislabel it often enough that the extractor cannot rely on it.
         fileType: extension,
         fileSize: file.size,
         status: 'PENDING',
@@ -101,10 +93,16 @@ export async function POST(request: Request) {
       },
     })
 
+    await logActivity(userId, ACTIVITY_ACTIONS.documentUploaded, {
+      documentId: document.id,
+      name: document.fileName,
+      fileType: document.fileType,
+      fileSize: document.fileSize,
+    })
+
     return NextResponse.json({ document: toSummary(document) }, { status: 201 })
   } catch (error) {
     console.error('[documents/upload] db insert failed:', error)
-    // Don't leave the object orphaned in the bucket when the row never landed.
     const { removeDocument } = await import('@/lib/storage/supabase')
     await removeDocument(stored.path).catch(() => {})
     return NextResponse.json({ error: 'Could not save the document record' }, { status: 500 })

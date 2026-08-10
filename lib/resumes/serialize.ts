@@ -1,11 +1,5 @@
 import type { Document, Resume } from '@prisma/client'
 
-/**
- * Shapes a Resume row for the client. Field names follow what the screening UI
- * already renders (name / matchScore / rank / skillsMatched …) so the page
- * needed no re-labelling when it moved off mock data.
- */
-
 export type CandidateSummary = {
   id: string
   documentId: string

@@ -6,12 +6,6 @@ import { toSummary } from '@/lib/documents/serialize'
 
 export const dynamic = 'force-dynamic'
 
-/**
- * GET /api/documents — the logged-in user's documents, newest first.
- *
- * Metadata only: `extracted_text` is deliberately not selected so a list of
- * large documents doesn't ship megabytes to the table view.
- */
 export async function GET() {
   const userId = await getCurrentUserId()
   if (!userId) {

@@ -37,8 +37,6 @@ function PraxisIcon({ size = 22, color = '#F5CA50' }: { size?: number; color?: s
 export function HeroSection() {
   const sectionRef = useRef<HTMLElement>(null)
 
-  /* Parallax: the glow layer drifts slower than the page, so the hero eases
-     into the next section instead of cutting away from it. */
   const { scrollYProgress } = useScroll({
     target: sectionRef,
     offset: ['start start', 'end start'],
@@ -48,11 +46,6 @@ export function HeroSection() {
 
   return (
     <section className="hero-section" id="hero" aria-label="Hero" ref={sectionRef}>
-      {/*
-        Wrapper exists purely to carry the parallax transform. The blobs keep
-        their own CSS `transform: translate(-50%, …)` centring, which an inline
-        motion transform on each would otherwise overwrite.
-      */}
       <motion.div
         aria-hidden="true"
         style={{ position: 'absolute', inset: 0, y: blobY, opacity: blobOpacity, pointerEvents: 'none' }}
@@ -90,9 +83,6 @@ export function HeroSection() {
   )
 }
 
-/* ── Sequenced build-out of the workflow graph ─────────────
-   Node i lands at i × 180ms; its connector draws 140ms later, so the line
-   always follows the node it leaves rather than racing it. */
 const NODE_STEP = 0.18
 
 const nodeVariants: Variants = {
@@ -117,7 +107,6 @@ const connectorVariants: Variants = {
   }),
 }
 
-/* The arrowhead appears once its line has arrived, rather than drawing. */
 const arrowheadVariants: Variants = {
   hidden: { opacity: 0 },
   visible: (i: number) => ({
@@ -230,11 +219,6 @@ function WorkflowBuilderCard() {
         </div>
 
         <div className="wfb-canvas">
-          {/*
-            The graph builds itself: each node pops in, then its connector
-            draws, then the next node follows. `once: false` so it replays
-            whenever the card is scrolled back into view.
-          */}
           <motion.div
             className="wfb-nodes-area"
             initial="hidden"
@@ -265,8 +249,6 @@ function WorkflowBuilderCard() {
                   {i < nodes.length - 1 && (
                     <div className="wfb-elbow">
                       <svg width="40" height="32" viewBox="0 0 40 32" fill="none">
-                        {/* pathLength is driven by framer-motion via
-                            strokeDasharray/strokeDashoffset under the hood. */}
                         <motion.path
                           d="M2 16 H22 V16"
                           stroke="#DFD6C9"

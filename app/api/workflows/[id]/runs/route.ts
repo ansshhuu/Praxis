@@ -7,7 +7,6 @@ export const dynamic = 'force-dynamic'
 
 type RouteContext = { params: Promise<{ id: string }> }
 
-/** GET /api/workflows/[id]/runs — execution history, newest first. */
 export async function GET(_request: Request, { params }: RouteContext) {
   const userId = await getCurrentUserId()
   if (!userId) {

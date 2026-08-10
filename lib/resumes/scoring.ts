@@ -1,29 +1,11 @@
-/**
- * Resume scoring: builds the batched prompts sent to the shared ai-router and
- * parses what comes back.
- *
- * Cost model — one `callAI` per batch, and a batch holds as many resumes as
- * fit inside the character budget. A typical screening of 3-5 resumes is a
- * single call; only genuinely large sets split.
- */
-
 import { callAI } from '@/lib/ai/ai-router'
 import { parseJsonArray } from '@/lib/ai/json'
 
-/**
- * Re-exported so existing importers (`/api/resumes/[id]/questions`) keep their
- * import path. The implementation now lives in `lib/ai/json.ts`, shared with
- * the Meetings module.
- */
 export { parseJsonArray }
 
-/** Combined prompt ceiling (JD + all resume excerpts) before splitting. */
 const MAX_BATCH_CHARS = 12_000
-/** Hard cap on resumes per call, even when they are all short. */
 const MAX_RESUMES_PER_BATCH = 5
-/** Per-resume excerpt — one long CV must not crowd out the others. */
 const MAX_RESUME_CHARS = 4_000
-/** JD excerpt; the requirements are almost always in the opening section. */
 const MAX_JD_CHARS = 2_000
 
 export class ScoringError extends Error {
@@ -34,7 +16,6 @@ export class ScoringError extends Error {
 }
 
 export type ResumeInput = {
-  /** Caller's identifier (the document id) — echoed back on the result. */
   key: string
   fileName: string
   text: string
@@ -59,11 +40,6 @@ function excerpt(text: string, limit: number): string {
   return trimmed.length > limit ? `${trimmed.slice(0, limit)}…[truncated]` : trimmed
 }
 
-/**
- * Greedy packing: fill each batch until either the character budget or the
- * per-batch count is reached. Every batch holds at least one resume, however
- * long that resume is.
- */
 export function buildBatches(
   inputs: ResumeInput[],
   jdLength: number,
@@ -150,10 +126,6 @@ function asYears(value: unknown): number | null {
   return Number.isFinite(numeric) && numeric >= 0 ? Math.min(60, numeric) : null
 }
 
-/**
- * Match a returned row back to its input. Prefers the "C{n}" label the model
- * was given; falls back to array position when the label is missing or bogus.
- */
 function resolveInput(row: Record<string, unknown>, batch: ResumeInput[], index: number) {
   const id = typeof row.id === 'string' ? row.id.trim().toUpperCase() : ''
   const match = /^C(\d+)$/.exec(id)
@@ -170,8 +142,6 @@ async function scoreBatch(
 ): Promise<ScoredCandidate[]> {
   const raw = await callAI(buildPrompt(jobDescription, batch))
 
-  // Raw, pre-parse response — the only way to tell a fenced reply from a
-  // truncated one from a provider that answered in prose.
   console.log(
     `[resumes/scoring] raw AI response for ${batch.length} candidate(s), ${raw.length} chars:\n${raw}`,
   )
@@ -192,7 +162,6 @@ async function scoreBatch(
     if (!entry || typeof entry !== 'object') return
     const row = entry as Record<string, unknown>
     const input = resolveInput(row, batch, index)
-    // A duplicated label must not overwrite a candidate already scored.
     if (!input || seen.has(input.key)) return
     seen.add(input.key)
 
@@ -218,14 +187,6 @@ async function scoreBatch(
   return scored
 }
 
-/**
- * Score every resume against the JD and return them ranked best-first.
- *
- * Batches run sequentially: the free-tier providers behind `callAI` rate-limit
- * aggressively, and a screening is not latency-critical.
- *
- * @throws {ScoringError} when the model is unreachable or its output is unusable.
- */
 export async function scoreResumes(
   jobDescription: string,
   inputs: ResumeInput[],
@@ -244,7 +205,5 @@ export async function scoreResumes(
     }
   }
 
-  // Re-rank across all batches — per-batch scores are only comparable once
-  // they're merged, so ranking is assigned here rather than by the model.
   return results.sort((a, b) => b.jdMatchScore - a.jdMatchScore)
 }

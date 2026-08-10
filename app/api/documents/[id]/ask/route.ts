@@ -7,23 +7,12 @@ import { prisma } from '@/lib/db/prisma'
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
-/**
- * Context budget for a Q&A prompt. Beyond this the extracted text is dropped in
- * favour of the (much shorter) stored summary, so a 200-page upload can't burn
- * the token budget on a single question.
- */
 const MAX_CONTEXT_CHARS = 6000
 
 const MAX_QUESTION_CHARS = 500
 
 type RouteContext = { params: Promise<{ id: string }> }
 
-/**
- * POST /api/documents/[id]/ask — body { question }.
- *
- * Answers are not persisted: this module's Q&A is a scratch pad, and the
- * schema has no table expecting the history.
- */
 export async function POST(request: Request, { params }: RouteContext) {
   const userId = await getCurrentUserId()
   if (!userId) {
@@ -56,8 +45,6 @@ export async function POST(request: Request, { params }: RouteContext) {
   const extracted = document.extractedText?.trim() ?? ''
   const summary = document.aiSummary?.trim() ?? ''
 
-  // Prefer full text; fall back to the summary when the text is too long, and
-  // to a leading excerpt when there is no summary to fall back to.
   let context: string
   let contextKind: 'text' | 'summary' | 'excerpt'
   if (extracted && extracted.length <= MAX_CONTEXT_CHARS) {

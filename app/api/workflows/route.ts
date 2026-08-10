@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server'
 
+import { ACTIVITY_ACTIONS } from '@/lib/activity/actions'
+import { logActivity } from '@/lib/activity/log'
 import { getCurrentUserId } from '@/lib/auth/session'
 import { prisma } from '@/lib/db/prisma'
 
 export const dynamic = 'force-dynamic'
 
-/** GET /api/workflows — list the signed-in user's workflows. */
 export async function GET() {
   const userId = await getCurrentUserId()
   if (!userId) {
@@ -21,7 +22,6 @@ export async function GET() {
   return NextResponse.json({ workflows })
 }
 
-/** POST /api/workflows — create a DRAFT workflow from the canvas graph. */
 export async function POST(request: Request) {
   const userId = await getCurrentUserId()
   if (!userId) {
@@ -54,6 +54,12 @@ export async function POST(request: Request) {
       edges: body.edges,
       status: 'DRAFT',
     },
+  })
+
+  await logActivity(userId, ACTIVITY_ACTIONS.workflowCreated, {
+    workflowId: workflow.id,
+    name: workflow.name,
+    nodeCount: body.nodes.length,
   })
 
   return NextResponse.json({ workflow }, { status: 201 })
