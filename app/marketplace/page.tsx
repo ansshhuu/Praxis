@@ -56,6 +56,18 @@ const iconMap: Record<string, React.ReactNode> = {
   send: <Send className="size-6" />,
 }
 
+const FILTER_CATEGORIES = [
+  'All',
+  'Finance',
+  'HR',
+  'Sales',
+  'Operations',
+  'Communication',
+  'Compliance',
+] as const
+
+type FilterCategory = (typeof FILTER_CATEGORIES)[number]
+
 const categoryColors: Record<TemplateCategory, string> = {
   Finance: 'bg-emerald-100 text-emerald-700',
   HR: 'bg-blue-100 text-blue-700',
@@ -129,6 +141,10 @@ export default function MarketplacePage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [usingId, setUsingId] = useState<string | null>(null)
+  const [category, setCategory] = useState<FilterCategory>('All')
+
+  const visibleTemplates =
+    category === 'All' ? templates : templates.filter((t) => t.category === category)
 
   useEffect(() => {
     let cancelled = false
@@ -179,22 +195,27 @@ export default function MarketplacePage() {
           </p>
         </div>
 
-        <div className="flex flex-wrap gap-2" role="list" aria-label="Template categories">
-          {(['All', 'Finance', 'HR', 'Sales', 'Operations', 'Communication', 'Compliance'] as const).map((cat) => (
-            <button
-              key={cat}
-              id={`filter-${cat.toLowerCase()}`}
-              role="listitem"
-              className={cn(
-                'rounded-full border px-3 py-1.5 text-xs font-medium transition-colors',
-                cat === 'All'
-                  ? 'border-primary bg-primary text-primary-foreground'
-                  : 'border-border bg-card text-foreground hover:border-primary hover:bg-primary/5 hover:text-primary',
-              )}
-            >
-              {cat}
-            </button>
-          ))}
+        <div className="flex flex-wrap gap-2" role="group" aria-label="Filter templates by category">
+          {FILTER_CATEGORIES.map((cat) => {
+            const isActive = cat === category
+            return (
+              <button
+                key={cat}
+                type="button"
+                id={`filter-${cat.toLowerCase()}`}
+                aria-pressed={isActive}
+                onClick={() => setCategory(cat)}
+                className={cn(
+                  'rounded-full border px-3 py-1.5 text-xs font-medium transition-colors focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:outline-none',
+                  isActive
+                    ? 'border-primary bg-primary text-primary-foreground'
+                    : 'border-border bg-card text-foreground hover:border-primary hover:bg-primary/5 hover:text-primary',
+                )}
+              >
+                {cat}
+              </button>
+            )
+          })}
         </div>
 
         {error && (
@@ -210,9 +231,18 @@ export default function MarketplacePage() {
           <p className="py-12 text-sm text-muted-foreground">
             No templates published yet. Run <code>npm run seed</code> to load the starter catalogue.
           </p>
+        ) : visibleTemplates.length === 0 ? (
+          <div className="flex flex-col items-start gap-3 py-12">
+            <p className="text-sm text-muted-foreground">
+              No templates in <span className="font-semibold text-foreground">{category}</span> yet.
+            </p>
+            <Button variant="outline" size="sm" onClick={() => setCategory('All')}>
+              Show all templates
+            </Button>
+          </div>
         ) : (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {templates.map((template) => (
+            {visibleTemplates.map((template) => (
               <TemplateCard
                 key={template.id}
                 template={template}

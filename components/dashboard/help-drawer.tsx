@@ -202,7 +202,7 @@ function TopicCard({ topic }: { topic: HelpTopic }) {
   const contentId = `help-panel-${topic.id}`
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
+    <div className="shrink-0 overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
@@ -210,40 +210,57 @@ function TopicCard({ topic }: { topic: HelpTopic }) {
         aria-controls={contentId}
         className="flex w-full items-start gap-3 px-4 py-3.5 text-left transition-colors hover:bg-[#FFFAEC]/60"
       >
-        <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg border border-[#F5CA50]/30 bg-[#FFFAEC] text-[#D4A017]">
-          <Icon className="size-4" strokeWidth={2} />
+        <span className="flex size-8 shrink-0 items-center justify-center self-start rounded-lg border border-[#F5CA50]/30 bg-[#FFFAEC] text-[#D4A017]">
+          <Icon className="size-4 shrink-0" strokeWidth={2} aria-hidden="true" />
         </span>
-        <span className="min-w-0 flex-1">
-          <span className="block text-[14px] font-bold text-gray-900">{topic.label}</span>
-          <span className="mt-0.5 block text-[12.5px] leading-relaxed text-gray-500">
+        <span className="flex min-w-0 flex-1 flex-col justify-center gap-0.5 self-stretch">
+          <span className="block text-[14px] leading-tight font-bold text-gray-900">
+            {topic.label}
+          </span>
+          <span
+            className={cn(
+              'block text-[12.5px] leading-snug text-gray-500',
+              !open && 'line-clamp-2',
+            )}
+          >
             {topic.description}
           </span>
         </span>
         <ChevronDown
           className={cn(
-            'mt-1 size-4 shrink-0 text-gray-400 transition-transform duration-200',
+            'size-4 shrink-0 self-start text-gray-400 transition-transform duration-200',
             open && 'rotate-180',
           )}
+          aria-hidden="true"
         />
       </button>
 
-      {open && (
-        <div id={contentId} className="border-t border-gray-100 px-4 py-3.5">
-          <p className="mb-2 text-[10.5px] font-bold tracking-[0.08em] text-gray-400 uppercase">
-            How to
-          </p>
-          <ol className="flex flex-col gap-2">
-            {topic.steps.map((step, index) => (
-              <li key={step} className="flex gap-2.5 text-[13px] leading-relaxed text-gray-700">
-                <span className="mt-px flex size-5 shrink-0 items-center justify-center rounded-full bg-[#EAE3D9] text-[10.5px] font-bold text-[#66615B] tabular-nums">
-                  {index + 1}
-                </span>
-                <span className="min-w-0 flex-1">{step}</span>
-              </li>
-            ))}
-          </ol>
+      <div
+        id={contentId}
+        aria-hidden={!open}
+        className={cn(
+          'grid transition-[grid-template-rows] duration-300 ease-out motion-reduce:transition-none',
+          open ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]',
+        )}
+      >
+        <div className="overflow-hidden">
+          <div className="border-t border-gray-100 px-4 pt-3.5 pb-4">
+            <p className="mb-2 text-[10.5px] font-bold tracking-[0.08em] text-gray-400 uppercase">
+              How to
+            </p>
+            <ol className="flex flex-col gap-2">
+              {topic.steps.map((step, index) => (
+                <li key={step} className="flex gap-2.5 text-[13px] leading-relaxed text-gray-700">
+                  <span className="mt-px flex size-5 shrink-0 items-center justify-center rounded-full bg-[#EAE3D9] text-[10.5px] font-bold text-[#66615B] tabular-nums">
+                    {index + 1}
+                  </span>
+                  <span className="min-w-0 flex-1">{step}</span>
+                </li>
+              ))}
+            </ol>
+          </div>
         </div>
-      )}
+      </div>
     </div>
   )
 }
@@ -312,11 +329,11 @@ export function HelpDrawer({ open, onClose }: { open: boolean; onClose: () => vo
           </Button>
         </div>
 
-        <div className="flex flex-1 flex-col gap-2.5 overflow-y-auto px-4 py-4">
+        <div className="flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto overscroll-contain px-4 pt-4 pb-8">
           {HELP_TOPICS.map((topic) => (
             <TopicCard key={topic.id} topic={topic} />
           ))}
-          <p className="px-1 py-2 text-center text-[11.5px] text-gray-400">
+          <p className="shrink-0 px-1 pt-1 text-center text-[11.5px] text-gray-400">
             Expand any module above to see its steps.
           </p>
         </div>

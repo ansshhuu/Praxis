@@ -69,6 +69,7 @@ export default function RegisterPage() {
   const [agreed,   setAgreed]   = useState(false)
   const [error,    setError]    = useState('')
   const [loading,  setLoading]  = useState(false)
+  const [oauthLoading, setOauthLoading] = useState(false)
 
   useEffect(() => { router.prefetch('/dashboard') }, [router])
 
@@ -181,8 +182,10 @@ export default function RegisterPage() {
           </div>
 
           <div style={{ display: 'flex', gap: 10 }}>
-            <button id="google-register-btn" type="button" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '10px 14px', borderRadius: 10, border: '1.5px solid #E5E2DC', background: '#fff', fontSize: 13.5, fontWeight: 600, color: '#111111', cursor: 'pointer' }}>
-              <GoogleIcon /> Google
+            <button id="google-register-btn" type="button" disabled={oauthLoading}
+              onClick={() => { setOauthLoading(true); void signIn('google', { callbackUrl: '/dashboard' }) }}
+              style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '10px 14px', borderRadius: 10, border: '1.5px solid #E5E2DC', background: '#fff', fontSize: 13.5, fontWeight: 600, color: '#111111', cursor: oauthLoading ? 'not-allowed' : 'pointer', opacity: oauthLoading ? 0.7 : 1 }}>
+              <GoogleIcon /> {oauthLoading ? 'Redirecting…' : 'Google'}
             </button>
             <button id="microsoft-register-btn" type="button" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '10px 14px', borderRadius: 10, border: '1.5px solid #E5E2DC', background: '#fff', fontSize: 13.5, fontWeight: 600, color: '#111111', cursor: 'pointer' }}>
               <MicrosoftIcon /> Microsoft

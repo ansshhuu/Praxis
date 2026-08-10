@@ -69,7 +69,9 @@ enum MeetingStatus {
 model User {
   id           String   @id @default(uuid())
   email        String   @unique
-  passwordHash String   @map("password_hash")
+  /// Null for accounts created through an OAuth provider — those users have no
+  /// password and can never sign in through the credentials form.
+  passwordHash String?  @map("password_hash")
   name         String
   role         Role     @default(EMPLOYEE)
   createdAt    DateTime @default(now()) @map("created_at")
