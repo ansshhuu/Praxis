@@ -494,6 +494,12 @@ body:has(.landing-root) {
   gap: 0;
   flex-wrap: nowrap;
   overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.workflow-chain::-webkit-scrollbar {
+  display: none;
 }
 
 .wf-node {
@@ -755,6 +761,12 @@ body:has(.landing-root) {
   padding: 16px 20px;
   gap: 0;
   overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.wfb-nodes-area::-webkit-scrollbar {
+  display: none;
 }
 
 .wfb-node-card {
@@ -1229,10 +1241,16 @@ body:has(.landing-root) {
   flex: 1;
   display: flex;
   align-items: center;
-  padding: 16px 20px;
+  padding: 12px 20px;
   gap: 0;
   overflow-x: auto;
+  overflow-y: hidden;
   min-height: 0;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.sss-nodes-row::-webkit-scrollbar {
+  display: none;
 }
 
 .sss-node {

@@ -1,9 +1,7 @@
 'use client'
 
 import {
-  AnimatePresence,
   motion,
-  useMotionValueEvent,
   useReducedMotion,
   useScroll,
   useTransform,
@@ -14,7 +12,7 @@ import {
   ArrowRight, Mail, Shield, Database, Bell, FileText,
 } from 'lucide-react'
 
-import { Reveal, hoverCardClass } from '@/components/motion/primitives'
+import { Reveal } from '@/components/motion/primitives'
 
 function PraxisIcon({ size = 22, color = '#F5CA50' }: { size?: number; color?: string }) {
   const s = size, c = s / 2, rays = 8
@@ -34,6 +32,7 @@ const modules = [
   {
     id: 'workflows',
     num: '01',
+    category: 'Automation',
     icon: GitBranch,
     title: 'Workflow Automation',
     desc: 'Build no-code automation pipelines with drag-and-drop AI nodes, branching logic, and real-time execution monitoring — all without writing a single line of code.',
@@ -42,6 +41,7 @@ const modules = [
   {
     id: 'documents',
     num: '02',
+    category: 'Intelligence',
     icon: FileSearch,
     title: 'Document Intelligence',
     desc: 'Extract, classify, and summarize documents using OCR and GPT-powered AI at enterprise scale. Turn unstructured PDFs into actionable structured data instantly.',
@@ -50,6 +50,7 @@ const modules = [
   {
     id: 'resumes',
     num: '03',
+    category: 'Talent',
     icon: Users,
     title: 'Resume Screening',
     desc: 'Rank candidates automatically with AI scoring on skills, experience, and role fit. Cut screening time by 80% and surface your best matches in seconds.',
@@ -58,6 +59,7 @@ const modules = [
   {
     id: 'chat',
     num: '04',
+    category: 'Copilot',
     icon: MessageSquare,
     title: 'AI Assistant',
     desc: "Context-aware assistant that queries your workflows, answers questions, and triggers actions via natural language. Your team's copilot, available 24/7.",
@@ -66,6 +68,7 @@ const modules = [
   {
     id: 'analytics',
     num: '05',
+    category: 'Insights',
     icon: BarChart3,
     title: 'Reports & Analytics',
     desc: 'Deep execution analytics with trend charts, success rate dashboards, and automated reports. Understand exactly how your automation is performing.',
@@ -74,6 +77,7 @@ const modules = [
   {
     id: 'scheduler',
     num: '06',
+    category: 'Operations',
     icon: Clock,
     title: 'Automation & Scheduler',
     desc: 'Schedule cron jobs and automated tasks with precision. Monitor status, configure retry logic, and keep every recurring process running on time.',
@@ -410,7 +414,12 @@ function PreviewScheduler() {
   )
 }
 
+
 const TOTAL = modules.length
+
+const SCALE_STEP = 0.03
+
+type Module = (typeof modules)[number]
 
 const previewMap: Record<string, React.ReactNode> = {
   workflows: <PreviewWorkflows />,
@@ -421,26 +430,24 @@ const previewMap: Record<string, React.ReactNode> = {
   scheduler: <PreviewScheduler />,
 }
 
-const EASE = [0.22, 1, 0.36, 1] as const
-
 function SectionHeading() {
   return (
-    <div className="mx-auto max-w-7xl px-6 pt-24 pb-14 text-center md:pt-28">
+    <div className="mx-auto max-w-7xl px-6 pt-24 pb-16 text-center md:pt-28">
       <Reveal y={12} duration={0.35}>
-        <span className="uppercase tracking-widest text-[11px] font-bold text-[#66615B] bg-[#EAE3D9] px-3 py-1.5 rounded-full">
+        <span className="rounded-full bg-[#EAE3D9] px-3 py-1.5 text-[11px] font-bold tracking-widest text-[#66615B] uppercase">
           Platform Features
         </span>
       </Reveal>
       <Reveal delay={0.08}>
         <h2
           id="features-heading"
-          className="text-4xl md:text-[42px] tracking-tight font-extrabold mt-6 mb-4 text-[#111111]"
+          className="mt-6 mb-4 text-4xl font-extrabold tracking-tight text-[#111111] md:text-[42px]"
         >
           One platform. Endless possibilities.
         </h2>
       </Reveal>
       <Reveal delay={0.16}>
-        <p className="text-lg text-[#66615B] m-0">
+        <p className="m-0 text-lg text-[#66615B]">
           Scroll to explore how Praxis helps every team automate and accelerate their work.
         </p>
       </Reveal>
@@ -448,193 +455,110 @@ function SectionHeading() {
   )
 }
 
-function PreviewFrame({ children }: { children: React.ReactNode }) {
+function CardShell({
+  mod,
+  children,
+}: {
+  mod: Module
+  children: React.ReactNode
+}) {
+  const Icon = mod.icon
   return (
-    <div className={`h-[520px] w-full rounded-2xl border-[1.5px] border-[#E5E0D8] bg-[#EAE3D9] p-3 shadow-[0_8px_40px_rgba(0,0,0,0.08),0_2px_8px_rgba(0,0,0,0.04)] ${hoverCardClass}`}>
-      <div className="relative h-full w-full overflow-hidden rounded-[14px] border border-black/10 bg-white shadow-[0_2px_12px_rgba(0,0,0,0.06)]">
-        {children}
+    <div className="flex h-full flex-col overflow-hidden rounded-[40px] border-2 border-[#EAE3D9] bg-[#FDFCFA] p-6 shadow-[0_18px_60px_-24px_rgba(17,17,17,0.18)] md:rounded-[52px] md:p-10">
+      <div className="flex shrink-0 items-start justify-between gap-6">
+        <div className="flex items-start gap-5">
+          <span
+            aria-hidden="true"
+            className="font-extrabold leading-[0.8] tracking-tighter text-[#EAE3D9] tabular-nums"
+            style={{ fontSize: 'clamp(3rem, 10vw, 140px)' }}
+          >
+            {mod.num}
+          </span>
+          <span className="flex flex-col pt-1 md:pt-3">
+            <span className="flex items-center gap-2 text-[11px] font-bold tracking-[0.14em] text-[#D4A017] uppercase">
+              <Icon size={13} strokeWidth={2.4} className="flex-shrink-0" />
+              {mod.category}
+            </span>
+            <span className="mt-2 text-2xl font-extrabold tracking-tight text-[#111111] md:text-[32px]">
+              {mod.title}
+            </span>
+            <span className="mt-2 hidden max-w-md text-[13.5px] leading-[1.6] text-[#66615B] sm:block">
+              {mod.desc}
+            </span>
+          </span>
+        </div>
+
+        <a
+          href={mod.link}
+          className="hidden shrink-0 items-center gap-1.5 rounded-full border border-[#DFD6C9] px-4 py-2 text-[12.5px] font-bold text-[#66615B] transition-colors hover:border-[#F5CA50] hover:bg-[#FFFAEC] hover:text-[#D4A017] md:inline-flex"
+        >
+          Explore
+          <ArrowRight size={13} strokeWidth={2.4} />
+        </a>
       </div>
+
+      <div className="mt-6 min-h-0 flex-1 overflow-hidden rounded-[22px] border border-[#E5E0D8] bg-[#EAE3D9] p-2.5 md:mt-8 md:p-3">
+        <div className="relative flex h-full w-full flex-col overflow-hidden rounded-[14px] border border-black/10 bg-white shadow-[0_2px_12px_rgba(0,0,0,0.06)]">
+          {children}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function StackCard({ mod, index }: { mod: Module; index: number }) {
+  const wrapperRef = useRef<HTMLDivElement>(null)
+
+  const { scrollYProgress } = useScroll({
+    target: wrapperRef,
+    offset: ['start start', 'end start'],
+  })
+
+  const targetScale = 1 - (TOTAL - 1 - index) * SCALE_STEP
+  const scale = useTransform(scrollYProgress, [0, 1], [1, targetScale])
+
+  return (
+    <div ref={wrapperRef} className="h-[85vh]">
+      <motion.div
+        style={{ scale, zIndex: index + 1, ['--i' as string]: index }}
+        className="sticky top-[calc(24px+var(--i)*14px)] h-[clamp(430px,68vh,660px)] origin-top will-change-transform md:top-[calc(96px+var(--i)*28px)]"
+      >
+        <CardShell mod={mod}>{previewMap[mod.id]}</CardShell>
+      </motion.div>
     </div>
   )
 }
 
 function StackedFallback() {
   return (
-    <section id="features" className="relative w-full bg-[#F7F7F6]" aria-labelledby="features-heading">
-      <SectionHeading />
-      <div className="mx-auto flex max-w-7xl flex-col gap-20 px-6 pb-28">
-        {modules.map((mod) => {
-          const Icon = mod.icon
-          return (
-            <motion.div
-              key={mod.id}
-              id={`sss-nav-${mod.id}`}
-              initial={{ opacity: 0 }}
-              whileInView={{ opacity: 1 }}
-              viewport={{ once: true, amount: 0.25 }}
-              transition={{ duration: 0.3 }}
-              className="grid grid-cols-1 items-center gap-10 lg:grid-cols-12"
-            >
-              <div className="lg:col-span-5">
-                <div className="flex items-center gap-2.5">
-                  <span className="min-w-[20px] text-[11px] font-bold tracking-[0.08em] tabular-nums text-[#66615B]">
-                    {mod.num}
-                  </span>
-                  <span className="flex items-center gap-2 text-[17px] font-bold text-[#111111]">
-                    <Icon size={15} strokeWidth={2} className="flex-shrink-0" />
-                    {mod.title}
-                  </span>
-                </div>
-                <p className="mb-0 ml-[30px] mt-2 text-[13.5px] font-normal leading-[1.6] text-[#66615B]">
-                  {mod.desc}
-                </p>
-              </div>
-              <div className="lg:col-span-7">
-                <PreviewFrame>
-                  <div className="flex h-full flex-col">{previewMap[mod.id]}</div>
-                </PreviewFrame>
-              </div>
-            </motion.div>
-          )
-        })}
-      </div>
-    </section>
+    <div className="mx-auto flex max-w-6xl flex-col gap-10 px-6 pb-28">
+      {modules.map((mod) => (
+        <div key={mod.id} id={`sss-nav-${mod.id}`} className="h-[clamp(430px,68vh,660px)]">
+          <CardShell mod={mod}>{previewMap[mod.id]}</CardShell>
+        </div>
+      ))}
+    </div>
   )
 }
 
 export function FeaturesSection() {
-  const wrapperRef = useRef<HTMLDivElement>(null)
-  const [active, setActive] = useState(0)
-
   const prefersReduced = useReducedMotion()
   const [mounted, setMounted] = useState(false)
   useEffect(() => setMounted(true), [])
-
-  const { scrollYProgress } = useScroll({
-    target: wrapperRef,
-    offset: ['start start', 'end end'],
-  })
-
-  const activeIndex = useTransform(scrollYProgress, (p) =>
-    Math.min(TOTAL - 1, Math.max(0, Math.floor(p * TOTAL))),
-  )
-  useMotionValueEvent(activeIndex, 'change', (value) => setActive(value))
-
-  const railScale = useTransform(scrollYProgress, [0, 1], [1 / TOTAL, 1])
-
-  function handleNavClick(index: number) {
-    const wrapper = wrapperRef.current
-    if (!wrapper) return
-    const travel = wrapper.offsetHeight - window.innerHeight
-    if (travel <= 0) return
-    const target =
-      wrapper.offsetTop + travel * ((index + 0.5) / TOTAL)
-    window.scrollTo({ top: target, behavior: 'smooth' })
-  }
-
-  if (mounted && prefersReduced) return <StackedFallback />
-
-  const activeModule = modules[active]
 
   return (
     <section id="features" className="relative w-full bg-[#F7F7F6]" aria-labelledby="features-heading">
       <SectionHeading />
 
-      <div ref={wrapperRef} className="relative h-[600vh]">
-        <div className="sticky top-0 flex h-screen w-full items-center overflow-hidden">
-          <div className="mx-auto grid w-full max-w-7xl grid-cols-12 items-center gap-12 px-6">
-
-            <div className="col-span-12 lg:col-span-5">
-              <div className="relative pl-5">
-                <div className="absolute inset-y-0 left-0 w-[2px] overflow-hidden rounded-full bg-[#EAE3D9]">
-                  <motion.div
-                    className="h-full w-full origin-top rounded-full bg-[#F5CA50]"
-                    style={{ scaleY: railScale }}
-                  />
-                </div>
-
-                <ul className="m-0 flex list-none flex-col gap-1 p-0">
-                  {modules.map((mod, index) => {
-                    const Icon = mod.icon
-                    const isActive = active === index
-                    return (
-                      <li key={mod.id} className="relative">
-                        {isActive && (
-                          <motion.span
-                            layoutId="sss-active-dot"
-                            className="absolute -left-[23px] top-[18px] size-[9px] rounded-full bg-[#F5CA50] shadow-[0_0_0_3px_rgba(245,202,80,0.25)]"
-                            transition={{ type: 'spring', stiffness: 420, damping: 34 }}
-                          />
-                        )}
-                        <button
-                          id={`sss-nav-${mod.id}`}
-                          type="button"
-                          onClick={() => handleNavClick(index)}
-                          aria-current={isActive ? 'true' : undefined}
-                          className="flex w-full flex-col py-3 text-left"
-                        >
-                          <div className="flex items-center gap-2.5">
-                            <span
-                              className="min-w-[20px] text-[11px] font-bold tabular-nums tracking-[0.08em] transition-colors duration-300"
-                              style={{ color: isActive ? '#66615B' : '#A9A49C' }}
-                            >
-                              {mod.num}
-                            </span>
-                            <span
-                              className="flex items-center gap-2 text-[15px] transition-colors duration-300"
-                              style={{
-                                color: isActive ? '#111111' : '#A9A49C',
-                                fontWeight: isActive ? 800 : 600,
-                              }}
-                            >
-                              <Icon size={14} strokeWidth={2} className="flex-shrink-0" />
-                              {mod.title}
-                            </span>
-                          </div>
-
-                          <AnimatePresence initial={false}>
-                            {isActive && (
-                              <motion.p
-                                key="desc"
-                                initial={{ opacity: 0, height: 0 }}
-                                animate={{ opacity: 1, height: 'auto' }}
-                                exit={{ opacity: 0, height: 0 }}
-                                transition={{ duration: 0.28, ease: EASE }}
-                                className="m-0 ml-[30px] overflow-hidden text-[13.5px] font-normal leading-[1.6] text-[#66615B]"
-                              >
-                                <span className="block pt-2">{mod.desc}</span>
-                              </motion.p>
-                            )}
-                          </AnimatePresence>
-                        </button>
-                      </li>
-                    )
-                  })}
-                </ul>
-              </div>
-            </div>
-
-            <div className="col-span-12 lg:col-span-7">
-              <PreviewFrame>
-                <AnimatePresence initial={false}>
-                  <motion.div
-                    key={activeModule.id}
-                    initial={{ opacity: 0, scale: 0.985, y: 10 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 1.012, y: -10 }}
-                    transition={{ duration: 0.45, ease: EASE }}
-                    className="absolute inset-0 flex flex-col"
-                  >
-                    {previewMap[activeModule.id]}
-                  </motion.div>
-                </AnimatePresence>
-              </PreviewFrame>
-            </div>
-
-          </div>
+      {mounted && prefersReduced ? (
+        <StackedFallback />
+      ) : (
+        <div className="mx-auto max-w-6xl px-4 pb-[18vh] md:px-6">
+          {modules.map((mod, index) => (
+            <StackCard key={mod.id} mod={mod} index={index} />
+          ))}
         </div>
-      </div>
+      )}
     </section>
   )
 }
-

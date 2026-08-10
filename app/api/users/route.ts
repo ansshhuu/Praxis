@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server'
 
 import { ACTIVITY_ACTIONS } from '@/lib/activity/actions'
 import { logActivity } from '@/lib/activity/log'
+import { avatarSelect, effectiveAvatar } from '@/lib/auth/avatar'
 import { requireAdmin } from '@/lib/auth/session'
 import { prisma } from '@/lib/db/prisma'
 
@@ -16,7 +17,23 @@ const userSelect = {
   role: true,
   createdAt: true,
   lastLogin: true,
+  ...avatarSelect,
 } as const
+
+type UserRow = {
+  id: string
+  name: string
+  email: string
+  role: Role
+  createdAt: Date
+  lastLogin: Date | null
+  avatarUrl: string | null
+  oauthAvatarUrl: string | null
+}
+
+function toUser({ oauthAvatarUrl, ...user }: UserRow) {
+  return { ...user, avatarUrl: effectiveAvatar({ avatarUrl: user.avatarUrl, oauthAvatarUrl }) }
+}
 
 export async function GET() {
   const auth = await requireAdmin()
@@ -29,7 +46,7 @@ export async function GET() {
     select: userSelect,
   })
 
-  return NextResponse.json({ users })
+  return NextResponse.json({ users: users.map(toUser) })
 }
 
 export async function POST(request: Request) {
@@ -92,5 +109,5 @@ export async function POST(request: Request) {
     role: user.role,
   })
 
-  return NextResponse.json({ user }, { status: 201 })
+  return NextResponse.json({ user: toUser(user) }, { status: 201 })
 }

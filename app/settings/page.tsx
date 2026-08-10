@@ -1,29 +1,19 @@
 'use client'
 
 import {
-  Archive,
-  BookOpen,
-  Brain,
   Camera,
   Check,
   CheckCircle2,
-  Cloud,
-  HardDrive,
-  Link,
-  Link2Off,
   Loader2,
-  MessageCircle,
-  Send,
   UserPlus,
-  Users,
   X,
   XCircle,
 } from 'lucide-react'
 import { useSession } from 'next-auth/react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import { DashboardShell } from '@/components/dashboard/dashboard-shell'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -42,26 +32,16 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { cn } from '@/lib/utils'
-import { getApiConnections, type ApiConnection } from '@/lib/mock-data/settings'
 
-type Tab = 'profile' | 'api' | 'users'
+const MAX_AVATAR_BYTES = 2 * 1024 * 1024
+const ACCEPTED_AVATAR_TYPES = ['image/jpeg', 'image/png']
+
+type Tab = 'profile' | 'users'
 
 const tabs: { id: Tab; label: string; adminOnly?: boolean }[] = [
   { id: 'profile', label: 'Profile' },
-  { id: 'api', label: 'API Connections' },
   { id: 'users', label: 'User Management', adminOnly: true },
 ]
-
-const iconMap: Record<string, React.ReactNode> = {
-  brain: <Brain className="size-5" />,
-  'hard-drive': <HardDrive className="size-5" />,
-  'message-circle': <MessageCircle className="size-5" />,
-  'book-open': <BookOpen className="size-5" />,
-  cloud: <Cloud className="size-5" />,
-  users: <Users className="size-5" />,
-  archive: <Archive className="size-5" />,
-  send: <Send className="size-5" />,
-}
 
 type UserRole = 'ADMIN' | 'HR' | 'MANAGER' | 'EMPLOYEE'
 
@@ -88,6 +68,7 @@ interface AppUser {
   role: UserRole
   createdAt: string
   lastLogin: string | null
+  avatarUrl: string | null
 }
 
 function initialsOf(name: string): string {
@@ -111,14 +92,89 @@ function formatLastLogin(iso: string | null): string {
 }
 
 function ProfileTab() {
-  const [name, setName] = useState('Ava Chen')
-  const [email, setEmail] = useState('ava.chen@company.com')
-  const [saved, setSaved] = useState(false)
+  const { data: session, update } = useSession()
+  const sessionUser = session?.user
+  const emailManagedByGoogle = sessionUser?.hasPassword === false
 
-  function handleSave(e: React.FormEvent) {
+  const [name, setName] = useState('')
+  const [email, setEmail] = useState('')
+  const [saved, setSaved] = useState(false)
+  const [savingProfile, setSavingProfile] = useState(false)
+  const [profileError, setProfileError] = useState<string | null>(null)
+
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
+  const [uploading, setUploading] = useState(false)
+  const [photoError, setPhotoError] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (!sessionUser) return
+    setName(sessionUser.name ?? '')
+    setEmail(sessionUser.email ?? '')
+    setAvatarUrl(sessionUser.image ?? null)
+  }, [sessionUser])
+
+  async function handleSave(e: React.FormEvent) {
     e.preventDefault()
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2000)
+    if (savingProfile) return
+
+    setSavingProfile(true)
+    setProfileError(null)
+    setSaved(false)
+
+    try {
+      const response = await fetch('/api/profile', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email }),
+      })
+      const payload = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(payload.error ?? 'Could not save your profile')
+
+      setName(payload.user.name as string)
+      setEmail(payload.user.email as string)
+      await update()
+
+      setSaved(true)
+      window.setTimeout(() => setSaved(false), 2500)
+    } catch (error) {
+      setProfileError((error as Error).message)
+    } finally {
+      setSavingProfile(false)
+    }
+  }
+
+  async function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file) return
+
+    setPhotoError(null)
+
+    if (!ACCEPTED_AVATAR_TYPES.includes(file.type)) {
+      setPhotoError('Only JPG and PNG images are supported')
+      return
+    }
+    if (file.size > MAX_AVATAR_BYTES) {
+      setPhotoError('That image is larger than the 2 MB limit')
+      return
+    }
+
+    setUploading(true)
+    try {
+      const body = new FormData()
+      body.append('file', file)
+      const response = await fetch('/api/profile/photo', { method: 'POST', body })
+      const payload = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(payload.error ?? 'Could not upload that photo')
+
+      setAvatarUrl(payload.user.avatarUrl as string)
+      await update()
+    } catch (error) {
+      setPhotoError((error as Error).message)
+    } finally {
+      setUploading(false)
+    }
   }
 
   return (
@@ -130,19 +186,35 @@ function ProfileTab() {
         <CardContent className="flex flex-col items-center gap-4">
           <div className="relative">
             <Avatar className="size-24">
-              <AvatarFallback className="text-2xl font-bold">AC</AvatarFallback>
+              {avatarUrl && <AvatarImage src={avatarUrl} alt={name} />}
+              <AvatarFallback className="text-2xl font-bold">{initialsOf(name)}</AvatarFallback>
             </Avatar>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept={ACCEPTED_AVATAR_TYPES.join(',')}
+              className="hidden"
+              onChange={handleFileChange}
+            />
             <button
+              type="button"
               id="change-avatar-button"
-              className="absolute bottom-0 right-0 flex size-8 items-center justify-center rounded-full border-2 border-card bg-primary text-primary-foreground shadow hover:bg-primary/90"
+              disabled={uploading}
+              onClick={() => fileInputRef.current?.click()}
+              className="absolute right-0 bottom-0 flex size-8 items-center justify-center rounded-full border-2 border-card bg-primary text-primary-foreground shadow hover:bg-primary/90 disabled:opacity-70"
               aria-label="Change profile photo"
             >
-              <Camera className="size-3.5" />
+              {uploading ? <Loader2 className="size-3.5 animate-spin" /> : <Camera className="size-3.5" />}
             </button>
           </div>
           <p className="text-center text-xs text-muted-foreground">
-            JPG or PNG, max 2 MB
+            {uploading ? 'Uploading…' : 'JPG or PNG, max 2 MB'}
           </p>
+          {photoError && (
+            <p role="alert" className="text-center text-xs font-medium text-destructive">
+              {photoError}
+            </p>
+          )}
         </CardContent>
       </Card>
 
@@ -170,99 +242,59 @@ function ProfileTab() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+                  disabled={emailManagedByGoogle}
+                  readOnly={emailManagedByGoogle}
+                  aria-describedby={emailManagedByGoogle ? 'profile-email-note' : undefined}
+                  className={cn(
+                    'rounded-lg border border-input px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring',
+                    emailManagedByGoogle
+                      ? 'cursor-not-allowed bg-muted text-muted-foreground'
+                      : 'bg-background',
+                  )}
                 />
+                {emailManagedByGoogle && (
+                  <p id="profile-email-note" className="text-xs text-muted-foreground">
+                    Email is managed by your Google account
+                  </p>
+                )}
               </div>
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-medium">Role</label>
               <input
-                value="Platform Admin"
+                value={sessionUser?.role ? roleLabels[sessionUser.role as UserRole] : '—'}
                 disabled
                 className="rounded-lg border border-input bg-muted px-3 py-2 text-sm text-muted-foreground"
               />
             </div>
 
-            <div className="flex items-center gap-3 pt-1">
-              <Button type="submit" id="save-profile-button" className="gap-2">
-                {saved ? <><Check className="size-4" /> Saved!</> : 'Save Changes'}
+            <div className="flex flex-wrap items-center gap-3 pt-1">
+              <Button
+                type="submit"
+                id="save-profile-button"
+                className="gap-2"
+                disabled={savingProfile}
+              >
+                {savingProfile ? (
+                  <><Loader2 className="size-4 animate-spin" /> Saving…</>
+                ) : saved ? (
+                  <><Check className="size-4" /> Saved!</>
+                ) : (
+                  'Save Changes'
+                )}
               </Button>
-              {saved && <p className="text-sm text-success">Profile updated successfully.</p>}
+              {saved && !profileError && (
+                <p className="text-sm text-success">Profile updated successfully.</p>
+              )}
+              {profileError && (
+                <p role="alert" className="text-sm font-medium text-destructive">
+                  {profileError}
+                </p>
+              )}
             </div>
           </form>
         </CardContent>
       </Card>
-    </div>
-  )
-}
-
-function ApiConnectionsTab() {
-  const initial = getApiConnections()
-  const [connections, setConnections] = useState<ApiConnection[]>(initial)
-
-  function toggleConnection(id: string) {
-    setConnections((prev) =>
-      prev.map((c) =>
-        c.id === id
-          ? { ...c, status: c.status === 'Connected' ? 'Not Connected' : 'Connected' }
-          : c,
-      ),
-    )
-  }
-
-  const categories = [...new Set(connections.map((c) => c.category))]
-
-  return (
-    <div className="flex flex-col gap-6">
-      {categories.map((cat) => (
-        <Card key={cat} className="shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-base">{cat}</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-3">
-            {connections.filter((c) => c.category === cat).map((conn) => (
-              <div
-                key={conn.id}
-                className="flex items-center justify-between gap-4 rounded-xl border border-border p-3"
-                id={`api-connection-${conn.id}`}
-              >
-                <div className="flex items-center gap-3">
-                  <div className="flex size-10 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-                    {iconMap[conn.icon] ?? <Cloud className="size-5" />}
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium">{conn.name}</p>
-                    <p className="text-xs text-muted-foreground">{conn.description}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <span
-                    className={cn(
-                      'text-xs font-medium',
-                      conn.status === 'Connected' ? 'text-success' : 'text-muted-foreground',
-                    )}
-                  >
-                    {conn.status}
-                  </span>
-                  <Button
-                    variant={conn.status === 'Connected' ? 'outline' : 'default'}
-                    size="sm"
-                    onClick={() => toggleConnection(conn.id)}
-                    id={`connect-${conn.id}`}
-                    className="gap-1.5"
-                  >
-                    {conn.status === 'Connected' ? (
-                      <><Link2Off className="size-3" /> Disconnect</>
-                    ) : (
-                      <><Link className="size-3" /> Connect</>
-                    )}
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      ))}
     </div>
   )
 }
@@ -569,6 +601,7 @@ function UserManagementTab() {
                   <TableCell>
                     <div className="flex items-center gap-2.5">
                       <Avatar className="size-8">
+                        {user.avatarUrl && <AvatarImage src={user.avatarUrl} alt={user.name} />}
                         <AvatarFallback className="text-xs font-semibold">{initialsOf(user.name)}</AvatarFallback>
                       </Avatar>
                       <span className="text-sm font-medium">{user.name}</span>
@@ -647,7 +680,6 @@ export default function SettingsPage() {
         </div>
 
         {activeTab === 'profile' && <ProfileTab />}
-        {activeTab === 'api' && <ApiConnectionsTab />}
         {activeTab === 'users' && isAdmin && <UserManagementTab />}
       </div>
     </DashboardShell>

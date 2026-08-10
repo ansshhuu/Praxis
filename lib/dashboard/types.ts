@@ -43,6 +43,7 @@ export interface RunRow {
   status: RunStatus
   durationMs: number | null
   executedBy: string
+  executedByAvatar: string | null
   startedAt: string
 }
 
@@ -51,6 +52,7 @@ export type ActivityTone = 'success' | 'failed' | 'info' | 'pending'
 export interface ActivityItem {
   id: string
   actor: string
+  actorAvatar: string | null
   description: string
   createdAt: string
   tone: ActivityTone

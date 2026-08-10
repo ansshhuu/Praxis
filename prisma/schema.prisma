@@ -77,6 +77,16 @@ model User {
   createdAt    DateTime @default(now()) @map("created_at")
   lastLogin    DateTime? @map("last_login")
 
+  /// Public URL of the profile photo in the "avatars" storage bucket. Null
+  /// falls back to rendered initials everywhere an avatar is shown.
+  avatarUrl    String?  @map("avatar_url")
+  /// Object key inside the "avatars" bucket, kept so a replaced photo can be
+  /// deleted without parsing it back out of avatarUrl.
+  avatarPath   String?  @map("avatar_path")
+  /// Photo supplied by the OAuth provider, refreshed on every sign-in. Used
+  /// only when avatarUrl is null — an uploaded photo always wins.
+  oauthAvatarUrl String? @map("oauth_avatar_url")
+
   sessions             Session[]
   activityLogs         ActivityLog[]
   workflows            Workflow[]

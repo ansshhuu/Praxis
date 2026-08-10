@@ -1,6 +1,7 @@
 import { Role } from '@prisma/client'
 import { NextResponse } from 'next/server'
 
+import { avatarSelect, effectiveAvatar } from '@/lib/auth/avatar'
 import { requireAdmin } from '@/lib/auth/session'
 import { prisma } from '@/lib/db/prisma'
 
@@ -15,7 +16,23 @@ const userSelect = {
   role: true,
   createdAt: true,
   lastLogin: true,
+  ...avatarSelect,
 } as const
+
+type UserRow = {
+  id: string
+  name: string
+  email: string
+  role: Role
+  createdAt: Date
+  lastLogin: Date | null
+  avatarUrl: string | null
+  oauthAvatarUrl: string | null
+}
+
+function toUser({ oauthAvatarUrl, ...user }: UserRow) {
+  return { ...user, avatarUrl: effectiveAvatar({ avatarUrl: user.avatarUrl, oauthAvatarUrl }) }
+}
 
 export async function PATCH(request: Request, { params }: RouteContext) {
   const auth = await requireAdmin()
@@ -55,7 +72,7 @@ export async function PATCH(request: Request, { params }: RouteContext) {
     select: userSelect,
   })
 
-  return NextResponse.json({ user })
+  return NextResponse.json({ user: toUser(user) })
 }
 
 export async function DELETE(_request: Request, { params }: RouteContext) {

@@ -1,4 +1,5 @@
 import { describeActivity } from '@/lib/activity/actions'
+import { avatarSelect, effectiveAvatar } from '@/lib/auth/avatar'
 import { prisma } from '@/lib/db/prisma'
 import type { FlowNode } from '@/lib/workflows/engine'
 import {
@@ -206,7 +207,12 @@ async function buildRuns(userId: string, page: number) {
         startedAt: true,
         finishedAt: true,
         workflow: {
-          select: { id: true, name: true, nodes: true, user: { select: { name: true } } },
+          select: {
+            id: true,
+            name: true,
+            nodes: true,
+            user: { select: { name: true, ...avatarSelect } },
+          },
         },
       },
     }),
@@ -220,6 +226,7 @@ async function buildRuns(userId: string, page: number) {
     status: run.status,
     durationMs: run.finishedAt ? run.finishedAt.getTime() - run.startedAt.getTime() : null,
     executedBy: run.workflow.user.name,
+    executedByAvatar: effectiveAvatar(run.workflow.user),
     startedAt: run.startedAt.toISOString(),
   }))
 
@@ -236,7 +243,7 @@ async function buildActivity(userId: string, limit: number) {
       action: true,
       meta: true,
       createdAt: true,
-      user: { select: { name: true } },
+      user: { select: { name: true, ...avatarSelect } },
     },
   })
 
@@ -249,6 +256,7 @@ async function buildActivity(userId: string, limit: number) {
     return {
       id: row.id,
       actor: row.user.name,
+      actorAvatar: effectiveAvatar(row.user),
       description: described.text,
       createdAt: row.createdAt.toISOString(),
       tone: described.tone,

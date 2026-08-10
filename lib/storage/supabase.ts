@@ -2,6 +2,7 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 
 export const DOCUMENTS_BUCKET = 'documents'
 export const MEETINGS_BUCKET = 'meetings'
+export const AVATARS_BUCKET = 'avatars'
 
 const SIGNED_URL_TTL_SECONDS = 60 * 10
 

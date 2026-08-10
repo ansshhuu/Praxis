@@ -5,6 +5,8 @@ import Link from 'next/link'
 
 import { Card, CardHeader, CardTitle } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
+
+import { UserAvatar } from './user-avatar'
 import type { ActivityItem, ActivityTone } from '@/lib/dashboard/types'
 
 const TONE_DOTS: Record<ActivityTone, string> = {
@@ -24,15 +26,6 @@ function relativeTime(iso: string): string {
   const days = Math.floor(hours / 24)
   if (days < 7) return `${days}d ago`
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-}
-
-function initialsOf(name: string): string {
-  return name
-    .split(' ')
-    .map((part) => part[0])
-    .join('')
-    .substring(0, 2)
-    .toUpperCase()
 }
 
 export function ActivityFeed({
@@ -66,9 +59,7 @@ export function ActivityFeed({
         {items.map((item) => (
           <div key={item.id} className="flex items-start gap-3 border-b border-gray-50 py-3 last:border-0">
             <span className={cn('mt-2 size-2 shrink-0 rounded-full', TONE_DOTS[item.tone])} />
-            <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-[#EAE3D9] text-[10px] font-bold text-[#66615B]">
-              {initialsOf(item.actor)}
-            </span>
+            <UserAvatar name={item.actor} src={item.actorAvatar} className="size-7" />
             <div className="min-w-0 flex-1">
               <p className="text-[13px] leading-snug text-gray-700">
                 <span className="font-semibold text-gray-900">{item.actor}</span>{' '}

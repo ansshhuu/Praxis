@@ -5,6 +5,7 @@ import GoogleProvider from 'next-auth/providers/google'
 
 import { ACTIVITY_ACTIONS } from '@/lib/activity/actions'
 import { logActivity } from '@/lib/activity/log'
+import { avatarSelect, effectiveAvatar } from '@/lib/auth/avatar'
 import { prisma } from '@/lib/db/prisma'
 
 const googleClientId = process.env.GOOGLE_CLIENT_ID
@@ -82,6 +83,13 @@ export const authOptions: NextAuthOptions = {
       const email = user.email?.trim().toLowerCase()
       if (!email) return false
 
+      const googlePicture =
+        user.image?.trim() ||
+        (typeof (profile as { picture?: unknown })?.picture === 'string'
+          ? ((profile as { picture: string }).picture.trim() || null)
+          : null) ||
+        null
+
       const existing = await prisma.user.findUnique({
         where: { email },
         select: { id: true, role: true },
@@ -90,7 +98,7 @@ export const authOptions: NextAuthOptions = {
       if (existing) {
         await prisma.user.update({
           where: { id: existing.id },
-          data: { lastLogin: new Date() },
+          data: { lastLogin: new Date(), oauthAvatarUrl: googlePicture },
         })
         await logActivity(existing.id, ACTIVITY_ACTIONS.userLogin, {
           email,
@@ -108,6 +116,7 @@ export const authOptions: NextAuthOptions = {
           passwordHash: null,
           role: 'EMPLOYEE',
           lastLogin: new Date(),
+          oauthAvatarUrl: googlePicture,
         },
         select: { id: true, role: true },
       })
@@ -122,7 +131,7 @@ export const authOptions: NextAuthOptions = {
       return true
     },
 
-    async jwt({ token, user, account }) {
+    async jwt({ token, user, account, trigger }) {
       if (user) {
         token.id = user.id
         token.role = user.role
@@ -139,6 +148,20 @@ export const authOptions: NextAuthOptions = {
         }
       }
 
+      if ((user || trigger === 'update') && token.id) {
+        const current = await prisma.user.findUnique({
+          where: { id: token.id },
+          select: { name: true, email: true, role: true, passwordHash: true, ...avatarSelect },
+        })
+        if (current) {
+          token.name = current.name
+          token.email = current.email
+          token.role = current.role
+          token.picture = effectiveAvatar(current)
+          token.hasPassword = Boolean(current.passwordHash)
+        }
+      }
+
       return token
     },
 
@@ -146,6 +169,8 @@ export const authOptions: NextAuthOptions = {
       if (session.user) {
         session.user.id = token.id
         session.user.role = token.role
+        session.user.image = token.picture ?? null
+        session.user.hasPassword = token.hasPassword
       }
       return session
     },

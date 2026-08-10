@@ -20,6 +20,8 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { cn } from '@/lib/utils'
+
+import { UserAvatar } from './user-avatar'
 import type { RunRow, RunStatus } from '@/lib/dashboard/types'
 
 const STATUS_STYLES: Record<RunStatus, { pill: string; dot: string; label: string }> = {
@@ -58,15 +60,6 @@ function formatStarted(iso: string): string {
     hour: 'numeric',
     minute: '2-digit',
   })
-}
-
-function initialsOf(name: string): string {
-  return name
-    .split(' ')
-    .map((part) => part[0])
-    .join('')
-    .substring(0, 2)
-    .toUpperCase()
 }
 
 export function RecentRunsTable({
@@ -139,9 +132,11 @@ export function RecentRunsTable({
                     </TableCell>
                     <TableCell>
                       <span className="flex items-center gap-2">
-                        <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-[#EAE3D9] text-[10px] font-bold text-[#66615B]">
-                          {initialsOf(run.executedBy)}
-                        </span>
+                        <UserAvatar
+                          name={run.executedBy}
+                          src={run.executedByAvatar}
+                          className="size-6"
+                        />
                         <span className="text-gray-700">{run.executedBy}</span>
                       </span>
                     </TableCell>
