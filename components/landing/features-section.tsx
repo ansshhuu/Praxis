@@ -1,12 +1,14 @@
 'use client'
 
 import {
+  AnimatePresence,
   motion,
+  useMotionValueEvent,
   useReducedMotion,
   useScroll,
   useTransform,
 } from 'framer-motion'
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import {
   GitBranch, FileSearch, Users, MessageSquare, BarChart3, Clock,
   ArrowRight, Mail, Shield, Database, Bell, FileText,
@@ -419,6 +421,8 @@ const TOTAL = modules.length
 
 const SCALE_STEP = 0.03
 
+const EASE = [0.22, 1, 0.36, 1] as const
+
 type Module = (typeof modules)[number]
 
 const previewMap: Record<string, React.ReactNode> = {
@@ -455,58 +459,98 @@ function SectionHeading() {
   )
 }
 
-function CardShell({
-  mod,
-  children,
-}: {
-  mod: Module
-  children: React.ReactNode
-}) {
-  const Icon = mod.icon
+
+function MockupCard({ mod }: { mod: Module }) {
   return (
-    <div className="flex h-full flex-col overflow-hidden rounded-[40px] border-2 border-[#EAE3D9] bg-[#FDFCFA] p-6 shadow-[0_18px_60px_-24px_rgba(17,17,17,0.18)] md:rounded-[52px] md:p-10">
-      <div className="flex shrink-0 items-start justify-between gap-6">
-        <div className="flex items-start gap-5">
-          <span
-            aria-hidden="true"
-            className="font-extrabold leading-[0.8] tracking-tighter text-[#EAE3D9] tabular-nums"
-            style={{ fontSize: 'clamp(3rem, 10vw, 140px)' }}
-          >
-            {mod.num}
-          </span>
-          <span className="flex flex-col pt-1 md:pt-3">
-            <span className="flex items-center gap-2 text-[11px] font-bold tracking-[0.14em] text-[#D4A017] uppercase">
-              <Icon size={13} strokeWidth={2.4} className="flex-shrink-0" />
-              {mod.category}
-            </span>
-            <span className="mt-2 text-2xl font-extrabold tracking-tight text-[#111111] md:text-[32px]">
-              {mod.title}
-            </span>
-            <span className="mt-2 hidden max-w-md text-[13.5px] leading-[1.6] text-[#66615B] sm:block">
-              {mod.desc}
-            </span>
-          </span>
-        </div>
-
-        <a
-          href={mod.link}
-          className="hidden shrink-0 items-center gap-1.5 rounded-full border border-[#DFD6C9] px-4 py-2 text-[12.5px] font-bold text-[#66615B] transition-colors hover:border-[#F5CA50] hover:bg-[#FFFAEC] hover:text-[#D4A017] md:inline-flex"
-        >
-          Explore
-          <ArrowRight size={13} strokeWidth={2.4} />
-        </a>
-      </div>
-
-      <div className="mt-6 min-h-0 flex-1 overflow-hidden rounded-[22px] border border-[#E5E0D8] bg-[#EAE3D9] p-2.5 md:mt-8 md:p-3">
-        <div className="relative flex h-full w-full flex-col overflow-hidden rounded-[14px] border border-black/10 bg-white shadow-[0_2px_12px_rgba(0,0,0,0.06)]">
-          {children}
-        </div>
+    <div className="h-full overflow-hidden rounded-[32px] border-2 border-[#E5E0D8] bg-[#EAE3D9] p-3 shadow-[0_18px_60px_-24px_rgba(17,17,17,0.18)] md:rounded-[40px] md:p-3.5">
+      <div className="relative flex h-full w-full flex-col overflow-hidden rounded-[22px] border border-black/10 bg-white shadow-[0_2px_12px_rgba(0,0,0,0.06)]">
+        {previewMap[mod.id]}
       </div>
     </div>
   )
 }
 
-function StackCard({ mod, index }: { mod: Module; index: number }) {
+function FeatureList({ active }: { active: number }) {
+  return (
+    <ul className="relative m-0 flex list-none flex-col border-l-2 border-[#EAE3D9] p-0">
+      {modules.map((mod, index) => {
+        const isActive = index === active
+        return (
+          <li key={mod.id} id={`sss-nav-${mod.id}`} className="relative py-3 pl-5">
+            {isActive && (
+              <motion.span
+                layoutId="stack-feature-indicator"
+                transition={{ type: 'spring', stiffness: 420, damping: 34 }}
+                className="absolute top-0 -left-[2px] h-full w-[2px] rounded-full bg-[#F5CA50]"
+              />
+            )}
+            <div className="flex items-center gap-2.5">
+              <span
+                className="min-w-[20px] text-[11px] font-bold tracking-[0.08em] tabular-nums transition-colors duration-300"
+                style={{ color: isActive ? '#66615B' : '#A9A49C' }}
+              >
+                {mod.num}
+              </span>
+              <span
+                className="text-[15px] transition-colors duration-300"
+                style={{ color: isActive ? '#111111' : '#A9A49C', fontWeight: isActive ? 800 : 600 }}
+              >
+                {mod.title}
+              </span>
+            </div>
+
+            <AnimatePresence initial={false}>
+              {isActive && (
+                <motion.div
+                  key="detail"
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.28, ease: EASE }}
+                  className="overflow-hidden pl-[30px]"
+                >
+                  <p className="m-0 pt-2 text-[13.5px] leading-[1.6] text-[#66615B]">{mod.desc}</p>
+                  <a
+                    href={mod.link}
+                    className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-[#DFD6C9] px-3.5 py-1.5 text-[12px] font-bold text-[#66615B] transition-colors hover:border-[#F5CA50] hover:bg-[#FFFAEC] hover:text-[#D4A017]"
+                  >
+                    Explore
+                    <ArrowRight size={12} strokeWidth={2.4} />
+                  </a>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </li>
+        )
+      })}
+    </ul>
+  )
+}
+
+function ActiveLabel({ active }: { active: number }) {
+  const mod = modules[active]
+  return (
+    <div className="sticky top-16 z-20 -mx-4 mb-4 border-b border-[#EAE3D9] bg-[#F7F7F6]/95 px-4 py-3 backdrop-blur-sm lg:hidden">
+      <div className="flex items-center gap-2.5">
+        <span className="text-[11px] font-bold tracking-[0.08em] text-[#66615B] tabular-nums">
+          {mod.num}
+        </span>
+        <span className="text-[15px] font-extrabold text-[#111111]">{mod.title}</span>
+      </div>
+      <p className="mt-1 line-clamp-2 text-[12.5px] leading-[1.55] text-[#66615B]">{mod.desc}</p>
+    </div>
+  )
+}
+
+function StackCard({
+  mod,
+  index,
+  onArrive,
+}: {
+  mod: Module
+  index: number
+  onArrive: (index: number, arrived: boolean) => void
+}) {
   const wrapperRef = useRef<HTMLDivElement>(null)
 
   const { scrollYProgress } = useScroll({
@@ -517,13 +561,15 @@ function StackCard({ mod, index }: { mod: Module; index: number }) {
   const targetScale = 1 - (TOTAL - 1 - index) * SCALE_STEP
   const scale = useTransform(scrollYProgress, [0, 1], [1, targetScale])
 
+  useMotionValueEvent(scrollYProgress, 'change', (value) => onArrive(index, value > 0))
+
   return (
     <div ref={wrapperRef} className="h-[85vh]">
       <motion.div
         style={{ scale, zIndex: index + 1, ['--i' as string]: index }}
         className="sticky top-[calc(24px+var(--i)*14px)] h-[clamp(430px,68vh,660px)] origin-top will-change-transform md:top-[calc(96px+var(--i)*28px)]"
       >
-        <CardShell mod={mod}>{previewMap[mod.id]}</CardShell>
+        <MockupCard mod={mod} />
       </motion.div>
     </div>
   )
@@ -531,10 +577,25 @@ function StackCard({ mod, index }: { mod: Module; index: number }) {
 
 function StackedFallback() {
   return (
-    <div className="mx-auto flex max-w-6xl flex-col gap-10 px-6 pb-28">
+    <div className="mx-auto flex max-w-6xl flex-col gap-12 px-6 pb-28">
       {modules.map((mod) => (
-        <div key={mod.id} id={`sss-nav-${mod.id}`} className="h-[clamp(430px,68vh,660px)]">
-          <CardShell mod={mod}>{previewMap[mod.id]}</CardShell>
+        <div
+          key={mod.id}
+          id={`sss-nav-${mod.id}`}
+          className="grid grid-cols-1 items-center gap-8 lg:grid-cols-12"
+        >
+          <div className="lg:col-span-4">
+            <div className="flex items-center gap-2.5">
+              <span className="min-w-[20px] text-[11px] font-bold tracking-[0.08em] text-[#66615B] tabular-nums">
+                {mod.num}
+              </span>
+              <span className="text-[17px] font-extrabold text-[#111111]">{mod.title}</span>
+            </div>
+            <p className="mt-2 ml-[30px] text-[13.5px] leading-[1.6] text-[#66615B]">{mod.desc}</p>
+          </div>
+          <div className="h-[clamp(430px,68vh,660px)] lg:col-span-8">
+            <MockupCard mod={mod} />
+          </div>
         </div>
       ))}
     </div>
@@ -546,19 +607,50 @@ export function FeaturesSection() {
   const [mounted, setMounted] = useState(false)
   useEffect(() => setMounted(true), [])
 
+  const [arrived, setArrived] = useState<boolean[]>(() => Array(TOTAL).fill(false))
+
+  const handleArrive = useCallback((index: number, value: boolean) => {
+    setArrived((prev) => {
+      if (prev[index] === value) return prev
+      const next = [...prev]
+      next[index] = value
+      return next
+    })
+  }, [])
+
+  const lastArrived = arrived.lastIndexOf(true)
+  const active = lastArrived === -1 ? 0 : lastArrived
+
+  if (mounted && prefersReduced) {
+    return (
+      <section id="features" className="relative w-full bg-[#F7F7F6]" aria-labelledby="features-heading">
+        <SectionHeading />
+        <StackedFallback />
+      </section>
+    )
+  }
+
   return (
     <section id="features" className="relative w-full bg-[#F7F7F6]" aria-labelledby="features-heading">
       <SectionHeading />
 
-      {mounted && prefersReduced ? (
-        <StackedFallback />
-      ) : (
-        <div className="mx-auto max-w-6xl px-4 pb-[18vh] md:px-6">
-          {modules.map((mod, index) => (
-            <StackCard key={mod.id} mod={mod} index={index} />
-          ))}
+      <div className="mx-auto max-w-7xl px-4 pb-[18vh] md:px-6">
+        <ActiveLabel active={active} />
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 lg:gap-10">
+          <div className="hidden lg:col-span-4 lg:block">
+            <div className="sticky top-[26vh]">
+              <FeatureList active={active} />
+            </div>
+          </div>
+
+          <div className="lg:col-span-8">
+            {modules.map((mod, index) => (
+              <StackCard key={mod.id} mod={mod} index={index} onArrive={handleArrive} />
+            ))}
+          </div>
         </div>
-      )}
+      </div>
     </section>
   )
 }
