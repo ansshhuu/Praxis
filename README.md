@@ -9,6 +9,7 @@ Intelligent, no-code AI workflow automation for enterprise teams — build pipel
 ![Prisma](https://img.shields.io/badge/Prisma-5-2D3748?logo=prisma&logoColor=white)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Supabase-4169E1?logo=postgresql&logoColor=white)
 
+Live link: https://enterprise-ai-app-sable.vercel.app/
 ---
 
 ## Features
