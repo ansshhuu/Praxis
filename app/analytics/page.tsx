@@ -2,6 +2,25 @@
 
 import { useEffect, useState } from 'react'
 
+import {
+  AgentMiniGrid,
+  AgentPerformanceRankingWidget,
+  AvgAgentLatencyWidget,
+  EstimatedCostWidget,
+  LatencyHistogramWidget,
+  ProviderDistributionWidget,
+  TokenConsumptionWidget,
+  TotalAgentRunsWidget,
+} from '@/components/analytics/agent-observability-widgets'
+import { HealthGauge } from '@/components/analytics/health-gauge'
+import type { ObservabilitySnapshot } from '@/components/analytics/types'
+import {
+  QueueThroughputWidget,
+  WorkflowAvgDurationWidget,
+  WorkflowFailureCountWidget,
+  WorkflowSuccessRateWidget,
+  WorkflowTotalRunsWidget,
+} from '@/components/analytics/workflow-observability-widgets'
 import { DashboardShell } from '@/components/dashboard/dashboard-shell'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
@@ -267,6 +286,7 @@ function StorageGauge({ storage }: { storage: StorageUsage }) {
 
 export default function AnalyticsPage() {
   const [analytics, setAnalytics] = useState<Analytics | null>(null)
+  const [observability, setObservability] = useState<ObservabilitySnapshot | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -284,7 +304,16 @@ export default function AnalyticsPage() {
         if (!cancelled) setError((loadError as Error).message)
       }
     }
+    async function loadObservability() {
+      try {
+        const response = await fetch('/api/observability')
+        if (!response.ok) return
+        const payload = (await response.json()) as ObservabilitySnapshot
+        if (!cancelled) setObservability(payload)
+      } catch {}
+    }
     void load()
+    void loadObservability()
     return () => { cancelled = true }
   }, [])
 
@@ -318,6 +347,50 @@ export default function AnalyticsPage() {
                  <StorageGauge storage={analytics.storage} />
               </div>
             </div>
+          </>
+        )}
+
+        {observability && (
+          <>
+            <div>
+              <h2 className="text-lg font-bold tracking-tight text-gray-900">System Health</h2>
+              <p className="mt-1 text-[13px] font-medium text-gray-500">Live status of every backing service</p>
+            </div>
+            <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+              <HealthGauge name="PostgreSQL" status={observability.health.postgres} />
+              <HealthGauge name="MongoDB" status={observability.health.mongodb} />
+              <HealthGauge name="Redis" status={observability.health.redis} />
+              <HealthGauge name="ChromaDB" status={observability.health.chromadb} />
+            </div>
+
+            <div>
+              <h2 className="text-lg font-bold tracking-tight text-gray-900">Agent Observability</h2>
+              <p className="mt-1 text-[13px] font-medium text-gray-500">Token usage, cost, latency and provider mix</p>
+            </div>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+              <TokenConsumptionWidget metrics={observability.agents.metrics} />
+              <EstimatedCostWidget metrics={observability.agents.metrics} />
+              <TotalAgentRunsWidget metrics={observability.agents.metrics} />
+              <AvgAgentLatencyWidget metrics={observability.agents.metrics} />
+            </div>
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+              <LatencyHistogramWidget histogram={observability.agents.latencyHistogram} />
+              <ProviderDistributionWidget providers={observability.agents.providers} />
+            </div>
+            <AgentPerformanceRankingWidget metrics={observability.agents.metrics} />
+            <AgentMiniGrid snapshot={observability.agents.snapshot} />
+
+            <div>
+              <h2 className="text-lg font-bold tracking-tight text-gray-900">Workflow Engine</h2>
+              <p className="mt-1 text-[13px] font-medium text-gray-500">Success rate, throughput and queue activity</p>
+            </div>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+              <WorkflowSuccessRateWidget stats={observability.workflows.stats} />
+              <WorkflowFailureCountWidget stats={observability.workflows.stats} />
+              <WorkflowTotalRunsWidget stats={observability.workflows.stats} />
+              <WorkflowAvgDurationWidget stats={observability.workflows.stats} />
+            </div>
+            <QueueThroughputWidget trend={observability.workflows.dailyTrend} />
           </>
         )}
       </div>

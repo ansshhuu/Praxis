@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 
-import { aggregateAgentLogs } from '@/lib/agents/metrics'
+import { aggregateAgentLogs, aggregateByProvider, buildLatencyHistogram } from '@/lib/agents/metrics'
 import { getCurrentUserId } from '@/lib/auth/session'
 import { getAgentLogsCollection } from '@/lib/models/mongodb/agent-logs'
 
@@ -21,6 +21,8 @@ export async function GET(request: Request) {
   const logs = await collection.find(filter).sort({ createdAt: -1 }).limit(limit).toArray()
 
   const metrics = aggregateAgentLogs(logs)
+  const providers = aggregateByProvider(logs)
+  const latencyHistogram = buildLatencyHistogram(logs)
 
-  return NextResponse.json({ metrics, sampleSize: logs.length })
+  return NextResponse.json({ metrics, providers, latencyHistogram, sampleSize: logs.length })
 }

@@ -45,3 +45,59 @@ export function aggregateAgentLogs(logs: AgentLog[]): AgentMetricSummary[] {
     })
     .sort((a, b) => b.runCount - a.runCount)
 }
+
+export interface ProviderMetricSummary {
+  provider: string
+  runCount: number
+  avgLatencyMs: number
+  totalTokens: number
+}
+
+export function aggregateByProvider(logs: AgentLog[]): ProviderMetricSummary[] {
+  const byProvider = new Map<string, AgentLog[]>()
+  for (const log of logs) {
+    const key = log.provider || 'unknown'
+    const list = byProvider.get(key) ?? []
+    list.push(log)
+    byProvider.set(key, list)
+  }
+
+  return [...byProvider.entries()]
+    .map(([provider, entries]) => ({
+      provider,
+      runCount: entries.length,
+      avgLatencyMs: entries.reduce((sum, entry) => sum + entry.latencyMs, 0) / entries.length,
+      totalTokens: entries.reduce((sum, entry) => sum + entry.promptTokens + entry.completionTokens, 0),
+    }))
+    .sort((a, b) => b.runCount - a.runCount)
+}
+
+export interface LatencyBucket {
+  label: string
+  min: number
+  max: number
+  count: number
+}
+
+const LATENCY_BUCKET_EDGES = [0, 250, 500, 1000, 2000, 4000, 8000, Infinity]
+
+export function buildLatencyHistogram(logs: AgentLog[]): LatencyBucket[] {
+  const buckets: LatencyBucket[] = []
+  for (let i = 0; i < LATENCY_BUCKET_EDGES.length - 1; i += 1) {
+    const min = LATENCY_BUCKET_EDGES[i]
+    const max = LATENCY_BUCKET_EDGES[i + 1]
+    buckets.push({
+      label: max === Infinity ? `${min}ms+` : `${min}-${max}ms`,
+      min,
+      max,
+      count: 0,
+    })
+  }
+
+  for (const log of logs) {
+    const bucket = buckets.find((b) => log.latencyMs >= b.min && log.latencyMs < b.max)
+    if (bucket) bucket.count += 1
+  }
+
+  return buckets
+}

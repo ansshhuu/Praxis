@@ -9,6 +9,8 @@ export interface AgentLog {
   _id?: ObjectId
   agentId: string
   runId: string
+  provider: string
+  model: string
   promptTokens: number
   completionTokens: number
   cost: number

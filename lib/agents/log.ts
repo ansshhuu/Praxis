@@ -12,6 +12,8 @@ export async function recordAgentExecution(
   await collection.insertOne({
     agentId: result.agentId,
     runId: `${result.runId}:${result.agentId}:${randomUUID()}`,
+    provider: result.provider,
+    model: result.model,
     promptTokens: estimateTokenCount(input.prompt),
     completionTokens: estimateTokenCount(result.output),
     cost: 0,

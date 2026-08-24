@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest'
 
-import { aggregateAgentLogs, estimateTokenCount } from '@/lib/agents/metrics'
+import { aggregateAgentLogs, aggregateByProvider, buildLatencyHistogram, estimateTokenCount } from '@/lib/agents/metrics'
 import type { AgentLog } from '@/lib/models/mongodb/agent-logs'
 
 function log(overrides: Partial<AgentLog>): AgentLog {
   return {
     agentId: 'a',
     runId: 'r',
+    provider: 'openai',
+    model: 'gpt-4o-mini',
     promptTokens: 10,
     completionTokens: 20,
     cost: 0.01,
@@ -58,5 +60,44 @@ describe('aggregateAgentLogs', () => {
     ]
     const metrics = aggregateAgentLogs(logs)
     expect(metrics[0].agentId).toBe('high')
+  })
+})
+
+describe('aggregateByProvider', () => {
+  it('groups by provider and computes averages', () => {
+    const logs = [
+      log({ provider: 'openai', latencyMs: 100, promptTokens: 10, completionTokens: 10 }),
+      log({ provider: 'openai', latencyMs: 200, promptTokens: 10, completionTokens: 10 }),
+      log({ provider: 'gemini', latencyMs: 50, promptTokens: 5, completionTokens: 5 }),
+    ]
+
+    const metrics = aggregateByProvider(logs)
+    const openai = metrics.find((m) => m.provider === 'openai')
+
+    expect(openai?.runCount).toBe(2)
+    expect(openai?.avgLatencyMs).toBeCloseTo(150)
+    expect(openai?.totalTokens).toBe(40)
+    expect(metrics[0].provider).toBe('openai')
+  })
+
+  it('falls back to "unknown" for logs without a provider', () => {
+    const metrics = aggregateByProvider([log({ provider: '' })])
+    expect(metrics[0].provider).toBe('unknown')
+  })
+})
+
+describe('buildLatencyHistogram', () => {
+  it('buckets logs into fixed latency ranges', () => {
+    const logs = [
+      log({ latencyMs: 100 }),
+      log({ latencyMs: 300 }),
+      log({ latencyMs: 9000 }),
+    ]
+    const histogram = buildLatencyHistogram(logs)
+
+    expect(histogram.find((b) => b.label === '0-250ms')?.count).toBe(1)
+    expect(histogram.find((b) => b.label === '250-500ms')?.count).toBe(1)
+    expect(histogram.find((b) => b.label === '8000ms+')?.count).toBe(1)
+    expect(histogram.reduce((sum, b) => sum + b.count, 0)).toBe(3)
   })
 })

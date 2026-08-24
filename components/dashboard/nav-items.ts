@@ -1,9 +1,15 @@
 import {
   BarChart3,
   Bell,
+  Bot,
+  Briefcase,
   CalendarClock,
+  Camera,
+  DollarSign,
   FileText,
+  Headset,
   LayoutDashboard,
+  LibraryBig,
   LineChart,
   Mic,
   MessageSquare,
@@ -11,6 +17,7 @@ import {
   Settings,
   Sparkles,
   Store,
+  UsersRound,
   Workflow,
   type LucideIcon,
 } from 'lucide-react'
@@ -42,8 +49,30 @@ export const navSections: NavSection[] = [
     match: ['/scheduler', '/marketplace'],
     items: [
       { label: 'All Workflows', icon: Workflow, href: '/workflows', hint: 'Build and run pipelines' },
+      { label: 'Template Library', icon: LibraryBig, href: '/workflows/templates', hint: '102 prebuilt automations' },
       { label: 'Scheduler', icon: CalendarClock, href: '/scheduler', hint: 'Cron jobs and retries' },
       { label: 'Marketplace', icon: Store, href: '/marketplace', hint: 'Prebuilt templates' },
+    ],
+  },
+  {
+    label: 'Agents',
+    icon: Bot,
+    href: '/agents',
+    items: [
+      { label: 'Agent Directory', icon: Bot, href: '/agents', hint: '26 specialized AI agents' },
+      { label: 'Pipeline Builder', icon: Workflow, href: '/agents/pipelines', hint: 'Chain agents together' },
+    ],
+  },
+  {
+    label: 'Automation',
+    icon: Briefcase,
+    href: '/crm',
+    match: ['/hr', '/finance', '/support'],
+    items: [
+      { label: 'CRM', icon: Briefcase, href: '/crm', hint: 'Leads and proposals' },
+      { label: 'HR & Recruitment', icon: UsersRound, href: '/hr', hint: 'Screening and offers' },
+      { label: 'Finance & Invoices', icon: DollarSign, href: '/finance', hint: 'OCR and anomalies' },
+      { label: 'Support & Tickets', icon: Headset, href: '/support', hint: 'Triage and replies' },
     ],
   },
   {
@@ -70,10 +99,12 @@ export const navSections: NavSection[] = [
     label: 'AI',
     icon: Sparkles,
     href: '/chat',
-    match: ['/meetings'],
+    match: ['/meetings', '/knowledge', '/multimodal'],
     items: [
       { label: 'AI Assistant', icon: MessageSquare, href: '/chat', hint: 'Ask about your data' },
       { label: 'Meetings', icon: Mic, href: '/meetings', hint: 'Transcripts and actions' },
+      { label: 'Knowledge Base', icon: LibraryBig, href: '/knowledge', hint: 'RAG search and citations' },
+      { label: 'Multimodal Lab', icon: Camera, href: '/multimodal', hint: 'Voice and vision AI' },
     ],
   },
   {
