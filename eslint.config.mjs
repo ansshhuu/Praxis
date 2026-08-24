@@ -7,6 +7,7 @@ const eslintConfig = [
       '.next/**',
       'node_modules/**',
       'public/**',
+      'coverage/**',
       'next-env.d.ts',
       'tsconfig.tsbuildinfo',
       'components/DotField.jsx',

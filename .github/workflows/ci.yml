@@ -12,14 +12,15 @@ concurrency:
 
 jobs:
   verify:
-    name: Typecheck, lint, test, build
+    name: Verify (Node ${{ matrix.node-version }})
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
+    strategy:
+      matrix:
+        node-version: [20.x]
+
     env:
-      # The build never queries the database — every API route is dynamic and no
-      # page fetches at build time — but Prisma requires a syntactically valid
-      # URL to load the schema. This dummy value is never connected to.
       DATABASE_URL: postgresql://user:password@localhost:5432/praxis
       NEXTAUTH_SECRET: ci-placeholder-secret-not-used-at-runtime
       NEXTAUTH_URL: http://localhost:3000
@@ -31,23 +32,30 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: ${{ matrix.node-version }}
           cache: npm
 
-      # --include=dev is explicit rather than implied: CI runners may set
-      # NODE_ENV=production, which makes npm omit devDependencies — and the
-      # build needs tailwindcss, typescript, postcss and the Prisma CLI.
       - name: Install dependencies
         run: npm ci --include=dev
 
-      - name: Typecheck
-        run: npm run typecheck
+      - name: Generate Prisma client
+        run: npx prisma generate
 
       - name: Lint
         run: npm run lint
 
-      - name: Unit tests
-        run: npm test
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit tests with coverage
+        run: npm test -- --run --coverage
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 14
 
       - name: Build
         run: npm run build

@@ -4,52 +4,51 @@ services:
     runtime: node
     region: oregon
     plan: starter
-    # --include=dev is required: Render sets NODE_ENV=production, which makes npm
-    # omit devDependencies — but the build needs tailwindcss, @tailwindcss/postcss,
-    # typescript, postcss and the prisma CLI, all of which live there.
-    buildCommand: npm ci --include=dev && npx prisma migrate deploy && npm run build
+    buildCommand: npm ci --include=dev && npx prisma generate && npx prisma migrate deploy && npm run build
     startCommand: npm run start
     healthCheckPath: /api/health
     envVars:
       - key: NODE_ENV
         value: production
 
-      # Postgres. Use the SESSION pooler (port 5432, no ?pgbouncer=true) — it
-      # serves both runtime queries and `prisma migrate deploy` in the build.
-      # The transaction pooler (6543) cannot run DDL and would need a second
-      # DIRECT_URL connection string.
       - key: DATABASE_URL
         sync: false
 
-      # Auth. NEXTAUTH_URL must be the service's public HTTPS origin
-      # (e.g. https://praxis-app.onrender.com) or OAuth callbacks fail.
       - key: NEXTAUTH_URL
         sync: false
       - key: NEXTAUTH_SECRET
         generateValue: true
 
-      # Google OAuth (optional — the provider is skipped if either is unset).
-      # Authorised redirect URI: {NEXTAUTH_URL}/api/auth/callback/google
       - key: GOOGLE_CLIENT_ID
         sync: false
       - key: GOOGLE_CLIENT_SECRET
         sync: false
 
-      # AI providers. GEMINI_API_KEY is primary; Hugging Face is the fallback
-      # and also powers Whisper transcription for meetings.
       - key: GEMINI_API_KEY
+        sync: false
+      - key: OPENAI_API_KEY
         sync: false
       - key: HUGGINGFACE_API_KEY
         sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: OLLAMA_BASE_URL
+        sync: false
+      - key: LLM_PROVIDER_ORDER
+        value: openai,anthropic,gemini,ollama
 
-      # Supabase Storage — required by documents, meetings, resumes, avatars.
-      # Buckets "documents", "meetings" and "avatars" must exist and be private.
+      - key: ELEVENLABS_API_KEY
+        sync: false
+      - key: ELEVENLABS_VOICE_ID
+        sync: false
+
       - key: SUPABASE_URL
         sync: false
       - key: SUPABASE_SERVICE_ROLE_KEY
         sync: false
+      - key: NEXT_PUBLIC_SUPABASE_URL
+        sync: false
 
-      # Transactional email — Brevo.
       - key: BREVO_API_KEY
         sync: false
       - key: BREVO_SENDER_EMAIL
@@ -57,11 +56,21 @@ services:
       - key: BREVO_SENDER_NAME
         value: Praxis
 
-      # Destination inbox for landing page contact submissions.
-      # Falls back to BREVO_SENDER_EMAIL when unset.
       - key: CONTACT_INBOX_EMAIL
         sync: false
 
-      # Storage allowance shown on the Analytics page.
+      - key: MONGODB_URL
+        sync: false
+      - key: MONGODB_DB_NAME
+        value: praxis
+
+      - key: CHROMA_HOST
+        sync: false
+      - key: CHROMA_PERSIST_DIR
+        value: /chroma/chroma
+
+      - key: REDIS_URL
+        sync: false
+
       - key: STORAGE_QUOTA_MB
         value: "1024"
