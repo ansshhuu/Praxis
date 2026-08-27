@@ -2,7 +2,7 @@ export const RESUME_ROLES = ['ADMIN', 'HR', 'MANAGER'] as const
 
 export const ROLE_GUARDED_ROUTES: { prefix: string; roles: readonly string[] }[] = [
   { prefix: '/settings/users', roles: ['ADMIN'] },
-  { prefix: '/resumes', roles: RESUME_ROLES },
+  { prefix: '/hr', roles: RESUME_ROLES },
   { prefix: '/api/resumes', roles: RESUME_ROLES },
 ]
 

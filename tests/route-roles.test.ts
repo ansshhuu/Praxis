@@ -16,9 +16,9 @@ describe('requiredRolesFor', () => {
     expect(requiredRolesFor('/api/documents/upload')).toBeNull()
   })
 
-  it('guards the resumes page and its subpaths', () => {
-    expect(requiredRolesFor('/resumes')).toEqual(RESUME_ROLES)
-    expect(requiredRolesFor('/resumes/abc-123')).toEqual(RESUME_ROLES)
+  it('guards the HR page and its subpaths', () => {
+    expect(requiredRolesFor('/hr')).toEqual(RESUME_ROLES)
+    expect(requiredRolesFor('/hr/abc-123')).toEqual(RESUME_ROLES)
   })
 
   it('guards the resumes API, not just the page', () => {
@@ -45,22 +45,22 @@ describe('canAccessRoute', () => {
     expect(canAccessRoute('/dashboard', undefined)).toBe(true)
   })
 
-  it('allows ADMIN, HR and MANAGER into resumes', () => {
-    expect(canAccessRoute('/resumes', 'ADMIN')).toBe(true)
-    expect(canAccessRoute('/resumes', 'HR')).toBe(true)
-    expect(canAccessRoute('/resumes', 'MANAGER')).toBe(true)
+  it('allows ADMIN, HR and MANAGER into HR', () => {
+    expect(canAccessRoute('/hr', 'ADMIN')).toBe(true)
+    expect(canAccessRoute('/hr', 'HR')).toBe(true)
+    expect(canAccessRoute('/hr', 'MANAGER')).toBe(true)
   })
 
-  it('blocks EMPLOYEE from resumes — page and API alike', () => {
-    expect(canAccessRoute('/resumes', 'EMPLOYEE')).toBe(false)
+  it('blocks EMPLOYEE from HR — page and API alike', () => {
+    expect(canAccessRoute('/hr', 'EMPLOYEE')).toBe(false)
     expect(canAccessRoute('/api/resumes', 'EMPLOYEE')).toBe(false)
     expect(canAccessRoute('/api/resumes/screen', 'EMPLOYEE')).toBe(false)
   })
 
   it('blocks a missing role on guarded routes', () => {
-    expect(canAccessRoute('/resumes', null)).toBe(false)
-    expect(canAccessRoute('/resumes', undefined)).toBe(false)
-    expect(canAccessRoute('/resumes', '')).toBe(false)
+    expect(canAccessRoute('/hr', null)).toBe(false)
+    expect(canAccessRoute('/hr', undefined)).toBe(false)
+    expect(canAccessRoute('/hr', '')).toBe(false)
   })
 
   it('only ADMIN reaches user management', () => {
@@ -73,16 +73,16 @@ describe('canAccessRoute', () => {
   it('is case sensitive — lowercase roles must not pass', () => {
     // Guards compare against the Prisma enum, which is uppercase. A lowercase
     // value silently matching would grant access to everyone.
-    expect(canAccessRoute('/resumes', 'admin')).toBe(false)
+    expect(canAccessRoute('/hr', 'admin')).toBe(false)
     expect(canAccessRoute('/settings/users', 'admin')).toBe(false)
   })
 })
 
 describe('guard configuration', () => {
-  it('keeps the page and API guards in sync for resumes', () => {
+  it('keeps the page and API guards in sync for HR', () => {
     // The API guard was originally missing, leaving the data reachable while the
     // UI link was hidden. These two must not drift apart again.
-    expect(requiredRolesFor('/resumes')).toEqual(requiredRolesFor('/api/resumes'))
+    expect(requiredRolesFor('/hr')).toEqual(requiredRolesFor('/api/resumes'))
   })
 
   it('declares every guard with a leading slash and a non-empty role list', () => {

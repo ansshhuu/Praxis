@@ -1,17 +1,14 @@
 'use client'
 
 import {
-  BarChart3,
   Bell,
-  CalendarClock,
+  Bot,
+  Briefcase,
   ChevronDown,
   FileText,
   LayoutDashboard,
   LineChart,
-  MessageSquare,
-  Mic,
-  ScrollText,
-  Store,
+  Sparkles,
   Workflow,
   X,
   type LucideIcon,
@@ -35,7 +32,7 @@ const HELP_TOPICS: HelpTopic[] = [
     label: 'Dashboard',
     icon: LayoutDashboard,
     description:
-      'A live overview of your workspace: active users, in-flight work, AI usage today, and the 30-day workflow success rate. Everything on it is read from your real records.',
+      'A high-level overview of your workspace: active users, in-flight work, AI usage today, quick action triggers and the 30-day workflow success rate.',
     steps: [
       'Pick a window from the date-range dropdown (7, 30 or 90 days) to rescope the charts.',
       'Use the 7D / 30D / 90D tabs on the success-rate chart, and hover any point for that day’s rate and run count.',
@@ -49,14 +46,39 @@ const HELP_TOPICS: HelpTopic[] = [
     label: 'Workflows',
     icon: Workflow,
     description:
-      'A drag-and-drop builder for automation pipelines. Chain triggers, AI steps, logic and actions on a canvas, then run the whole thing and watch each node report back.',
+      'The visual automation builder: chain triggers, AI steps, logic and actions on a canvas, run saved workflows on a schedule, and start from prebuilt templates.',
     steps: [
       'Open Workflows and give the workflow a name in the header field.',
-      'Drag nodes from the left palette onto the canvas.',
-      'Connect nodes by dragging from one node’s output handle to the next node’s input.',
-      'Click any node to open its config drawer and fill in its settings.',
-      'Click Save to persist the graph.',
-      'Click Run to execute it, then open History to review past runs.',
+      'Drag nodes from the left palette onto the canvas and connect their handles to wire up the pipeline.',
+      'Click any node to open its config drawer, fill in its settings, then Save and Run.',
+      'Open History on a workflow to review its execution traces, or Scheduler to run it on a cadence instead of by hand.',
+      'Browse Marketplace for a working template to copy into your own workflows instead of starting from an empty canvas.',
+    ],
+  },
+  {
+    id: 'agents',
+    label: 'Agents',
+    icon: Bot,
+    description:
+      '26 specialized autonomous agents across development, business, operations, marketing and content, runnable individually or chained into multi-agent pipelines.',
+    steps: [
+      'Open Agent Directory to browse the 26 agents and their current health and latency.',
+      'Click Run on an agent to open its runner drawer, fill in its inputs, and watch it execute.',
+      'Open Pipeline Builder to chain multiple agents so one agent’s output feeds the next.',
+      'Save a pipeline, then run it and review each agent’s step in the trace.',
+    ],
+  },
+  {
+    id: 'automation',
+    label: 'Automation',
+    icon: Briefcase,
+    description:
+      'Domain-specific automation hubs for CRM, HR & Recruitment, Finance & Invoices, and Support & Tickets.',
+    steps: [
+      'Open CRM to qualify a lead — fill in contact, budget and timeline, then score it and plan the follow-up.',
+      'Open HR & Recruitment to upload resumes with a job description, screen and rank candidates, generate interview questions, and draft offer letters.',
+      'Open Finance & Invoices to upload an invoice or receipt for OCR extraction, categorization and anomaly detection.',
+      'Open Support & Tickets to triage an incoming ticket, translate it, and draft a reply.',
     ],
   },
   {
@@ -64,7 +86,7 @@ const HELP_TOPICS: HelpTopic[] = [
     label: 'Documents',
     icon: FileText,
     description:
-      'Upload PDFs, Office files and images, extract their text with OCR, and get an AI summary you can then question in plain language.',
+      'The centralized document repository and knowledge base: upload files, extract their text with OCR, and get an AI summary you can question in plain language.',
     steps: [
       'Click Upload Document and choose a file (50 MB max).',
       'Select the document from the list to open its detail pane.',
@@ -73,70 +95,29 @@ const HELP_TOPICS: HelpTopic[] = [
     ],
   },
   {
-    id: 'resumes',
-    label: 'Resumes',
-    icon: ScrollText,
+    id: 'insights',
+    label: 'Insights',
+    icon: LineChart,
     description:
-      'Score a batch of candidate CVs against a job description in one pass, ranked by match, with skills matched and missing called out per candidate.',
+      'Enterprise observability: usage trends, response-time percentiles, token consumption and cost, backing-service health, and generated reports.',
     steps: [
-      'Paste the role’s Job Description into the text area.',
-      'Upload the candidate resumes you want scored (PDF, DOCX or TXT).',
-      'Click Screen Candidates and wait for scoring to finish.',
-      'Review the ranked Screening Results table and each candidate’s match score.',
-      'Open a candidate to see their AI assessment and generate interview questions.',
+      'Open Analytics to review AI usage over time, workflow success versus failure, and response-time percentiles (p50, p95, p99).',
+      'Scroll to System Health for live status of Postgres, MongoDB, Redis and ChromaDB.',
+      'Check Agent Observability for token consumption, estimated cost, run counts and latency by provider.',
+      'Open Reports to generate an Employee, Workflow, Sales, HR or AI Usage summary as PDF, Word or Excel.',
     ],
   },
   {
-    id: 'reports',
-    label: 'Reports',
-    icon: BarChart3,
+    id: 'ai',
+    label: 'AI',
+    icon: Sparkles,
     description:
-      'Generate a document summarising your real platform data, with an AI-written insights section, saved as a downloadable file.',
+      'AI Assistant chat, meeting transcription, the RAG knowledge-base playground, and multimodal tools for voice and computer vision.',
     steps: [
-      'Click Generate Report.',
-      'Choose a Report Type (Employee, Workflow, Sales, HR or AI Usage).',
-      'Choose a Format — PDF, Word or Excel.',
-      'Confirm, then wait while the data is collected and summarised.',
-      'Open or download the finished file from the reports table.',
-    ],
-  },
-  {
-    id: 'chat',
-    label: 'AI Assistant',
-    icon: MessageSquare,
-    description:
-      'A conversational assistant with context on your workspace. Ask it about your workflows, documents and activity instead of hunting through pages.',
-    steps: [
-      'Open AI Assistant from the AI tab.',
-      'Type your question in the message box, or pick one of the suggested prompts.',
-      'Press Enter to send — Shift+Enter inserts a newline instead.',
-      'Keep asking follow-ups; the thread keeps its context.',
-    ],
-  },
-  {
-    id: 'meetings',
-    label: 'Meetings',
-    icon: Mic,
-    description:
-      'Turn a recording or a raw transcript into a summary, an attendee list and a set of action items.',
-    steps: [
-      'Click New Meeting.',
-      'Either upload an audio recording (MP3, WAV or M4A) or paste an existing transcript.',
-      'Start processing — audio is transcribed first, then analysed.',
-      'Open the meeting to read its summary, attendees and extracted action items.',
-    ],
-  },
-  {
-    id: 'marketplace',
-    label: 'Marketplace',
-    icon: Store,
-    description:
-      'A library of prebuilt workflow templates. Start from a working pipeline instead of an empty canvas.',
-    steps: [
-      'Browse the template cards, or filter by category.',
-      'Read a template’s description to check it fits your use case.',
-      'Click Use Template to copy it into your own workflows.',
-      'You land in the builder with the nodes already laid out — adjust the config and save.',
+      'Open AI Assistant and type a question, or pick a suggested prompt — Shift+Enter inserts a newline instead of sending.',
+      'Open Meetings to upload a recording or paste a transcript and get a summary, attendees and action items.',
+      'Open Knowledge Base to ingest text or files, then query it and get an answer grounded in cited snippets.',
+      'Open Multimodal Lab to record and transcribe voice, synthesize speech, or run OCR and object detection on an image.',
     ],
   },
   {
@@ -144,40 +125,12 @@ const HELP_TOPICS: HelpTopic[] = [
     label: 'Notifications',
     icon: Bell,
     description:
-      'The delivery log for every notification the platform has sent, including real emails dispatched by Notify and Email Action nodes.',
+      'The delivery log for every notification the platform has sent, plus per-channel configuration for email, SMS, push and Slack.',
     steps: [
       'Check the Notification Channels panel for how many messages each channel has sent or failed.',
       'Scan the Notification Log for individual messages.',
       'Read the Recipient column to see the address a message actually went to.',
       'Check the Status pill — a Failed row carries the delivery error in its message text.',
-    ],
-  },
-  {
-    id: 'scheduler',
-    label: 'Scheduler',
-    icon: CalendarClock,
-    description:
-      'Run saved workflows on a repeating schedule instead of triggering them by hand.',
-    steps: [
-      'Click New Scheduled Job.',
-      'Pick the workflow you want to run.',
-      'Set the cadence with a Cron Expression, or pick one of the Quick Presets.',
-      'Save the job — it appears in Scheduled Jobs with its next run time.',
-      'Toggle a job inactive to pause it without deleting it.',
-    ],
-  },
-  {
-    id: 'analytics',
-    label: 'Analytics',
-    icon: LineChart,
-    description:
-      'Deeper execution metrics than the dashboard: usage trends, success versus failure, response-time percentiles, API call volume and storage.',
-    steps: [
-      'Open Analytics from the Insights tab.',
-      'Review AI Usage Over Time for request volume across modules.',
-      'Compare the Workflow Success / Fail bars to spot bad days.',
-      'Check the Response Time Trend (p50, p95, p99) for slow executions.',
-      'Watch Storage Usage against your quota.',
     ],
   },
 ]

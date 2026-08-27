@@ -13,7 +13,6 @@ import {
   LineChart,
   Mic,
   MessageSquare,
-  ScrollText,
   Settings,
   Sparkles,
   Store,
@@ -78,11 +77,6 @@ export const navSections: NavSection[] = [
     label: 'Documents',
     icon: FileText,
     href: '/documents',
-    match: ['/resumes'],
-    items: [
-      { label: 'All Documents', icon: FileText, href: '/documents', hint: 'OCR and extraction' },
-      { label: 'Resumes', icon: ScrollText, href: '/resumes', hint: 'Candidate screening' },
-    ],
   },
   {
     label: 'Insights',

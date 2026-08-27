@@ -5,6 +5,7 @@ import {
   Check,
   CheckCircle2,
   Loader2,
+  Trash2,
   UserPlus,
   X,
   XCircle,
@@ -483,12 +484,81 @@ function AddUserModal({
   )
 }
 
+function ConfirmDeleteUserModal({
+  user,
+  onClose,
+  onConfirm,
+  isDeleting,
+  error,
+}: {
+  user: AppUser
+  onClose: () => void
+  onConfirm: () => void
+  isDeleting: boolean
+  error: string | null
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-gray-900/40 backdrop-blur-sm" onClick={isDeleting ? undefined : onClose} />
+      <div
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="delete-user-title"
+        className="relative w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl"
+      >
+        <div className="mb-4 flex items-center justify-between">
+          <h2 id="delete-user-title" className="text-lg font-bold text-gray-900">Delete User</h2>
+          <Button type="button" variant="ghost" size="icon" onClick={onClose} disabled={isDeleting} className="rounded-full">
+            <X className="size-4 text-gray-500" />
+          </Button>
+        </div>
+
+        <p className="text-[13.5px] text-gray-600">
+          This permanently removes <span className="font-bold text-gray-900">{user.name}</span> ({user.email}). This cannot be undone.
+        </p>
+
+        {error && (
+          <p className="mt-3 text-[13px] font-bold text-red-500" role="alert">{error}</p>
+        )}
+
+        <div className="mt-6 flex gap-3">
+          <Button
+            type="button"
+            variant="outline"
+            className="flex-1 rounded-xl h-11 font-bold"
+            onClick={onClose}
+            disabled={isDeleting}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            variant="destructive"
+            className="flex-1 rounded-xl h-11 font-bold"
+            onClick={onConfirm}
+            disabled={isDeleting}
+          >
+            {isDeleting ? <Loader2 className="size-4 animate-spin mr-2" /> : <Trash2 className="size-4 mr-2" />}
+            {isDeleting ? 'Deleting…' : 'Delete User'}
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function UserManagementTab() {
+  const { data: session } = useSession()
+  const currentUserId = session?.user?.id
+
   const [users, setUsers] = useState<AppUser[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [savingId, setSavingId] = useState<string | null>(null)
   const [showAddUser, setShowAddUser] = useState(false)
+  const [userPendingDelete, setUserPendingDelete] = useState<AppUser | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
   const [toast, setToast] = useState<ToastState | null>(null)
 
   useEffect(() => {
@@ -545,6 +615,27 @@ function UserManagementTab() {
     setToast({ id: Date.now(), kind: 'success', message: `${user.name} was added as ${roleLabels[user.role]}.` })
   }
 
+  async function deleteUser() {
+    if (!userPendingDelete || isDeleting) return
+
+    setIsDeleting(true)
+    setDeleteError(null)
+
+    try {
+      const response = await fetch(`/api/users/${userPendingDelete.id}`, { method: 'DELETE' })
+      const body = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(body.error ?? 'Could not delete this user.')
+
+      setUsers((prev) => prev.filter((u) => u.id !== userPendingDelete.id))
+      setToast({ id: Date.now(), kind: 'success', message: `${userPendingDelete.name} was deleted.` })
+      setUserPendingDelete(null)
+    } catch (deleteRequestError) {
+      setDeleteError((deleteRequestError as Error).message)
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
   const description = loading
     ? 'Loading users…'
     : error
@@ -576,12 +667,13 @@ function UserManagementTab() {
                 <TableHead>Email</TableHead>
                 <TableHead>Role</TableHead>
                 <TableHead>Last Active</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {loading && (
                 <TableRow>
-                  <TableCell colSpan={4} className="py-10 text-center text-sm text-muted-foreground">
+                  <TableCell colSpan={5} className="py-10 text-center text-sm text-muted-foreground">
                     <span className="inline-flex items-center gap-2">
                       <Loader2 className="size-4 animate-spin" />
                       Loading users…
@@ -591,7 +683,7 @@ function UserManagementTab() {
               )}
               {!loading && users.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={4} className="py-10 text-center text-sm text-muted-foreground">
+                  <TableCell colSpan={5} className="py-10 text-center text-sm text-muted-foreground">
                     No users to show.
                   </TableCell>
                 </TableRow>
@@ -626,6 +718,21 @@ function UserManagementTab() {
                     </select>
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">{formatLastLogin(user.lastLogin)}</TableCell>
+                  <TableCell className="text-right">
+                    {user.id !== currentUserId && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        id={`delete-user-${user.id}`}
+                        aria-label={`Delete ${user.name}`}
+                        onClick={() => { setUserPendingDelete(user); setDeleteError(null) }}
+                        className="text-gray-400 hover:bg-destructive/10 hover:text-destructive"
+                      >
+                        <Trash2 className="size-4" />
+                      </Button>
+                    )}
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -635,6 +742,16 @@ function UserManagementTab() {
 
       {showAddUser && (
         <AddUserModal onClose={() => setShowAddUser(false)} onCreated={handleCreated} />
+      )}
+
+      {userPendingDelete && (
+        <ConfirmDeleteUserModal
+          user={userPendingDelete}
+          onClose={() => (isDeleting ? undefined : setUserPendingDelete(null))}
+          onConfirm={() => void deleteUser()}
+          isDeleting={isDeleting}
+          error={deleteError}
+        />
       )}
 
       <SettingsToast toast={toast} onDismiss={() => setToast(null)} />

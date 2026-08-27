@@ -55,7 +55,7 @@ const modules = [
     icon: Users,
     title: 'Resume Screening',
     desc: 'Rank candidates automatically with AI scoring on skills, experience, and role fit. Cut screening time by 80% and surface your best matches in seconds.',
-    link: '/resumes',
+    link: '/hr',
   },
   {
     id: 'chat',
