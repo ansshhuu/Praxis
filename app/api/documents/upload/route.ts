@@ -5,6 +5,7 @@ import { logActivity } from '@/lib/activity/log'
 import { getCurrentUserId } from '@/lib/auth/session'
 import { prisma } from '@/lib/db/prisma'
 import { toSummary } from '@/lib/documents/serialize'
+import { toSafeErrorMessage } from '@/lib/security/error-handler'
 import { uploadDocument } from '@/lib/storage/supabase'
 
 export const dynamic = 'force-dynamic'
@@ -75,8 +76,10 @@ export async function POST(request: Request) {
   try {
     stored = await uploadDocument(userId, file)
   } catch (error) {
-    console.error('[documents/upload] storage failed:', error)
-    return NextResponse.json({ error: (error as Error).message }, { status: 502 })
+    return NextResponse.json(
+      { error: toSafeErrorMessage(error, 'Failed to upload the document') },
+      { status: 502 },
+    )
   }
 
   try {

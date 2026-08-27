@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
 
-import { ingestTicket } from '@/lib/automation/support-service'
 import { getCurrentUserId } from '@/lib/auth/session'
+import { ingestTicket } from '@/lib/automation/support-service'
+import { toSafeErrorMessage } from '@/lib/security/error-handler'
 
 export const dynamic = 'force-dynamic'
 
@@ -33,12 +34,11 @@ export async function POST(request: Request) {
   }
 
   try {
-    const ticket = await ingestTicket({ subject, message })
+    const ticket = await ingestTicket({ userId, subject, message })
     return NextResponse.json({ ticket }, { status: 201 })
   } catch (error) {
-    console.error('[automation/support/ticket] failed:', error)
     return NextResponse.json(
-      { error: (error as Error).message || 'Failed to ingest ticket' },
+      { error: toSafeErrorMessage(error, 'Failed to ingest ticket') },
       { status: 502 },
     )
   }

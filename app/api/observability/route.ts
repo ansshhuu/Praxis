@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 
 import { getAgentRegistry } from '@/lib/agents/agent-registry'
 import { aggregateAgentLogs, aggregateByProvider, buildLatencyHistogram } from '@/lib/agents/metrics'
-import { getCurrentUserId } from '@/lib/auth/session'
+import { requireAdmin } from '@/lib/auth/session'
 import { pingMongo } from '@/lib/db/mongodb'
 import { prisma } from '@/lib/db/prisma'
 import { pingRedis } from '@/lib/db/redis'
@@ -39,9 +39,9 @@ async function checkChroma(): Promise<ServiceStatus> {
 }
 
 export async function GET() {
-  const userId = await getCurrentUserId()
-  if (!userId) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const auth = await requireAdmin()
+  if (!auth.ok) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status })
   }
 
   const [postgres, mongodb, redis, chromadb, agentLogs, traces] = await Promise.all([

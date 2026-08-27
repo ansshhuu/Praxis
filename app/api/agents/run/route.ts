@@ -5,13 +5,22 @@ import { NextResponse } from 'next/server'
 import { getAgentRegistry } from '@/lib/agents/agent-registry'
 import { recordAgentExecution } from '@/lib/agents/log'
 import { getCurrentUserId } from '@/lib/auth/session'
+import { enforceRateLimit } from '@/lib/security/rate-limit'
 
 export const dynamic = 'force-dynamic'
+
+const AGENT_RUN_RATE_LIMIT = 20
+const AGENT_RUN_RATE_WINDOW_SECONDS = 60
 
 export async function POST(request: Request) {
   const userId = await getCurrentUserId()
   if (!userId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const denied = await enforceRateLimit('agents-run', userId, AGENT_RUN_RATE_LIMIT, AGENT_RUN_RATE_WINDOW_SECONDS)
+  if (denied) {
+    return NextResponse.json(denied.body, { status: denied.status })
   }
 
   let body: { agentId?: unknown; prompt?: unknown; data?: unknown }
@@ -38,7 +47,7 @@ export async function POST(request: Request) {
   }
 
   const result = await agent.execute(input, { userId, runId: randomUUID() })
-  await recordAgentExecution(input, result)
+  await recordAgentExecution(input, result, userId)
 
   return NextResponse.json({ result }, { status: result.status === 'success' ? 200 : 502 })
 }

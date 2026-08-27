@@ -38,6 +38,7 @@ export interface ScreenCandidateInput {
 }
 
 export interface ScreenResumesOptions {
+  userId: string
   jobId: string
   jobDescription: string
   candidates: ScreenCandidateInput[]
@@ -59,6 +60,8 @@ export async function screenResumes(options: ScreenResumesOptions): Promise<HrCa
   const records: HrCandidate[] = ranked.map((entry) => {
     const source = options.candidates.find((candidate) => candidate.candidateId === entry.candidateId)
     return {
+      userId: options.userId,
+      orgId: options.userId,
       jobId: options.jobId,
       name: entry.name,
       email: source?.email ?? '',

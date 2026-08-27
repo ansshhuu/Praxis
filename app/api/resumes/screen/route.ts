@@ -7,6 +7,7 @@ import { prisma } from '@/lib/db/prisma'
 import { extractText } from '@/lib/documents/extract'
 import { ScoringError, scoreResumes, type ResumeInput } from '@/lib/resumes/scoring'
 import { toCandidateSummary } from '@/lib/resumes/serialize'
+import { toSafeErrorMessage } from '@/lib/security/error-handler'
 import { createReadUrl, uploadDocument } from '@/lib/storage/supabase'
 
 export const dynamic = 'force-dynamic'
@@ -122,16 +123,16 @@ export async function POST(request: Request) {
 
       inputs.push({ key: document.id, fileName: file.name, text })
     } catch (error) {
-      console.error(`[resumes/screen] failed to prepare ${file.name}:`, error)
+      const safeMessage = toSafeErrorMessage(error, `Failed to prepare "${file.name}"`)
       if (documentId) {
         await prisma.document
           .update({
             where: { id: documentId },
-            data: { status: 'FAILED', statusMessage: (error as Error).message.slice(0, 500) },
+            data: { status: 'FAILED', statusMessage: safeMessage },
           })
           .catch(() => {})
       }
-      skipped.push({ fileName: file.name, reason: (error as Error).message })
+      skipped.push({ fileName: file.name, reason: safeMessage })
     }
   }
 
@@ -149,13 +150,12 @@ export async function POST(request: Request) {
   try {
     scored = await scoreResumes(jobDescription, inputs)
   } catch (error) {
-    console.error('[resumes/screen] scoring failed:', error)
     return NextResponse.json(
       {
         error:
           error instanceof ScoringError
             ? error.message
-            : `Screening failed: ${(error as Error).message}`,
+            : toSafeErrorMessage(error, 'Screening failed'),
         documentIds,
         skipped,
       },

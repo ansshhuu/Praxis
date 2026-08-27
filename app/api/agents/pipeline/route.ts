@@ -7,8 +7,12 @@ import type { AgentInput } from '@/lib/agents/base-agent'
 import { recordAgentExecution } from '@/lib/agents/log'
 import { runPipeline, type PipelineStage } from '@/lib/agents/orchestrator'
 import { getCurrentUserId } from '@/lib/auth/session'
+import { enforceRateLimit } from '@/lib/security/rate-limit'
 
 export const dynamic = 'force-dynamic'
+
+const PIPELINE_RATE_LIMIT = 10
+const PIPELINE_RATE_WINDOW_SECONDS = 60
 
 function parseStep(value: unknown): { agentId: string; input: AgentInput } | null {
   if (!value || typeof value !== 'object') return null
@@ -45,6 +49,11 @@ export async function POST(request: Request) {
   const userId = await getCurrentUserId()
   if (!userId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const denied = await enforceRateLimit('agents-pipeline', userId, PIPELINE_RATE_LIMIT, PIPELINE_RATE_WINDOW_SECONDS)
+  if (denied) {
+    return NextResponse.json(denied.body, { status: denied.status })
   }
 
   let body: { name?: unknown; stages?: unknown; retryPolicy?: unknown }
@@ -86,7 +95,7 @@ export async function POST(request: Request) {
   )
   await Promise.all(
     result.steps.map((step, index) =>
-      recordAgentExecution(flattenedInputs[index] ?? { prompt: '' }, step).catch(() => undefined),
+      recordAgentExecution(flattenedInputs[index] ?? { prompt: '' }, step, userId).catch(() => undefined),
     ),
   )
 

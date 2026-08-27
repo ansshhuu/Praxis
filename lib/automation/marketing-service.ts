@@ -25,6 +25,7 @@ export function suggestHashtags(topic: string, maxTags = 5): string[] {
 }
 
 export interface GeneratePostOptions {
+  userId: string
   platform: MarketingPlatform
   topic: string
   tone: string
@@ -47,6 +48,8 @@ export async function generatePost(options: GeneratePostOptions): Promise<Market
 
   const collection = await getMarketingPostsCollection()
   const post: MarketingPost = {
+    userId: options.userId,
+    orgId: options.userId,
     platform: options.platform,
     topic: options.topic,
     content: text.slice(0, limit),
@@ -91,6 +94,7 @@ export function findAvailableSlots(
 }
 
 export interface ScheduleMeetingInput {
+  userId: string
   title: string
   attendees: string[]
   startsAt: Date
@@ -100,6 +104,8 @@ export interface ScheduleMeetingInput {
 export async function scheduleMeeting(input: ScheduleMeetingInput): Promise<CalendarEvent> {
   const collection = await getCalendarEventsCollection()
   const event: CalendarEvent = {
+    userId: input.userId,
+    orgId: input.userId,
     title: input.title,
     attendees: input.attendees,
     startsAt: input.startsAt,

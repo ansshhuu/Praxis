@@ -1,3 +1,5 @@
+import { createHash } from 'crypto'
+
 const GEMINI_MODEL = 'gemini-3.5-flash'
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`
 
@@ -17,13 +19,8 @@ globalForAiCache.aiResponseCache = cache
 
 const MAX_CACHE_ENTRIES = 200
 
-function hashPrompt(prompt: string): string {
-  let hash = 0x811c9dc5
-  for (let i = 0; i < prompt.length; i += 1) {
-    hash ^= prompt.charCodeAt(i)
-    hash = Math.imul(hash, 0x01000193)
-  }
-  return (hash >>> 0).toString(36) + ':' + prompt.length
+function hashPrompt(prompt: string, userId: string): string {
+  return createHash('sha256').update(`${userId}:${prompt}`).digest('hex')
 }
 
 function describeNetworkError(error: unknown): string {
@@ -149,13 +146,13 @@ async function callHuggingFace(prompt: string, apiKey: string): Promise<string> 
   )
 }
 
-export async function callAI(prompt: string): Promise<string> {
+export async function callAI(prompt: string, userId = ''): Promise<string> {
   const trimmed = prompt.trim()
   if (!trimmed) {
     throw new Error('callAI requires a non-empty prompt')
   }
 
-  const key = hashPrompt(trimmed)
+  const key = hashPrompt(trimmed, userId)
   const cached = cache.get(key)
   if (cached !== undefined) {
     return cached

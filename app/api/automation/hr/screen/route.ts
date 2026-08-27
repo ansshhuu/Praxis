@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 
 import { generateInterviewQuestions, screenResumes } from '@/lib/automation/hr-service'
 import { requireResumeAccess } from '@/lib/auth/session'
+import { toSafeErrorMessage } from '@/lib/security/error-handler'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -53,7 +54,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const results = await screenResumes({ jobId, jobDescription, candidates })
+    const results = await screenResumes({ userId: auth.user.id, jobId, jobDescription, candidates })
 
     let topCandidateQuestions: string[] = []
     const top = results.find((candidate) => candidate.rank === 1)
@@ -70,9 +71,8 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ candidates: results, topCandidateQuestions }, { status: 201 })
   } catch (error) {
-    console.error('[automation/hr/screen] failed:', error)
     return NextResponse.json(
-      { error: (error as Error).message || 'Failed to screen resumes' },
+      { error: toSafeErrorMessage(error, 'Failed to screen resumes') },
       { status: 502 },
     )
   }

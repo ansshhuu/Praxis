@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 
 import { generateOfferLetter } from '@/lib/automation/hr-service'
 import { requireResumeAccess } from '@/lib/auth/session'
+import { toSafeErrorMessage } from '@/lib/security/error-handler'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -42,9 +43,8 @@ export async function POST(request: Request) {
     const letter = await generateOfferLetter({ candidateName, role, salary, startDate, company })
     return NextResponse.json({ letter })
   } catch (error) {
-    console.error('[automation/hr/offer-letter] failed:', error)
     return NextResponse.json(
-      { error: (error as Error).message || 'Failed to generate offer letter' },
+      { error: toSafeErrorMessage(error, 'Failed to generate offer letter') },
       { status: 502 },
     )
   }

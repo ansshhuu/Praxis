@@ -17,7 +17,7 @@ export async function GET(request: Request) {
   const limit = Math.min(Math.max(Number(searchParams.get('limit') ?? '1000') || 1000, 1), 5000)
 
   const collection = await getAgentLogsCollection()
-  const filter = agentId ? { agentId } : {}
+  const filter = agentId ? { userId, agentId } : { userId }
   const logs = await collection.find(filter).sort({ createdAt: -1 }).limit(limit).toArray()
 
   const metrics = aggregateAgentLogs(logs)

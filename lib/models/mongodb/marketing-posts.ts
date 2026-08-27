@@ -7,6 +7,8 @@ export type MarketingPlatform = 'linkedin' | 'twitter'
 
 export interface MarketingPost {
   _id?: ObjectId
+  userId: string
+  orgId: string
   platform: MarketingPlatform
   topic: string
   content: string
@@ -22,5 +24,8 @@ export async function getMarketingPostsCollection(): Promise<Collection<Marketin
 
 export async function ensureMarketingPostsIndexes(): Promise<void> {
   const collection = await getMarketingPostsCollection()
-  await collection.createIndexes([{ key: { platform: 1, createdAt: -1 } }])
+  await collection.createIndexes([
+    { key: { userId: 1, createdAt: -1 } },
+    { key: { platform: 1, createdAt: -1 } },
+  ])
 }

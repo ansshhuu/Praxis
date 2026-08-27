@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { avatarSelect, effectiveAvatar } from '@/lib/auth/avatar'
 import { getCurrentUserId } from '@/lib/auth/session'
 import { prisma } from '@/lib/db/prisma'
+import { toSafeErrorMessage } from '@/lib/security/error-handler'
 import { AVATARS_BUCKET, removeDocument, uploadDocument } from '@/lib/storage/supabase'
 
 export const dynamic = 'force-dynamic'
@@ -83,8 +84,10 @@ export async function POST(request: Request) {
   try {
     stored = await uploadDocument(userId, file, undefined, AVATARS_BUCKET)
   } catch (error) {
-    console.error('[profile/photo] storage failed:', error)
-    return NextResponse.json({ error: (error as Error).message }, { status: 502 })
+    return NextResponse.json(
+      { error: toSafeErrorMessage(error, 'Failed to upload the profile photo') },
+      { status: 502 },
+    )
   }
 
   try {

@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
 
-import { recordFinanceEntry } from '@/lib/automation/finance-service'
 import { getCurrentUserId } from '@/lib/auth/session'
+import { recordFinanceEntry } from '@/lib/automation/finance-service'
+import { toSafeErrorMessage } from '@/lib/security/error-handler'
 
 export const dynamic = 'force-dynamic'
 
@@ -40,6 +41,7 @@ export async function POST(request: Request) {
 
   try {
     const record = await recordFinanceEntry({
+      userId,
       vendor,
       description,
       amount,
@@ -51,9 +53,8 @@ export async function POST(request: Request) {
     })
     return NextResponse.json({ record }, { status: 201 })
   } catch (error) {
-    console.error('[automation/finance/categorize-expense] failed:', error)
     return NextResponse.json(
-      { error: (error as Error).message || 'Failed to categorize expense' },
+      { error: toSafeErrorMessage(error, 'Failed to categorize expense') },
       { status: 502 },
     )
   }

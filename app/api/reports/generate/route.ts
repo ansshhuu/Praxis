@@ -8,6 +8,7 @@ import { prisma } from '@/lib/db/prisma'
 import { collectReportData, summarizeForPrompt } from '@/lib/reports/data'
 import { generateReportFile, isReportFormat } from '@/lib/reports/generate'
 import { buildReportFileName, isReportType, toReportSummary } from '@/lib/reports/serialize'
+import { toSafeErrorMessage } from '@/lib/security/error-handler'
 import { uploadDocument } from '@/lib/storage/supabase'
 
 export const dynamic = 'force-dynamic'
@@ -47,13 +48,10 @@ export async function POST(request: Request) {
 
   let aiSummary: string
   try {
-    aiSummary = await callAI(buildSummaryPrompt(summarizeForPrompt(data)))
+    aiSummary = await callAI(buildSummaryPrompt(summarizeForPrompt(data)), userId)
   } catch (error) {
-    console.error('[reports] AI summary failed:', error)
     return NextResponse.json(
-      {
-        error: `Could not generate the report summary — ${(error as Error).message}`,
-      },
+      { error: toSafeErrorMessage(error, 'Could not generate the report summary') },
       { status: 502 },
     )
   }
@@ -70,9 +68,8 @@ export async function POST(request: Request) {
     )
     fileUrl = uploaded.publicUrl
   } catch (error) {
-    console.error('[reports] file generation or upload failed:', error)
     return NextResponse.json(
-      { error: `Could not save the report file — ${(error as Error).message}` },
+      { error: toSafeErrorMessage(error, 'Could not save the report file') },
       { status: 500 },
     )
   }

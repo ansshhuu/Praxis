@@ -1,17 +1,26 @@
 import { NextResponse } from 'next/server'
 
-import { parseVoiceCommand } from '@/lib/ai/voice-service'
+import { enforceRateLimit } from '@/lib/security/rate-limit'
 import { getCurrentUserId } from '@/lib/auth/session'
+import { parseVoiceCommand } from '@/lib/ai/voice-service'
+import { toSafeErrorMessage } from '@/lib/security/error-handler'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
 const MAX_TRANSCRIPT_LENGTH = 2000
+const VOICE_RATE_LIMIT = 20
+const VOICE_RATE_WINDOW_SECONDS = 60
 
 export async function POST(request: Request) {
   const userId = await getCurrentUserId()
   if (!userId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const denied = await enforceRateLimit('voice-command', userId, VOICE_RATE_LIMIT, VOICE_RATE_WINDOW_SECONDS)
+  if (denied) {
+    return NextResponse.json(denied.body, { status: denied.status })
   }
 
   let body: { transcript?: unknown }
@@ -36,9 +45,8 @@ export async function POST(request: Request) {
     const command = await parseVoiceCommand(transcript)
     return NextResponse.json(command)
   } catch (error) {
-    console.error('[voice/command] failed:', error)
     return NextResponse.json(
-      { error: (error as Error).message || 'Failed to parse voice command' },
+      { error: toSafeErrorMessage(error, 'Failed to parse voice command') },
       { status: 502 },
     )
   }

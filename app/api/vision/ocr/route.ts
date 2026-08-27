@@ -1,18 +1,35 @@
 import { NextResponse } from 'next/server'
 
-import { ocrImage } from '@/lib/ai/vision-service'
+import { enforceRateLimit } from '@/lib/security/rate-limit'
 import { getCurrentUserId } from '@/lib/auth/session'
+import { ocrImage } from '@/lib/ai/vision-service'
+import { toSafeErrorMessage } from '@/lib/security/error-handler'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 export const maxDuration = 120
 
 const MAX_FILE_BYTES = 20 * 1024 * 1024
+const VISION_RATE_LIMIT = 20
+const VISION_RATE_WINDOW_SECONDS = 60
+
+const ALLOWED_MIME_TYPES = new Set([
+  'image/png',
+  'image/jpeg',
+  'image/webp',
+  'image/bmp',
+  'image/tiff',
+])
 
 export async function POST(request: Request) {
   const userId = await getCurrentUserId()
   if (!userId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const denied = await enforceRateLimit('vision-ocr', userId, VISION_RATE_LIMIT, VISION_RATE_WINDOW_SECONDS)
+  if (denied) {
+    return NextResponse.json(denied.body, { status: denied.status })
   }
 
   let form: FormData
@@ -35,6 +52,12 @@ export async function POST(request: Request) {
       { status: 413 },
     )
   }
+  if (!ALLOWED_MIME_TYPES.has(file.type)) {
+    return NextResponse.json(
+      { error: `Unsupported image type "${file.type || 'unknown'}"` },
+      { status: 415 },
+    )
+  }
 
   const buffer = Buffer.from(await file.arrayBuffer())
 
@@ -42,9 +65,8 @@ export async function POST(request: Request) {
     const result = await ocrImage({ buffer, mimeType: file.type || 'image/png' })
     return NextResponse.json(result)
   } catch (error) {
-    console.error('[vision/ocr] failed:', error)
     return NextResponse.json(
-      { error: (error as Error).message || 'Failed to extract text from image' },
+      { error: toSafeErrorMessage(error, 'Failed to extract text from image') },
       { status: 502 },
     )
   }

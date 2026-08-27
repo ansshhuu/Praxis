@@ -72,6 +72,7 @@ export function calculateQualificationScore(input: QualificationInput): Qualific
 }
 
 export interface IngestLeadInput {
+  userId: string
   name: string
   email: string
   company: string
@@ -86,6 +87,8 @@ export async function ingestLead(input: IngestLeadInput): Promise<CrmLead> {
   const collection = await getCrmLeadsCollection()
 
   const lead: CrmLead = {
+    userId: input.userId,
+    orgId: input.userId,
     name: input.name,
     email: input.email,
     company: input.company,

@@ -8,6 +8,7 @@ export type AgentRunStatus = 'running' | 'success' | 'failed' | 'timeout'
 export interface AgentLog {
   _id?: ObjectId
   agentId: string
+  userId: string
   runId: string
   provider: string
   model: string
@@ -29,6 +30,7 @@ export async function ensureAgentLogsIndexes(): Promise<void> {
   const collection = await getAgentLogsCollection()
   await collection.createIndexes([
     { key: { agentId: 1, createdAt: -1 } },
+    { key: { userId: 1, createdAt: -1 } },
     { key: { runId: 1 }, unique: true },
   ])
 }

@@ -7,6 +7,7 @@ import { prisma } from '@/lib/db/prisma'
 import { analyzeAndSave } from '@/lib/meetings/process'
 import { toDetail } from '@/lib/meetings/serialize'
 import { transcribeAudio } from '@/lib/meetings/transcribe'
+import { toSafeErrorMessage } from '@/lib/security/error-handler'
 import { MEETINGS_BUCKET, createReadUrl } from '@/lib/storage/supabase'
 
 export const dynamic = 'force-dynamic'
@@ -57,19 +58,19 @@ export async function POST(_request: Request, { params }: RouteContext) {
       : existing.fileUrl
     transcript = await transcribeAudio(readUrl)
   } catch (error) {
-    console.error(`[meetings/process] transcription failed for ${id}:`, error)
+    const safeMessage = toSafeErrorMessage(error, 'Transcription failed for this meeting')
     const meeting = await prisma.meeting.update({
       where: { id },
       data: {
         status: 'FAILED',
-        statusMessage: (error as Error).message.slice(0, 500),
+        statusMessage: safeMessage,
       },
     })
     await logActivity(userId, ACTIVITY_ACTIONS.meetingProcessed, {
       meetingId: meeting.id,
       name: meeting.fileName,
       status: 'FAILED',
-      error: (error as Error).message.slice(0, 300),
+      error: safeMessage,
     })
     return NextResponse.json({ meeting: toDetail(meeting) })
   }

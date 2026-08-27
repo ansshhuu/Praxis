@@ -7,6 +7,8 @@ export type QualificationBand = 'hot' | 'warm' | 'cold'
 
 export interface CrmLead {
   _id?: ObjectId
+  userId: string
+  orgId: string
   name: string
   email: string
   company: string
@@ -28,6 +30,7 @@ export async function getCrmLeadsCollection(): Promise<Collection<CrmLead>> {
 export async function ensureCrmLeadsIndexes(): Promise<void> {
   const collection = await getCrmLeadsCollection()
   await collection.createIndexes([
+    { key: { userId: 1, createdAt: -1 } },
     { key: { email: 1, createdAt: -1 } },
     { key: { qualificationScore: -1 } },
   ])

@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { callAI } from '@/lib/ai/ai-router'
 import { getCurrentUserId } from '@/lib/auth/session'
 import { prisma } from '@/lib/db/prisma'
+import { toSafeErrorMessage } from '@/lib/security/error-handler'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -86,10 +87,12 @@ export async function POST(request: Request, { params }: RouteContext) {
   ].join('\n')
 
   try {
-    const answer = await callAI(prompt)
+    const answer = await callAI(prompt, userId)
     return NextResponse.json({ answer: answer.trim(), contextKind })
   } catch (error) {
-    console.error(`[documents/ask] AI call failed for ${id}:`, error)
-    return NextResponse.json({ error: (error as Error).message }, { status: 502 })
+    return NextResponse.json(
+      { error: toSafeErrorMessage(error, 'Failed to answer the question') },
+      { status: 502 },
+    )
   }
 }

@@ -9,6 +9,8 @@ export type TicketSentimentLabel = 'positive' | 'neutral' | 'negative'
 
 export interface SupportTicket {
   _id?: ObjectId
+  userId: string
+  orgId: string
   subject: string
   message: string
   category: string
@@ -28,6 +30,7 @@ export async function getSupportTicketsCollection(): Promise<Collection<SupportT
 export async function ensureSupportTicketsIndexes(): Promise<void> {
   const collection = await getSupportTicketsCollection()
   await collection.createIndexes([
+    { key: { userId: 1, createdAt: -1 } },
     { key: { urgency: 1, createdAt: -1 } },
     { key: { status: 1 } },
   ])

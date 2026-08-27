@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 
 import { generateProposal } from '@/lib/automation/crm-service'
 import { getCurrentUserId } from '@/lib/auth/session'
+import { toSafeErrorMessage } from '@/lib/security/error-handler'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -43,9 +44,8 @@ export async function POST(request: Request) {
     const proposal = await generateProposal({ leadName, company, requirements, budget })
     return NextResponse.json({ proposal })
   } catch (error) {
-    console.error('[automation/crm/proposal] failed:', error)
     return NextResponse.json(
-      { error: (error as Error).message || 'Failed to generate proposal' },
+      { error: toSafeErrorMessage(error, 'Failed to generate proposal') },
       { status: 502 },
     )
   }

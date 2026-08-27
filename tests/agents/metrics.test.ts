@@ -6,6 +6,7 @@ import type { AgentLog } from '@/lib/models/mongodb/agent-logs'
 function log(overrides: Partial<AgentLog>): AgentLog {
   return {
     agentId: 'a',
+    userId: 'u',
     runId: 'r',
     provider: 'openai',
     model: 'gpt-4o-mini',

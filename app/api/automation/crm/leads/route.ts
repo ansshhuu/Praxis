@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
 
-import { ingestLead } from '@/lib/automation/crm-service'
 import { getCurrentUserId } from '@/lib/auth/session'
+import { ingestLead } from '@/lib/automation/crm-service'
+import { toSafeErrorMessage } from '@/lib/security/error-handler'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -40,12 +41,11 @@ export async function POST(request: Request) {
   const source = typeof body.source === 'string' && body.source.trim() ? body.source.trim() : 'manual'
 
   try {
-    const lead = await ingestLead({ name, email, company, budget, timelineDays, fitNotes, source })
+    const lead = await ingestLead({ userId, name, email, company, budget, timelineDays, fitNotes, source })
     return NextResponse.json({ lead }, { status: 201 })
   } catch (error) {
-    console.error('[automation/crm/leads] failed:', error)
     return NextResponse.json(
-      { error: (error as Error).message || 'Failed to ingest lead' },
+      { error: toSafeErrorMessage(error, 'Failed to ingest lead') },
       { status: 502 },
     )
   }

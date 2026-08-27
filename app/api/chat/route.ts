@@ -1,8 +1,16 @@
 import { NextResponse } from 'next/server'
 
+import { applyGuardrails } from '@/lib/ai/guardrails'
 import { callAI } from '@/lib/ai/ai-router'
+import { enforceRateLimit } from '@/lib/security/rate-limit'
 import { getCurrentUserId } from '@/lib/auth/session'
 import { prisma } from '@/lib/db/prisma'
+
+const CHAT_RATE_LIMIT = 20
+const CHAT_RATE_WINDOW_SECONDS = 60
+
+const DECLINE_MESSAGE =
+  'I am specialized only in helping with Praxis and platform workflows. I cannot assist with unrelated general questions. How can I help you with Praxis today?'
 
 export const dynamic = 'force-dynamic'
 
@@ -74,6 +82,14 @@ export async function POST(request: Request) {
     )
   }
 
+  const denied = await enforceRateLimit('chat', userId, CHAT_RATE_LIMIT, CHAT_RATE_WINDOW_SECONDS)
+  if (denied) {
+    return NextResponse.json(denied.body, { status: denied.status })
+  }
+
+  const guardrails = applyGuardrails(message)
+  const sanitizedMessage = guardrails.sanitizedText
+
   const [priorMessages, documents] = await Promise.all([
     prisma.chatMessage.findMany({
       where: { userId },
@@ -90,22 +106,26 @@ export async function POST(request: Request) {
   ])
 
   const userMessage = await prisma.chatMessage.create({
-    data: { userId, role: 'USER', content: message },
+    data: { userId, role: 'USER', content: sanitizedMessage },
     select: { id: true, role: true, content: true, createdAt: true },
   })
 
   let answer: string
-  try {
-    answer = await callAI(buildPrompt(message, priorMessages.reverse(), documents))
-  } catch (error) {
-    console.error('[chat] AI call failed:', error)
-    return NextResponse.json(
-      {
-        error: (error as Error).message || 'The assistant is unavailable right now.',
-        userMessage: toPayload(userMessage),
-      },
-      { status: 502 },
-    )
+  if (guardrails.injectionFlagged) {
+    answer = DECLINE_MESSAGE
+  } else {
+    try {
+      answer = await callAI(buildPrompt(sanitizedMessage, priorMessages.reverse(), documents), userId)
+    } catch (error) {
+      console.error('[chat] AI call failed:', error)
+      return NextResponse.json(
+        {
+          error: 'The assistant is unavailable right now. Please try again shortly.',
+          userMessage: toPayload(userMessage),
+        },
+        { status: 502 },
+      )
+    }
   }
 
   const assistantMessage = await prisma.chatMessage.create({

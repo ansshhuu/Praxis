@@ -17,7 +17,7 @@ export async function GET() {
   const snapshot = registry.listSnapshot()
 
   const collection = await getAgentLogsCollection()
-  const recentLogs = await collection.find({}).sort({ createdAt: -1 }).limit(500).toArray()
+  const recentLogs = await collection.find({ userId }).sort({ createdAt: -1 }).limit(500).toArray()
   const metricsByAgent = new Map(aggregateAgentLogs(recentLogs).map((metric) => [metric.agentId, metric]))
 
   const agents = snapshot.map(({ metadata, capabilities, health }) => ({

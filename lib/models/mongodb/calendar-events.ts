@@ -5,6 +5,8 @@ export const CALENDAR_EVENTS_COLLECTION = 'calendar_events'
 
 export interface CalendarEvent {
   _id?: ObjectId
+  userId: string
+  orgId: string
   title: string
   attendees: string[]
   startsAt: Date
@@ -19,5 +21,8 @@ export async function getCalendarEventsCollection(): Promise<Collection<Calendar
 
 export async function ensureCalendarEventsIndexes(): Promise<void> {
   const collection = await getCalendarEventsCollection()
-  await collection.createIndexes([{ key: { startsAt: 1 } }])
+  await collection.createIndexes([
+    { key: { userId: 1, createdAt: -1 } },
+    { key: { startsAt: 1 } },
+  ])
 }

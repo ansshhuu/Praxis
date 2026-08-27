@@ -1,18 +1,27 @@
 import { NextResponse } from 'next/server'
 
-import { synthesizeSpeech } from '@/lib/ai/voice-service'
+import { enforceRateLimit } from '@/lib/security/rate-limit'
 import { getCurrentUserId } from '@/lib/auth/session'
+import { synthesizeSpeech } from '@/lib/ai/voice-service'
+import { toSafeErrorMessage } from '@/lib/security/error-handler'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 export const maxDuration = 60
 
 const MAX_TEXT_LENGTH = 5000
+const VOICE_RATE_LIMIT = 20
+const VOICE_RATE_WINDOW_SECONDS = 60
 
 export async function POST(request: Request) {
   const userId = await getCurrentUserId()
   if (!userId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const denied = await enforceRateLimit('voice-synthesize', userId, VOICE_RATE_LIMIT, VOICE_RATE_WINDOW_SECONDS)
+  if (denied) {
+    return NextResponse.json(denied.body, { status: denied.status })
   }
 
   let body: { text?: unknown; voiceId?: unknown }
@@ -42,9 +51,8 @@ export async function POST(request: Request) {
       headers: { 'Content-Type': contentType, 'Cache-Control': 'no-store' },
     })
   } catch (error) {
-    console.error('[voice/synthesize] failed:', error)
     return NextResponse.json(
-      { error: (error as Error).message || 'Failed to synthesize speech' },
+      { error: toSafeErrorMessage(error, 'Failed to synthesize speech') },
       { status: 502 },
     )
   }

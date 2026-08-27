@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 
 import { findAvailableSlots, scheduleMeeting } from '@/lib/automation/marketing-service'
 import { getCurrentUserId } from '@/lib/auth/session'
+import { toSafeErrorMessage } from '@/lib/security/error-handler'
 
 export const dynamic = 'force-dynamic'
 
@@ -72,6 +73,7 @@ export async function POST(request: Request) {
 
   try {
     const event = await scheduleMeeting({
+      userId,
       title,
       attendees,
       startsAt: chosen.start,
@@ -79,9 +81,8 @@ export async function POST(request: Request) {
     })
     return NextResponse.json({ event, alternativeSlots: available.slice(1, 4) }, { status: 201 })
   } catch (error) {
-    console.error('[automation/calendar/schedule] failed:', error)
     return NextResponse.json(
-      { error: (error as Error).message || 'Failed to schedule meeting' },
+      { error: toSafeErrorMessage(error, 'Failed to schedule meeting') },
       { status: 502 },
     )
   }

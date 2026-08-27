@@ -4,6 +4,7 @@ import { callAI } from '@/lib/ai/ai-router'
 import { requireResumeAccess } from '@/lib/auth/session'
 import { prisma } from '@/lib/db/prisma'
 import { parseJsonArray } from '@/lib/resumes/scoring'
+import { toSafeErrorMessage } from '@/lib/security/error-handler'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -78,10 +79,12 @@ export async function POST(request: Request, { params }: RouteContext) {
 
   let raw: string
   try {
-    raw = await callAI(prompt)
+    raw = await callAI(prompt, userId)
   } catch (error) {
-    console.error(`[resumes/${id}/questions] AI call failed:`, error)
-    return NextResponse.json({ error: (error as Error).message }, { status: 502 })
+    return NextResponse.json(
+      { error: toSafeErrorMessage(error, 'Failed to generate interview questions') },
+      { status: 502 },
+    )
   }
 
   const parsed = parseJsonArray(raw)

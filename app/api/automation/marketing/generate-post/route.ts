@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 
 import { generatePost } from '@/lib/automation/marketing-service'
 import { getCurrentUserId } from '@/lib/auth/session'
+import { toSafeErrorMessage } from '@/lib/security/error-handler'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -34,12 +35,11 @@ export async function POST(request: Request) {
   const tone = typeof body.tone === 'string' && body.tone.trim() ? body.tone.trim() : 'professional'
 
   try {
-    const post = await generatePost({ platform: platform as 'linkedin' | 'twitter', topic, tone })
+    const post = await generatePost({ userId, platform: platform as 'linkedin' | 'twitter', topic, tone })
     return NextResponse.json({ post }, { status: 201 })
   } catch (error) {
-    console.error('[automation/marketing/generate-post] failed:', error)
     return NextResponse.json(
-      { error: (error as Error).message || 'Failed to generate post' },
+      { error: toSafeErrorMessage(error, 'Failed to generate post') },
       { status: 502 },
     )
   }

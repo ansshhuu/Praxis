@@ -6,6 +6,7 @@ import { getCurrentUserId } from '@/lib/auth/session'
 import { prisma } from '@/lib/db/prisma'
 import { toSummary } from '@/lib/meetings/serialize'
 import { MAX_AUDIO_BYTES } from '@/lib/meetings/transcribe'
+import { toSafeErrorMessage } from '@/lib/security/error-handler'
 import { MEETINGS_BUCKET, uploadDocument } from '@/lib/storage/supabase'
 
 export const dynamic = 'force-dynamic'
@@ -67,8 +68,10 @@ export async function POST(request: Request) {
   try {
     stored = await uploadDocument(userId, file, undefined, MEETINGS_BUCKET)
   } catch (error) {
-    console.error('[meetings/upload] storage failed:', error)
-    return NextResponse.json({ error: (error as Error).message }, { status: 502 })
+    return NextResponse.json(
+      { error: toSafeErrorMessage(error, 'Failed to upload the meeting audio') },
+      { status: 502 },
+    )
   }
 
   try {

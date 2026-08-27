@@ -1,18 +1,27 @@
 import { NextResponse } from 'next/server'
 
-import { ingestDocument } from '@/lib/ai/rag-engine'
+import { enforceRateLimit } from '@/lib/security/rate-limit'
 import { getCurrentUserId } from '@/lib/auth/session'
+import { ingestDocument } from '@/lib/ai/rag-engine'
+import { toSafeErrorMessage } from '@/lib/security/error-handler'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
 const MAX_TEXT_LENGTH = 200_000
 const DEFAULT_COLLECTION = 'agent_knowledge_base'
+const RAG_INGEST_RATE_LIMIT = 20
+const RAG_INGEST_RATE_WINDOW_SECONDS = 60
 
 export async function POST(request: Request) {
   const userId = await getCurrentUserId()
   if (!userId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const denied = await enforceRateLimit('rag-ingest', userId, RAG_INGEST_RATE_LIMIT, RAG_INGEST_RATE_WINDOW_SECONDS)
+  if (denied) {
+    return NextResponse.json(denied.body, { status: denied.status })
   }
 
   let body: { text?: unknown; documentId?: unknown; collection?: unknown; metadata?: unknown }
@@ -57,9 +66,8 @@ export async function POST(request: Request) {
     })
     return NextResponse.json(result, { status: 201 })
   } catch (error) {
-    console.error('[rag/ingest] failed:', error)
     return NextResponse.json(
-      { error: (error as Error).message || 'Failed to ingest document' },
+      { error: toSafeErrorMessage(error, 'Failed to ingest document') },
       { status: 502 },
     )
   }

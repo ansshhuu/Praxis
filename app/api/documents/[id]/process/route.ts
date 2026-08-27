@@ -11,6 +11,7 @@ import {
   extractText,
 } from '@/lib/documents/extract'
 import { toDetail } from '@/lib/documents/serialize'
+import { toSafeErrorMessage } from '@/lib/security/error-handler'
 import { createReadUrl } from '@/lib/storage/supabase'
 
 export const dynamic = 'force-dynamic'
@@ -74,21 +75,21 @@ export async function POST(_request: Request, { params }: RouteContext) {
       : existing.fileUrl
     text = await extractText(readUrl, existing.fileType)
   } catch (error) {
-    console.error(`[documents/process] extraction failed for ${id}:`, error)
+    const safeMessage = toSafeErrorMessage(error, 'Text extraction failed for this document')
     const document = await prisma.document.update({
       where: { id },
       data: {
         extractedText: null,
         aiSummary: null,
         status: 'FAILED',
-        statusMessage: (error as Error).message.slice(0, 500),
+        statusMessage: safeMessage,
       },
     })
     await logActivity(userId, ACTIVITY_ACTIONS.documentProcessed, {
       documentId: document.id,
       name: document.fileName,
       status: 'FAILED',
-      error: (error as Error).message.slice(0, 300),
+      error: safeMessage,
     })
     return NextResponse.json({ document: toDetail(document) })
   }
@@ -120,10 +121,9 @@ export async function POST(_request: Request, { params }: RouteContext) {
   let summary: string | null = null
   let summaryError: string | null = null
   try {
-    summary = (await callAI(buildSummaryPrompt(text))).trim() || null
+    summary = (await callAI(buildSummaryPrompt(text), userId)).trim() || null
   } catch (error) {
-    console.error(`[documents/process] summary failed for ${id}:`, error)
-    summaryError = `AI summary unavailable: ${(error as Error).message}`.slice(0, 500)
+    summaryError = toSafeErrorMessage(error, 'AI summary unavailable for this document')
   }
 
   const document = await prisma.document.update({

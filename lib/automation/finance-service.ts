@@ -101,6 +101,7 @@ export function detectBudgetAnomaly(
 }
 
 export interface RecordFinanceEntryInput {
+  userId: string
   vendor: string
   description: string
   amount: number
@@ -117,6 +118,8 @@ export async function recordFinanceEntry(input: RecordFinanceEntryInput): Promis
   const collection = await getFinanceRecordsCollection()
 
   const record: FinanceRecord = {
+    userId: input.userId,
+    orgId: input.userId,
     type: input.type,
     vendor: input.vendor,
     category,
@@ -138,9 +141,9 @@ export interface BudgetReport {
   anomalyCount: number
 }
 
-export async function buildBudgetReport(since: Date): Promise<BudgetReport> {
+export async function buildBudgetReport(userId: string, since: Date): Promise<BudgetReport> {
   const collection = await getFinanceRecordsCollection()
-  const records = await collection.find({ createdAt: { $gte: since } }).toArray()
+  const records = await collection.find({ userId, createdAt: { $gte: since } }).toArray()
 
   const byCategory: Record<string, number> = {}
   let totalSpend = 0

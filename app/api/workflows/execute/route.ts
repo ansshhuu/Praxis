@@ -7,13 +7,27 @@ import { executeScaledWorkflow } from '@/lib/workflow/engine'
 import { getWorkflowRunTracesCollection } from '@/lib/models/mongodb/workflow-runs'
 import { enqueueWorkflowRun } from '@/lib/workflow/queue'
 import { getWorkflowTemplateById } from '@/lib/workflow/templates'
+import { enforceRateLimit } from '@/lib/security/rate-limit'
 
 export const dynamic = 'force-dynamic'
+
+const WORKFLOW_EXECUTE_RATE_LIMIT = 15
+const WORKFLOW_EXECUTE_RATE_WINDOW_SECONDS = 60
 
 export async function POST(request: Request) {
   const userId = await getCurrentUserId()
   if (!userId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const denied = await enforceRateLimit(
+    'workflows-execute',
+    userId,
+    WORKFLOW_EXECUTE_RATE_LIMIT,
+    WORKFLOW_EXECUTE_RATE_WINDOW_SECONDS,
+  )
+  if (denied) {
+    return NextResponse.json(denied.body, { status: denied.status })
   }
 
   let body: { templateId?: unknown; input?: unknown; mode?: unknown }

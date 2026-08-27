@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
 
-import { parseInvoice } from '@/lib/automation/finance-service'
 import { getCurrentUserId } from '@/lib/auth/session'
+import { parseInvoice } from '@/lib/automation/finance-service'
+import { toSafeErrorMessage } from '@/lib/security/error-handler'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -39,9 +40,8 @@ export async function POST(request: Request) {
     const invoice = await parseInvoice({ buffer, mimeType: file.type || 'image/png' })
     return NextResponse.json({ invoice })
   } catch (error) {
-    console.error('[automation/finance/parse-invoice] failed:', error)
     return NextResponse.json(
-      { error: (error as Error).message || 'Failed to parse invoice' },
+      { error: toSafeErrorMessage(error, 'Failed to parse invoice') },
       { status: 502 },
     )
   }

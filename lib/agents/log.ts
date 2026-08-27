@@ -7,10 +7,12 @@ import { getAgentLogsCollection } from '@/lib/models/mongodb/agent-logs'
 export async function recordAgentExecution(
   input: AgentInput,
   result: AgentExecutionResult,
+  userId: string,
 ): Promise<void> {
   const collection = await getAgentLogsCollection()
   await collection.insertOne({
     agentId: result.agentId,
+    userId,
     runId: `${result.runId}:${result.agentId}:${randomUUID()}`,
     provider: result.provider,
     model: result.model,

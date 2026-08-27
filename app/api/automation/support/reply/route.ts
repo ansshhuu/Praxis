@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 
 import { generateResolutionReply } from '@/lib/automation/support-service'
 import { getCurrentUserId } from '@/lib/auth/session'
+import { toSafeErrorMessage } from '@/lib/security/error-handler'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -33,9 +34,8 @@ export async function POST(request: Request) {
     const result = await generateResolutionReply({ subject, message, category, escalate })
     return NextResponse.json(result)
   } catch (error) {
-    console.error('[automation/support/reply] failed:', error)
     return NextResponse.json(
-      { error: (error as Error).message || 'Failed to generate reply' },
+      { error: toSafeErrorMessage(error, 'Failed to generate reply') },
       { status: 502 },
     )
   }

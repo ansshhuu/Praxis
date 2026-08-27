@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server'
 
-import { queryKnowledgeBase } from '@/lib/ai/rag-engine'
+import { enforceRateLimit } from '@/lib/security/rate-limit'
 import { getCurrentUserId } from '@/lib/auth/session'
+import { queryKnowledgeBase } from '@/lib/ai/rag-engine'
+import { toSafeErrorMessage } from '@/lib/security/error-handler'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -9,11 +11,18 @@ export const runtime = 'nodejs'
 const MAX_QUERY_LENGTH = 2000
 const DEFAULT_COLLECTION = 'agent_knowledge_base'
 const MAX_TOP_K = 20
+const RAG_RATE_LIMIT = 30
+const RAG_RATE_WINDOW_SECONDS = 60
 
 export async function POST(request: Request) {
   const userId = await getCurrentUserId()
   if (!userId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const denied = await enforceRateLimit('rag-query', userId, RAG_RATE_LIMIT, RAG_RATE_WINDOW_SECONDS)
+  if (denied) {
+    return NextResponse.json(denied.body, { status: denied.status })
   }
 
   let body: {
@@ -63,9 +72,8 @@ export async function POST(request: Request) {
     })
     return NextResponse.json(result)
   } catch (error) {
-    console.error('[rag/query] failed:', error)
     return NextResponse.json(
-      { error: (error as Error).message || 'Failed to query knowledge base' },
+      { error: toSafeErrorMessage(error, 'Failed to query knowledge base') },
       { status: 502 },
     )
   }

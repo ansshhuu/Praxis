@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 
 import { buildBudgetReport } from '@/lib/automation/finance-service'
 import { getCurrentUserId } from '@/lib/auth/session'
+import { toSafeErrorMessage } from '@/lib/security/error-handler'
 
 export const dynamic = 'force-dynamic'
 
@@ -19,12 +20,11 @@ export async function GET(request: Request) {
       : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
 
   try {
-    const report = await buildBudgetReport(since)
+    const report = await buildBudgetReport(userId, since)
     return NextResponse.json({ report })
   } catch (error) {
-    console.error('[automation/finance/budget-report] failed:', error)
     return NextResponse.json(
-      { error: (error as Error).message || 'Failed to build budget report' },
+      { error: toSafeErrorMessage(error, 'Failed to build budget report') },
       { status: 502 },
     )
   }

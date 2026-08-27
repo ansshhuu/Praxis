@@ -65,6 +65,10 @@ export interface ClassifyTicketInput {
   message: string
 }
 
+export interface IngestTicketInput extends ClassifyTicketInput {
+  userId: string
+}
+
 export interface ClassifyTicketResult {
   category: string
   sentiment: SentimentResult
@@ -81,11 +85,13 @@ export function classifyTicket(input: ClassifyTicketInput): ClassifyTicketResult
   return { category, sentiment, urgency, escalate }
 }
 
-export async function ingestTicket(input: ClassifyTicketInput): Promise<SupportTicket> {
+export async function ingestTicket(input: IngestTicketInput): Promise<SupportTicket> {
   const classification = classifyTicket(input)
   const collection = await getSupportTicketsCollection()
 
   const ticket: SupportTicket = {
+    userId: input.userId,
+    orgId: input.userId,
     subject: input.subject,
     message: applyGuardrails(input.message).sanitizedText,
     category: classification.category,

@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
 
-import { translateMessage } from '@/lib/automation/support-service'
 import { getCurrentUserId } from '@/lib/auth/session'
+import { toSafeErrorMessage } from '@/lib/security/error-handler'
+import { translateMessage } from '@/lib/automation/support-service'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -37,9 +38,8 @@ export async function POST(request: Request) {
     const translated = await translateMessage(text, targetLanguage)
     return NextResponse.json({ translated })
   } catch (error) {
-    console.error('[automation/support/translate] failed:', error)
     return NextResponse.json(
-      { error: (error as Error).message || 'Failed to translate message' },
+      { error: toSafeErrorMessage(error, 'Failed to translate message') },
       { status: 502 },
     )
   }
