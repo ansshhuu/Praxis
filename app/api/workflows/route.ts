@@ -13,10 +13,17 @@ export async function GET() {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const workflows = await prisma.workflow.findMany({
+  const rows = await prisma.workflow.findMany({
     where: { userId },
     orderBy: { updatedAt: 'desc' },
     select: { id: true, name: true, status: true, updatedAt: true },
+  })
+
+  const seen = new Set<string>()
+  const workflows = rows.filter((row) => {
+    if (seen.has(row.id)) return false
+    seen.add(row.id)
+    return true
   })
 
   return NextResponse.json({ workflows })

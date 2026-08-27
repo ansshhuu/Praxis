@@ -1,6 +1,6 @@
 'use client'
 
-import { Loader2, Pause, Play, Plus, X, CalendarClock, Power } from 'lucide-react'
+import { Loader2, Pause, Play, Plus, X, CalendarClock } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 import { DashboardShell } from '@/components/dashboard/dashboard-shell'
@@ -293,8 +293,7 @@ export default function SchedulerPage() {
                   <TableHead>Next Run</TableHead>
                   <TableHead>Last Run</TableHead>
                   <TableHead>Triggered By</TableHead>
-                  <TableHead>Active</TableHead>
-                  <TableHead className="pr-6"></TableHead>
+                  <TableHead className="pr-6">Active</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -310,7 +309,7 @@ export default function SchedulerPage() {
                     <TableCell className="text-[13px] font-medium text-gray-500 tabular-nums">{formatRunTime(job.nextRun)}</TableCell>
                     <TableCell className="text-[13px] font-medium text-gray-500 tabular-nums">{formatRunTime(job.lastRun)}</TableCell>
                     <TableCell className="text-[13px] font-medium text-gray-500">{job.triggeredBy}</TableCell>
-                    <TableCell>
+                    <TableCell className="pr-6">
                       <div className="flex items-center gap-3">
                         <StatusToggle
                           active={job.isActive}
@@ -326,16 +325,11 @@ export default function SchedulerPage() {
                         </span>
                       </div>
                     </TableCell>
-                    <TableCell className="pr-6 text-right">
-                       <Button variant="ghost" size="icon" className="text-gray-400 hover:text-gray-900 rounded-full">
-                          <Power className="size-4" />
-                       </Button>
-                    </TableCell>
                   </TableRow>
                 ))}
                 {!isLoading && jobs.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={8} className="py-20 text-center">
+                    <TableCell colSpan={7} className="py-20 text-center">
                        <div className="flex flex-col items-center justify-center text-gray-400">
                           <CalendarClock className="size-10 mb-3 opacity-30" />
                           <p className="text-[14px] font-bold text-gray-600">No scheduled jobs</p>

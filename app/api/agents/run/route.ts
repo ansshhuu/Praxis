@@ -46,8 +46,27 @@ export async function POST(request: Request) {
     data: body.data && typeof body.data === 'object' ? (body.data as Record<string, unknown>) : undefined,
   }
 
-  const result = await agent.execute(input, { userId, runId: randomUUID() })
-  await recordAgentExecution(input, result, userId)
+  let result
+  try {
+    result = await agent.execute(input, { userId, runId: randomUUID() })
+  } catch (error) {
+    console.error(`[agents/run] agent "${agentId}" threw during execute:`, error)
+    const message = error instanceof Error ? error.message : 'Agent execution failed'
+    return NextResponse.json({ error: `Agent run failed: ${message}` }, { status: 502 })
+  }
 
-  return NextResponse.json({ result }, { status: result.status === 'success' ? 200 : 502 })
+  try {
+    await recordAgentExecution(input, result, userId)
+  } catch (error) {
+    console.error(`[agents/run] failed to record execution log for agent "${agentId}":`, error)
+  }
+
+  if (result.status !== 'success') {
+    return NextResponse.json(
+      { error: `Agent run failed: ${result.error ?? 'unknown error'}`, result },
+      { status: 502 },
+    )
+  }
+
+  return NextResponse.json({ result }, { status: 200 })
 }

@@ -34,7 +34,9 @@ function useTypewriter(fullText: string, active: boolean) {
 
 async function readError(response: Response, fallback: string): Promise<string> {
   const body = await response.json().catch(() => null)
-  return (body as { error?: string } | null)?.error ?? fallback
+  const message = (body as { error?: string } | null)?.error
+  if (message) return message
+  return `${fallback} (${response.status} ${response.statusText})`
 }
 
 export function AgentRunnerDrawer({ agent, onClose }: { agent: AgentView; onClose: () => void }) {
@@ -60,14 +62,19 @@ export function AgentRunnerDrawer({ agent, onClose }: { agent: AgentView; onClos
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ agentId: agent.id, prompt: prompt.trim() }),
       })
-      const body = await response.json().catch(() => null)
       if (!response.ok) {
-        setError((body as { error?: string } | null)?.error ?? (await readError(response, 'Agent run failed')))
+        setError(await readError(response, 'Agent run failed'))
+        return
+      }
+      const body = await response.json().catch(() => null)
+      if (!body || typeof body !== 'object' || !('result' in body)) {
+        setError('Agent run failed: malformed response from server')
         return
       }
       setResult((body as { result: AgentExecutionResultView }).result)
     } catch (runError) {
-      setError((runError as Error).message)
+      const message = runError instanceof Error ? runError.message : String(runError)
+      setError(`Agent run failed: ${message}`)
     } finally {
       setIsRunning(false)
     }
@@ -127,7 +134,20 @@ export function AgentRunnerDrawer({ agent, onClose }: { agent: AgentView; onClos
             {isRunning ? 'Running…' : 'Run agent'}
           </Button>
 
-          {error && <p className="text-[13px] font-bold text-red-500">{error}</p>}
+          {error && (
+            <div className="flex items-start justify-between gap-3 rounded-xl border border-red-100 bg-red-50/60 p-3">
+              <p className="text-[13px] font-bold text-red-500">{error}</p>
+              <Button
+                variant="outline"
+                size="sm"
+                className="shrink-0 border-red-200 font-bold text-red-600 hover:bg-red-50"
+                disabled={isRunning}
+                onClick={run}
+              >
+                Retry
+              </Button>
+            </div>
+          )}
 
           {result && (
             <div className="flex flex-col gap-3 rounded-2xl border border-gray-100 bg-gray-50/60 p-4">
