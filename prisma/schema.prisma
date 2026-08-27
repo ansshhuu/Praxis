@@ -93,6 +93,9 @@ model User {
   /// only when avatarUrl is null — an uploaded photo always wins.
   oauthAvatarUrl String? @map("oauth_avatar_url")
 
+  resetPasswordToken   String?   @map("reset_password_token")
+  resetPasswordExpires DateTime? @map("reset_password_expires")
+
   sessions             Session[]
   activityLogs         ActivityLog[]
   workflows            Workflow[]

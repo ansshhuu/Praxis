@@ -109,7 +109,7 @@ export default function LoginPage() {
             <div style={{ marginBottom: 20 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                 <label htmlFor="password-input" style={{ fontSize: 13, fontWeight: 600, color: '#111111' }}>Password</label>
-                <a href="#" id="forgot-password-link" style={{ fontSize: 12, color: '#D4A017', textDecoration: 'none', fontWeight: 600 }}>Forgot password?</a>
+                <Link href="/forgot-password" id="forgot-password-link" style={{ fontSize: 12, color: '#D4A017', textDecoration: 'none', fontWeight: 600 }}>Forgot password?</Link>
               </div>
               <div style={{ position: 'relative' }}>
                 <input id="password-input" type={showPw ? 'text' : 'password'} placeholder="••••••••" autoComplete="current-password" required
