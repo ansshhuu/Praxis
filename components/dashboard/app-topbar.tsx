@@ -1,6 +1,6 @@
 'use client'
 
-import { HelpCircle, LogOut, Menu, Search, User } from 'lucide-react'
+import { HelpCircle, LogOut, Menu, User } from 'lucide-react'
 import { signOut, useSession } from 'next-auth/react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
@@ -15,7 +15,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 
 import { findActiveSection, visibleNavSections } from './nav-items'
@@ -114,16 +113,6 @@ export function AppTopbar({
         </nav>
 
         <div className="ml-auto flex shrink-0 items-center gap-2">
-          <div className="relative hidden w-56 xl:block">
-            <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-[#8C857D]" />
-            <Input
-              type="search"
-              placeholder="Search..."
-              aria-label="Search"
-              className="h-9 rounded-full border-white/70 bg-white/70 pl-9 placeholder:text-[#8C857D] focus-visible:ring-1 focus-visible:ring-[#F5CA50]/60"
-            />
-          </div>
-
           <Button
             variant="ghost"
             size="icon"

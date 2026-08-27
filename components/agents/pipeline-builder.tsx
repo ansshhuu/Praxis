@@ -1,6 +1,6 @@
 'use client'
 
-import { CheckCircle2, Loader2, Plus, Trash2, Workflow, XCircle } from 'lucide-react'
+import { CheckCircle2, HelpCircle, Loader2, Plus, Trash2, Workflow, XCircle } from 'lucide-react'
 import { useState } from 'react'
 
 import { Button } from '@/components/ui/button'
@@ -32,6 +32,44 @@ interface PipelineStepResultView {
   latencyMs: number
 }
 
+type StepDisplayStatus = 'success' | 'error' | 'needs_input'
+
+const CLARIFYING_QUESTION_PATTERNS = [
+  /please provide/i,
+  /please clarify/i,
+  /could you clarify/i,
+  /could you provide/i,
+  /can you provide/i,
+  /can you clarify/i,
+  /what is the/i,
+  /what are the/i,
+  /which .* would you like/i,
+  /can you tell me/i,
+  /i need more (information|details|context)/i,
+  /i'd need more (information|details|context)/i,
+]
+
+function isClarifyingQuestion(output: string): boolean {
+  const trimmed = output.trim()
+  if (!trimmed) return false
+  if (trimmed.endsWith('?')) return true
+  return CLARIFYING_QUESTION_PATTERNS.some((pattern) => pattern.test(trimmed))
+}
+
+function getStepDisplayStatus(result: PipelineStepResultView): StepDisplayStatus {
+  if (result.status === 'error') return 'error'
+  if (isClarifyingQuestion(result.output)) return 'needs_input'
+  return 'success'
+}
+
+function getOverallDisplayStatus(runResult: PipelineRunResultView): 'success' | 'pending' | 'error' | 'needs_input' {
+  const displayStatuses = runResult.steps.map(getStepDisplayStatus)
+  if (displayStatuses.some((status) => status === 'needs_input')) return 'needs_input'
+  if (runResult.status === 'success') return 'success'
+  if (runResult.status === 'partial') return 'pending'
+  return 'error'
+}
+
 interface PipelineRunResultView {
   pipelineId: string
   runId: string
@@ -54,12 +92,14 @@ function StageEditor({
   agents,
   onChange,
   onRemove,
+  showValidation,
 }: {
   stage: StageDraft
   stageNumber: number
   agents: AgentView[]
   onChange: (stage: StageDraft) => void
   onRemove: () => void
+  showValidation: boolean
 }) {
   function updateStep(stepId: string, patch: Partial<StepDraft>) {
     onChange({ ...stage, steps: stage.steps.map((step) => (step.id === stepId ? { ...step, ...patch } : step)) })
@@ -92,28 +132,42 @@ function StageEditor({
       </div>
 
       <div className="flex flex-col gap-3">
-        {stage.steps.map((step) => (
-          <div key={step.id} className="flex flex-col gap-2 rounded-xl border border-gray-100 bg-white p-3">
-            <select
-              value={step.agentId}
-              onChange={(event) => updateStep(step.id, { agentId: event.target.value })}
-              className="rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-[13px] font-medium text-gray-900 outline-none focus:border-[#F5CA50]"
-            >
-              {agents.map((agent) => (
-                <option key={agent.id} value={agent.id}>
-                  {agent.name}
-                </option>
-              ))}
-            </select>
-            <textarea
-              value={step.prompt}
-              onChange={(event) => updateStep(step.id, { prompt: event.target.value })}
-              placeholder="What should this agent do?"
-              rows={2}
-              className="resize-none rounded-lg border border-gray-200 bg-white px-2.5 py-2 text-[13px] outline-none placeholder:text-gray-400 focus:border-[#F5CA50]"
-            />
-          </div>
-        ))}
+        {stage.steps.map((step) => {
+          const isEmpty = step.prompt.trim().length === 0
+          const showError = showValidation && isEmpty
+          const agentName = agents.find((agent) => agent.id === step.agentId)?.name ?? 'this agent'
+          return (
+            <div key={step.id} className="flex flex-col gap-2 rounded-xl border border-gray-100 bg-white p-3">
+              <select
+                value={step.agentId}
+                onChange={(event) => updateStep(step.id, { agentId: event.target.value })}
+                className="rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-[13px] font-medium text-gray-900 outline-none focus:border-[#F5CA50]"
+              >
+                {agents.map((agent) => (
+                  <option key={agent.id} value={agent.id}>
+                    {agent.name}
+                  </option>
+                ))}
+              </select>
+              <textarea
+                value={step.prompt}
+                onChange={(event) => updateStep(step.id, { prompt: event.target.value })}
+                placeholder="What should this agent do?"
+                rows={2}
+                aria-invalid={showError}
+                className={cn(
+                  'resize-none rounded-lg border bg-white px-2.5 py-2 text-[13px] outline-none placeholder:text-gray-400 focus:border-[#F5CA50]',
+                  showError ? 'border-red-400 focus:border-red-400' : 'border-gray-200',
+                )}
+              />
+              {showError && (
+                <p className="text-[11.5px] font-semibold text-red-500">
+                  Add instructions for {agentName} before running.
+                </p>
+              )}
+            </div>
+          )
+        })}
         {stage.parallel && (
           <Button
             variant="outline"
@@ -130,24 +184,41 @@ function StageEditor({
 }
 
 function StepResultCard({ result }: { result: PipelineStepResultView }) {
+  const [expanded, setExpanded] = useState(false)
+  const displayStatus = getStepDisplayStatus(result)
+  const text = result.output || result.error || ''
+  const isLong = text.length > 180 || text.split('\n').length > 3
+
   return (
     <div className="flex flex-col gap-2 rounded-xl border border-gray-100 bg-white p-3">
       <div className="flex items-center justify-between">
         <span className="flex items-center gap-2 text-[13px] font-bold text-gray-900">
-          {result.status === 'success' ? (
-            <CheckCircle2 className="size-4 text-green-500" />
-          ) : (
-            <XCircle className="size-4 text-red-500" />
-          )}
+          {displayStatus === 'success' && <CheckCircle2 className="size-4 text-green-500" />}
+          {displayStatus === 'error' && <XCircle className="size-4 text-red-500" />}
+          {displayStatus === 'needs_input' && <HelpCircle className="size-4 text-amber-500" />}
           {result.agentId}
+          {displayStatus === 'needs_input' && <StatusBadge status="needs_input" />}
         </span>
         <span className="text-[11px] font-medium text-gray-400">
           stage {result.stageIndex + 1} · {result.attempts} attempt{result.attempts === 1 ? '' : 's'} · {result.latencyMs}ms
         </span>
       </div>
-      <p className="line-clamp-3 text-[12.5px] font-medium text-gray-600">{result.output || result.error}</p>
+      <p className={cn('text-[12.5px] font-medium text-gray-600', !expanded && 'line-clamp-3')}>{text}</p>
+      {isLong && (
+        <button
+          type="button"
+          onClick={() => setExpanded((prev) => !prev)}
+          className="self-start text-[11px] font-bold text-[#B8860B] hover:underline"
+        >
+          {expanded ? 'Show less' : 'Show more'}
+        </button>
+      )}
     </div>
   )
+}
+
+function hasEmptyStep(stages: StageDraft[]): boolean {
+  return stages.some((stage) => stage.steps.some((step) => step.prompt.trim().length === 0))
 }
 
 export function PipelineBuilder({ agents }: { agents: AgentView[] }) {
@@ -155,6 +226,7 @@ export function PipelineBuilder({ agents }: { agents: AgentView[] }) {
   const [isRunning, setIsRunning] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [runResult, setRunResult] = useState<PipelineRunResultView | null>(null)
+  const [showValidation, setShowValidation] = useState(false)
 
   function updateStage(id: string, next: StageDraft) {
     setStages((prev) => prev.map((stage) => (stage.id === id ? next : stage)))
@@ -162,6 +234,13 @@ export function PipelineBuilder({ agents }: { agents: AgentView[] }) {
 
   async function run() {
     if (stages.length === 0 || isRunning) return
+
+    if (hasEmptyStep(stages)) {
+      setShowValidation(true)
+      return
+    }
+    setShowValidation(false)
+
     setIsRunning(true)
     setError(null)
     setRunResult(null)
@@ -170,8 +249,8 @@ export function PipelineBuilder({ agents }: { agents: AgentView[] }) {
       name: 'Ad-hoc pipeline',
       stages: stages.map((stage) =>
         stage.parallel
-          ? { parallel: stage.steps.map((step) => ({ agentId: step.agentId, prompt: step.prompt || 'Continue the pipeline.' })) }
-          : { agentId: stage.steps[0].agentId, prompt: stage.steps[0].prompt || 'Continue the pipeline.' },
+          ? { parallel: stage.steps.map((step) => ({ agentId: step.agentId, prompt: step.prompt.trim() })) }
+          : { agentId: stage.steps[0].agentId, prompt: stage.steps[0].prompt.trim() },
       ),
       retryPolicy: { maxAttempts: 2, backoffMs: 300 },
     }
@@ -220,6 +299,7 @@ export function PipelineBuilder({ agents }: { agents: AgentView[] }) {
               agents={agents}
               onChange={(next) => updateStage(stage.id, next)}
               onRemove={() => setStages((prev) => prev.filter((s) => s.id !== stage.id))}
+              showValidation={showValidation}
             />
           ))}
 
@@ -231,6 +311,11 @@ export function PipelineBuilder({ agents }: { agents: AgentView[] }) {
             {isRunning ? <Loader2 className="size-4 animate-spin" /> : <Workflow className="size-4" />}
             {isRunning ? 'Running pipeline…' : 'Execute pipeline'}
           </Button>
+          {showValidation && hasEmptyStep(stages) && (
+            <p className="text-[13px] font-bold text-red-500">
+              Add instructions to every enabled stage before running the pipeline.
+            </p>
+          )}
           {error && <p className="text-[13px] font-bold text-red-500">{error}</p>}
         </CardContent>
       </Card>
@@ -258,7 +343,7 @@ export function PipelineBuilder({ agents }: { agents: AgentView[] }) {
           {runResult && (
             <>
               <div className="flex items-center justify-between">
-                <StatusBadge status={runResult.status === 'success' ? 'success' : runResult.status === 'partial' ? 'pending' : 'error'} />
+                <StatusBadge status={getOverallDisplayStatus(runResult)} />
                 <span className="text-[12px] font-medium text-gray-400">{runResult.steps.length} steps</span>
               </div>
               <div className="flex flex-col gap-2">

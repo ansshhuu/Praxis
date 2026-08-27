@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils"
 
-type StatusVariant = "success" | "active" | "completed" | "failed" | "running" | "pending" | "paused" | "draft" | "error"
+type StatusVariant = "success" | "active" | "completed" | "failed" | "running" | "pending" | "paused" | "draft" | "error" | "needs_input"
 
 interface StatusBadgeProps {
   status: StatusVariant | string
@@ -22,12 +22,15 @@ export function StatusBadge({ status, className }: StatusBadgeProps) {
   } else if (["running", "pending"].includes(s)) {
     variantClass = "bg-amber-100 text-amber-700"
     dotClass = "bg-amber-500 animate-pulse"
+  } else if (s === "needs_input") {
+    variantClass = "bg-orange-100 text-orange-700"
+    dotClass = "bg-orange-500"
   } else if (["paused", "draft"].includes(s)) {
     variantClass = "bg-gray-100 text-gray-600"
     dotClass = "bg-gray-400"
   }
 
-  const label = status.charAt(0).toUpperCase() + status.slice(1)
+  const label = s === "needs_input" ? "Needs input" : status.charAt(0).toUpperCase() + status.slice(1)
 
   return (
     <span
