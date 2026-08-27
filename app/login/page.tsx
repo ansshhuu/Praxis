@@ -4,7 +4,7 @@ import { Eye, EyeOff } from 'lucide-react'
 import { signIn } from 'next-auth/react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 
 import { AuthTransitionOverlay } from '@/components/auth/auth-transition-overlay'
 import { CREDENTIALS_ERRORS } from '@/lib/auth/errors'
@@ -63,8 +63,6 @@ export default function LoginPage() {
   const [oauthLoading, setOauthLoading] = useState(false)
   const [navigating, setNavigating] = useState(false)
 
-  useEffect(() => { router.prefetch('/dashboard') }, [router])
-
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError('')
@@ -80,7 +78,7 @@ export default function LoginPage() {
       return
     }
     setNavigating(true)
-    router.replace('/dashboard')
+    window.location.assign('/dashboard')
   }
 
   return (

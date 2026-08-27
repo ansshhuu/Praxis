@@ -64,8 +64,6 @@ export default function RegisterPage() {
   const [notice,   setNotice]   = useState('')
   const [navigating, setNavigating] = useState(false)
 
-  useEffect(() => { router.prefetch('/dashboard') }, [router])
-
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const prefill = params.get('email')
@@ -101,7 +99,7 @@ export default function RegisterPage() {
     }
 
     setNavigating(true)
-    router.replace('/dashboard')
+    window.location.assign('/dashboard')
   }
 
   return (

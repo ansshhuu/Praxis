@@ -14,6 +14,9 @@ export function getRedisClient(): Redis {
       maxRetriesPerRequest: 3,
       lazyConnect: false,
     })
+    globalForRedis.redisClient.on('error', (error) => {
+      console.error('[redis] connection error:', error.message)
+    })
   }
   return globalForRedis.redisClient
 }

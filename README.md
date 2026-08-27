@@ -1,4 +1,4 @@
-# Praxis — Enterprise AI Automation Ecosystem
+# Praxis - Enterprise AI Automation Ecosystem
 
 Praxis is a production-grade, multi-agent orchestration and workflow automation platform powered by Next.js, hybrid data infrastructure, and multimodal AI pipelines.
 
