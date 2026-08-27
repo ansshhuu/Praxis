@@ -57,7 +57,7 @@ export interface EngineDeps {
 }
 
 export const defaultEngineDeps: EngineDeps = {
-  runLlm: async (prompt) => (await generateText({ messages: [{ role: 'user', content: prompt }] })).text,
+  runLlm: async (prompt) => (await generateText({ messages: [{ role: 'user', content: prompt }], task: 'workflow-step' })).text,
   callWebhook: async (url, method, body) => {
     const response = await fetch(url, {
       method,

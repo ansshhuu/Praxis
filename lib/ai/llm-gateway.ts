@@ -11,8 +11,27 @@ export interface LLMMessage {
   content: string
 }
 
+/**
+ * Names a call site's job so load can be split across providers instead of
+ * always hammering the same one first. Each task has a primary provider
+ * (below in TASK_PROVIDER_ORDER) and still falls back to the other on failure.
+ */
+export type LLMTask =
+  | 'crm-proposal'
+  | 'crm-follow-up'
+  | 'hr-interview-questions'
+  | 'hr-offer-letter'
+  | 'support-reply'
+  | 'support-translate'
+  | 'marketing-post'
+  | 'finance-invoice'
+  | 'voice-command'
+  | 'rag-answer'
+  | 'workflow-step'
+
 export interface GenerateTextOptions {
   messages: LLMMessage[]
+  task?: LLMTask
   provider?: LLMProvider
   providers?: LLMProvider[]
   model?: string
@@ -37,19 +56,39 @@ export interface StreamChunk {
 }
 
 const DEFAULT_MODELS: Record<LLMProvider, string> = {
-  gemini: 'gemini-2.5-flash',
-  groq: 'llama-3.3-70b-versatile',
+  gemini: 'gemini-3.6-flash',
+  groq: 'openai/gpt-oss-120b',
   ollama: 'llama3.1',
 }
 
 const DEFAULT_MAX_TOKENS = 2048
 const DEFAULT_TEMPERATURE = 0.3
 
-function defaultProviderOrder(): LLMProvider[] {
+/**
+ * Which provider goes first per task, so everyday traffic doesn't pile onto
+ * one free-tier quota. Each list still ends with the other provider as a
+ * fallback if the primary fails or is unconfigured.
+ */
+const TASK_PROVIDER_ORDER: Record<LLMTask, LLMProvider[]> = {
+  'crm-proposal': ['groq', 'gemini'],
+  'crm-follow-up': ['groq', 'gemini'],
+  'hr-interview-questions': ['gemini', 'groq'],
+  'hr-offer-letter': ['gemini', 'groq'],
+  'support-reply': ['groq', 'gemini'],
+  'support-translate': ['groq', 'gemini'],
+  'marketing-post': ['gemini', 'groq'],
+  'finance-invoice': ['gemini', 'groq'],
+  'voice-command': ['groq', 'gemini'],
+  'rag-answer': ['gemini', 'groq'],
+  'workflow-step': ['groq', 'gemini'],
+}
+
+function defaultProviderOrder(task?: LLMTask): LLMProvider[] {
   const configured = process.env.LLM_PROVIDER_ORDER?.split(',')
     .map((entry) => entry.trim())
     .filter((entry): entry is LLMProvider => ['gemini', 'groq', 'ollama'].includes(entry))
   if (configured && configured.length > 0) return configured
+  if (task) return TASK_PROVIDER_ORDER[task]
   return ['gemini', 'groq']
 }
 
@@ -301,12 +340,12 @@ function dispatchStream(
   }
 }
 
-function resolveProviderOrder(options: GenerateTextOptions): LLMProvider[] {
+export function resolveProviderOrder(options: GenerateTextOptions): LLMProvider[] {
   const order = options.provider
     ? [options.provider]
     : options.providers && options.providers.length > 0
       ? options.providers
-      : defaultProviderOrder()
+      : defaultProviderOrder(options.task)
   return order.filter(isProviderConfigured)
 }
 

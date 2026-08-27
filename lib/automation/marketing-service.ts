@@ -43,6 +43,7 @@ export async function generatePost(options: GeneratePostOptions): Promise<Market
       },
       { role: 'user', content: options.topic },
     ],
+    task: 'marketing-post',
     maxTokens: 400,
   })
 

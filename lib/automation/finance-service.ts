@@ -32,6 +32,7 @@ export async function parseInvoice(options: { buffer: Buffer; mimeType: string }
       { role: 'system', content: INVOICE_SCHEMA_PROMPT },
       { role: 'user', content: ocr.text },
     ],
+    task: 'finance-invoice',
     maxTokens: 700,
     temperature: 0,
   })

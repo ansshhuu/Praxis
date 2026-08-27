@@ -167,6 +167,7 @@ export async function queryKnowledgeBase(
         content: `Context:\n${context}\n\nQuestion: ${sanitizedText}`,
       },
     ],
+    task: 'rag-answer',
     applyGuardrails: false,
     maxTokens: 1024,
   })

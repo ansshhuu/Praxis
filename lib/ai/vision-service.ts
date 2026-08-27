@@ -3,7 +3,7 @@ import Tesseract from 'tesseract.js'
 
 import { parseJsonObject } from '@/lib/ai/json'
 
-const GEMINI_VISION_MODEL = 'gemini-2.5-flash'
+const GEMINI_VISION_MODEL = 'gemini-3.6-flash'
 
 export interface OcrOptions {
   buffer: Buffer

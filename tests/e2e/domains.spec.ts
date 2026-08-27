@@ -17,16 +17,51 @@ test.describe('domain automation flows', () => {
     await page.getByPlaceholder('Email').fill('jordan.rivera@example.com')
     await page.getByPlaceholder('Company').first().fill('Rivera Logistics')
     await page.getByPlaceholder('Budget ($)').first().fill('75000')
-    await page.getByPlaceholder('Timeline (days)').fill('14')
+    await page.getByPlaceholder('Urgency').fill('14')
     await page
       .getByPlaceholder(/Fit notes/i)
       .fill('Decision maker with budget approved, urgent replacement needed.')
 
     await page.getByRole('button', { name: /Qualify lead/i }).click()
 
-    await expect(
-      page.getByText('Rivera Logistics').or(page.locator('text=/failed to ingest lead/i')),
-    ).toBeVisible({ timeout: 20_000 })
+    const cardList = page.locator('[data-slot="card"]').filter({ hasText: 'Lead Qualification Cards' })
+    await expect(cardList.getByText('Rivera Logistics')).toBeVisible({ timeout: 20_000 })
+  })
+
+  test('keeps the qualify-lead and proposal-generator forms independent', async ({ page }) => {
+    await page.goto('/crm')
+    await expect(page.getByRole('heading', { name: /CRM Automation/i })).toBeVisible()
+
+    // Qualify Person A.
+    await page.getByPlaceholder('Contact name').fill('Rahul Sharma')
+    await page.getByPlaceholder('Email').fill('rahul.sharma@example.com')
+    await page.getByPlaceholder('Company').first().fill('Sharma Textiles')
+    await page.getByPlaceholder('Budget ($)').first().fill('60000')
+    await page.getByPlaceholder('Urgency').fill('10')
+    await page
+      .getByPlaceholder(/Fit notes/i)
+      .fill('Decision maker with budget approved, urgent replacement needed.')
+    await page.getByRole('button', { name: /Qualify lead/i }).click()
+
+    const cardList = page.locator('[data-slot="card"]').filter({ hasText: 'Lead Qualification Cards' })
+    await expect(cardList.getByText('Sharma Textiles')).toBeVisible({ timeout: 20_000 })
+    await expect(page.getByText(/1 leads qualified this session/i)).toBeVisible()
+
+    // Generate a proposal for a different person without touching the qualify form again.
+    await page.getByPlaceholder('Lead name').fill('Priya Patel')
+    await page.getByPlaceholder('Company').last().fill('Patel Freight')
+    await page.getByPlaceholder(/Requirements/i).fill('Needs a logistics dashboard with real-time tracking.')
+    await page.getByPlaceholder('Budget ($)').last().fill('90000')
+    await page.getByRole('button', { name: /Generate proposal/i }).click()
+
+    // The qualification card list must still show only Person A, not overwritten by Person B.
+    await expect(cardList.getByText('Sharma Textiles')).toBeVisible()
+    await expect(cardList.getByText('Patel Freight')).not.toBeVisible()
+    await expect(page.getByText(/1 leads qualified this session/i)).toBeVisible()
+
+    // The proposal form must retain Person B's own input, not Person A's qualified data.
+    await expect(page.getByPlaceholder('Lead name')).toHaveValue('Priya Patel')
+    await expect(page.getByPlaceholder('Company').last()).toHaveValue('Patel Freight')
   })
 
   test('ranks candidates through the resume screening flow', async ({ page }) => {

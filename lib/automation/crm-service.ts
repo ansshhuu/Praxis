@@ -126,6 +126,7 @@ export async function generateProposal(options: GenerateProposalOptions): Promis
         content: `Prepare a proposal for ${options.leadName} at ${options.company}. Budget: $${options.budget}. Requirements: ${options.requirements}`,
       },
     ],
+    task: 'crm-proposal',
     maxTokens: 900,
   })
   return text
@@ -149,6 +150,7 @@ export async function draftFollowUpMessage(leadName: string, context: string): P
       { role: 'system', content: 'You write brief, friendly sales follow-up emails, under 120 words.' },
       { role: 'user', content: `Draft a follow-up email to ${leadName}. Context: ${context}` },
     ],
+    task: 'crm-follow-up',
     maxTokens: 300,
   })
   return text

@@ -6,7 +6,7 @@ const globalForMongo = globalThis as unknown as {
 }
 
 function createClient(): MongoClient {
-  const uri = process.env.MONGODB_URL
+  const uri = process.env.MONGODB_URL?.trim()
   if (!uri) {
     throw new Error('MONGODB_URL is not set')
   }

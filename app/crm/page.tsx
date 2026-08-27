@@ -1,7 +1,7 @@
 'use client'
 
 import { Briefcase, Loader2, Send, Sparkles } from 'lucide-react'
-import { useState } from 'react'
+import { useDeferredValue, useRef, useState } from 'react'
 
 import { DashboardShell } from '@/components/dashboard/dashboard-shell'
 import { Button } from '@/components/ui/button'
@@ -9,6 +9,21 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'
+import {
+  FIT_NOTES_MAX_LENGTH,
+  TIMELINE_MAX_DAYS,
+  TIMELINE_MIN_DAYS,
+  type LeadFieldErrors,
+  hasLeadFieldErrors,
+  validateLeadForm,
+} from '@/lib/validation/lead'
+import {
+  PROPOSAL_BUDGET_MAX,
+  PROPOSAL_REQUIREMENTS_MAX_LENGTH,
+  type ProposalFieldErrors,
+  hasProposalFieldErrors,
+  validateProposalForm,
+} from '@/lib/validation/proposal'
 
 type QualificationBand = 'hot' | 'warm' | 'cold'
 
@@ -40,13 +55,57 @@ async function readError(response: Response, fallback: string): Promise<string> 
   return (body as { error?: string } | null)?.error ?? fallback
 }
 
+const EMPTY_LEAD_FORM = { name: '', email: '', company: '', budget: '', timelineDays: '30', fitNotes: '' }
+
+function FieldError({ message }: { message?: string }) {
+  if (!message) return null
+  return <p className="text-[12px] font-semibold text-red-500">{message}</p>
+}
+
 function LeadForm({ onCreated }: { onCreated: (lead: LeadView) => void }) {
-  const [form, setForm] = useState({ name: '', email: '', company: '', budget: '', timelineDays: '30', fitNotes: '' })
+  const [form, setForm] = useState(EMPTY_LEAD_FORM)
+  const [fieldErrors, setFieldErrors] = useState<LeadFieldErrors>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [lastResult, setLastResult] = useState<LeadView | null>(null)
+
+  const nameRef = useRef<HTMLInputElement>(null)
+  const emailRef = useRef<HTMLInputElement>(null)
+  const companyRef = useRef<HTMLInputElement>(null)
+  const budgetRef = useRef<HTMLInputElement>(null)
+  const timelineRef = useRef<HTMLInputElement>(null)
+  const fitNotesRef = useRef<HTMLTextAreaElement>(null)
+
+  const fieldRefs: Record<keyof LeadFieldErrors, React.RefObject<HTMLElement | null>> = {
+    name: nameRef,
+    email: emailRef,
+    company: companyRef,
+    budget: budgetRef,
+    timelineDays: timelineRef,
+    fitNotes: fitNotesRef,
+  }
+
+  function focusFirstError(errors: LeadFieldErrors) {
+    const order: (keyof LeadFieldErrors)[] = ['name', 'email', 'company', 'budget', 'timelineDays', 'fitNotes']
+    const firstKey = order.find((key) => errors[key])
+    if (!firstKey) return
+    const el = fieldRefs[firstKey].current
+    el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    el?.focus()
+  }
 
   async function submit() {
-    if (!form.name || !form.email || !form.company || isSubmitting) return
+    if (isSubmitting) return
+
+    const errors = validateLeadForm(form)
+    if (hasLeadFieldErrors(errors)) {
+      setFieldErrors(errors)
+      setError(null)
+      focusFirstError(errors)
+      return
+    }
+
+    setFieldErrors({})
     setIsSubmitting(true)
     setError(null)
     try {
@@ -57,24 +116,30 @@ function LeadForm({ onCreated }: { onCreated: (lead: LeadView) => void }) {
           name: form.name,
           email: form.email,
           company: form.company,
-          budget: Number(form.budget) || 0,
-          timelineDays: Number(form.timelineDays) || 30,
+          budget: Number(form.budget),
+          timelineDays: Number(form.timelineDays),
           fitNotes: form.fitNotes,
           source: 'crm-dashboard',
         }),
       })
       if (!response.ok) {
-        setError(await readError(response, 'Could not qualify lead'))
+        setError(await readError(response, 'Failed to ingest lead'))
         return
       }
       const { lead } = (await response.json()) as { lead: LeadView }
       onCreated(lead)
-      setForm({ name: '', email: '', company: '', budget: '', timelineDays: '30', fitNotes: '' })
+      setLastResult(lead)
+      setForm(EMPTY_LEAD_FORM)
     } catch (submitError) {
-      setError((submitError as Error).message)
+      setError(`Failed to ingest lead: ${(submitError as Error).message}`)
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  function updateField<K extends keyof typeof form>(key: K, value: string) {
+    setForm((prev) => ({ ...prev, [key]: value }))
+    setFieldErrors((prev) => ({ ...prev, [key]: undefined }))
   }
 
   return (
@@ -84,48 +149,199 @@ function LeadForm({ onCreated }: { onCreated: (lead: LeadView) => void }) {
         <CardDescription>Score budget, urgency and fit automatically.</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
-        <Input placeholder="Contact name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-        <Input placeholder="Email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
-        <Input placeholder="Company" value={form.company} onChange={(e) => setForm({ ...form, company: e.target.value })} />
-        <div className="grid grid-cols-2 gap-3">
-          <Input placeholder="Budget ($)" type="number" value={form.budget} onChange={(e) => setForm({ ...form, budget: e.target.value })} />
-          <Input placeholder="Timeline (days)" type="number" value={form.timelineDays} onChange={(e) => setForm({ ...form, timelineDays: e.target.value })} />
+        <div className="flex flex-col gap-1">
+          <Input
+            ref={nameRef}
+            placeholder="Contact name"
+            value={form.name}
+            aria-invalid={Boolean(fieldErrors.name)}
+            onChange={(e) => updateField('name', e.target.value)}
+          />
+          <FieldError message={fieldErrors.name} />
         </div>
-        <Textarea placeholder="Fit notes — decision maker, budget approved, urgent…" rows={3} value={form.fitNotes} onChange={(e) => setForm({ ...form, fitNotes: e.target.value })} />
+
+        <div className="flex flex-col gap-1">
+          <Input
+            ref={emailRef}
+            placeholder="Email"
+            type="email"
+            value={form.email}
+            aria-invalid={Boolean(fieldErrors.email)}
+            onChange={(e) => updateField('email', e.target.value)}
+          />
+          <FieldError message={fieldErrors.email} />
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <Input
+            ref={companyRef}
+            placeholder="Company"
+            value={form.company}
+            aria-invalid={Boolean(fieldErrors.company)}
+            onChange={(e) => updateField('company', e.target.value)}
+          />
+          <FieldError message={fieldErrors.company} />
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div className="flex flex-col gap-1">
+            <Input
+              ref={budgetRef}
+              placeholder="Budget ($)"
+              type="number"
+              min="0"
+              step="1"
+              value={form.budget}
+              aria-invalid={Boolean(fieldErrors.budget)}
+              onChange={(e) => updateField('budget', e.target.value)}
+            />
+            <FieldError message={fieldErrors.budget} />
+          </div>
+          <div className="flex flex-col gap-1">
+            <Input
+              ref={timelineRef}
+              placeholder="Urgency"
+              type="number"
+              min={TIMELINE_MIN_DAYS}
+              max={TIMELINE_MAX_DAYS}
+              step="1"
+              value={form.timelineDays}
+              aria-invalid={Boolean(fieldErrors.timelineDays)}
+              onChange={(e) => updateField('timelineDays', e.target.value)}
+            />
+            <p className="text-[11px] font-medium text-gray-400">
+              Urgency (days to close, {TIMELINE_MIN_DAYS}–{TIMELINE_MAX_DAYS})
+            </p>
+            <FieldError message={fieldErrors.timelineDays} />
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <Textarea
+            ref={fitNotesRef}
+            placeholder="Fit notes — decision maker, budget approved, urgent…"
+            rows={3}
+            className="max-h-48 overflow-y-auto"
+            maxLength={FIT_NOTES_MAX_LENGTH}
+            value={form.fitNotes}
+            aria-invalid={Boolean(fieldErrors.fitNotes)}
+            onChange={(e) => updateField('fitNotes', e.target.value.slice(0, FIT_NOTES_MAX_LENGTH))}
+          />
+          <div className="flex items-center justify-between">
+            <FieldError message={fieldErrors.fitNotes} />
+            <span className="ml-auto text-[11px] font-medium tabular-nums text-gray-400">
+              {form.fitNotes.length}/{FIT_NOTES_MAX_LENGTH}
+            </span>
+          </div>
+        </div>
+
         {error && <p className="text-[13px] font-bold text-red-500">{error}</p>}
+
         <Button className="bg-[#F5CA50] font-bold text-[#111111] hover:brightness-95" disabled={isSubmitting} onClick={submit}>
           {isSubmitting ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
           Qualify lead
         </Button>
+
+        {lastResult && (
+          <div className="flex flex-col gap-2 rounded-xl border border-gray-100 bg-gray-50/60 p-3">
+            <div className="flex items-center justify-between">
+              <p className="text-[13px] font-bold text-gray-900">
+                {lastResult.name} · {lastResult.company}
+              </p>
+              <span className={cn('rounded-full border px-2.5 py-0.5 text-[11px] font-bold uppercase', BAND_STYLES[lastResult.qualificationBand])}>
+                {lastResult.qualificationBand}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-gray-200">
+                <div className="h-full rounded-full bg-[#F5CA50]" style={{ width: `${lastResult.qualificationScore}%` }} />
+              </div>
+              <span className="text-[12px] font-bold tabular-nums text-gray-700">{lastResult.qualificationScore}</span>
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   )
 }
 
-function ProposalGenerator() {
-  const [form, setForm] = useState({ leadName: '', company: '', requirements: '', budget: '' })
+const EMPTY_PROPOSAL_FORM = { leadName: '', company: '', requirements: '', budget: '' }
+
+function ProposalGenerator({ qualifiedLeads }: { qualifiedLeads: LeadView[] }) {
+  const [form, setForm] = useState(EMPTY_PROPOSAL_FORM)
+  const [fieldErrors, setFieldErrors] = useState<ProposalFieldErrors>({})
   const [proposal, setProposal] = useState<string | null>(null)
   const [isGenerating, setIsGenerating] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  const deferredRequirements = useDeferredValue(form.requirements)
+
+  const leadNameRef = useRef<HTMLInputElement>(null)
+  const companyRef = useRef<HTMLInputElement>(null)
+  const requirementsRef = useRef<HTMLTextAreaElement>(null)
+  const budgetRef = useRef<HTMLInputElement>(null)
+
+  const fieldRefs: Record<keyof ProposalFieldErrors, React.RefObject<HTMLElement | null>> = {
+    leadName: leadNameRef,
+    company: companyRef,
+    requirements: requirementsRef,
+    budget: budgetRef,
+  }
+
+  function focusFirstError(errors: ProposalFieldErrors) {
+    const order: (keyof ProposalFieldErrors)[] = ['leadName', 'company', 'requirements', 'budget']
+    const firstKey = order.find((key) => errors[key])
+    if (!firstKey) return
+    const el = fieldRefs[firstKey].current
+    el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    el?.focus()
+  }
+
+  function updateField<K extends keyof typeof form>(key: K, value: string) {
+    setForm((prev) => ({ ...prev, [key]: value }))
+    setFieldErrors((prev) => ({ ...prev, [key]: undefined }))
+  }
+
+  function applyQualifiedLead(email: string) {
+    const lead = qualifiedLeads.find((l) => l.email === email)
+    if (!lead) return
+    setForm((prev) => ({ ...prev, leadName: lead.name, company: lead.company, budget: String(lead.budget) }))
+    setFieldErrors({})
+  }
+
   async function generate() {
-    if (!form.leadName || !form.company || !form.requirements || isGenerating) return
+    if (isGenerating) return
+
+    const errors = validateProposalForm(form)
+    if (hasProposalFieldErrors(errors)) {
+      setFieldErrors(errors)
+      setError(null)
+      focusFirstError(errors)
+      return
+    }
+
+    setFieldErrors({})
     setIsGenerating(true)
     setError(null)
     try {
       const response = await fetch('/api/automation/crm/proposal', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...form, budget: Number(form.budget) || 0 }),
+        body: JSON.stringify({
+          leadName: form.leadName,
+          company: form.company,
+          requirements: form.requirements,
+          budget: Number(form.budget),
+        }),
       })
       if (!response.ok) {
-        setError(await readError(response, 'Could not generate proposal'))
+        setError(await readError(response, 'Failed to generate proposal'))
         return
       }
       const { proposal: text } = (await response.json()) as { proposal: string }
       setProposal(text)
     } catch (generateError) {
-      setError((generateError as Error).message)
+      setError(`Failed to generate proposal: ${(generateError as Error).message}`)
     } finally {
       setIsGenerating(false)
     }
@@ -138,13 +354,88 @@ function ProposalGenerator() {
         <CardDescription>Draft a client-ready proposal in seconds.</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
+        {qualifiedLeads.length > 0 && (
+          <label className="flex flex-col gap-1 text-[12px] font-semibold text-gray-500">
+            Use qualified lead
+            <select
+              className="h-8 rounded-lg border border-input bg-transparent px-2.5 text-[13px] font-medium text-gray-900 outline-none focus-visible:border-ring"
+              defaultValue=""
+              onChange={(e) => {
+                if (e.target.value) applyQualifiedLead(e.target.value)
+                e.target.value = ''
+              }}
+            >
+              <option value="" disabled>
+                Select a qualified lead…
+              </option>
+              {qualifiedLeads.map((lead) => (
+                <option key={lead.email + lead.createdAt} value={lead.email}>
+                  {lead.name} · {lead.company}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+
         <div className="grid grid-cols-2 gap-3">
-          <Input placeholder="Lead name" value={form.leadName} onChange={(e) => setForm({ ...form, leadName: e.target.value })} />
-          <Input placeholder="Company" value={form.company} onChange={(e) => setForm({ ...form, company: e.target.value })} />
+          <div className="flex flex-col gap-1">
+            <Input
+              ref={leadNameRef}
+              placeholder="Lead name"
+              value={form.leadName}
+              aria-invalid={Boolean(fieldErrors.leadName)}
+              onChange={(e) => updateField('leadName', e.target.value)}
+            />
+            <FieldError message={fieldErrors.leadName} />
+          </div>
+          <div className="flex flex-col gap-1">
+            <Input
+              ref={companyRef}
+              placeholder="Company"
+              value={form.company}
+              aria-invalid={Boolean(fieldErrors.company)}
+              onChange={(e) => updateField('company', e.target.value)}
+            />
+            <FieldError message={fieldErrors.company} />
+          </div>
         </div>
-        <Textarea placeholder="Requirements and scope…" rows={3} value={form.requirements} onChange={(e) => setForm({ ...form, requirements: e.target.value })} />
-        <Input placeholder="Budget ($)" type="number" value={form.budget} onChange={(e) => setForm({ ...form, budget: e.target.value })} />
+
+        <div className="flex flex-col gap-1">
+          <Textarea
+            ref={requirementsRef}
+            placeholder="Requirements and scope…"
+            rows={3}
+            className="max-h-64 overflow-y-auto"
+            maxLength={PROPOSAL_REQUIREMENTS_MAX_LENGTH}
+            value={form.requirements}
+            aria-invalid={Boolean(fieldErrors.requirements)}
+            onChange={(e) => updateField('requirements', e.target.value.slice(0, PROPOSAL_REQUIREMENTS_MAX_LENGTH))}
+          />
+          <div className="flex items-center justify-between">
+            <FieldError message={fieldErrors.requirements} />
+            <span className="ml-auto text-[11px] font-medium tabular-nums text-gray-400">
+              {deferredRequirements.length}/{PROPOSAL_REQUIREMENTS_MAX_LENGTH}
+            </span>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <Input
+            ref={budgetRef}
+            placeholder="Budget ($)"
+            type="number"
+            min="0"
+            max={PROPOSAL_BUDGET_MAX}
+            step="1"
+            value={form.budget}
+            aria-invalid={Boolean(fieldErrors.budget)}
+            onChange={(e) => updateField('budget', e.target.value)}
+          />
+          <FieldError message={fieldErrors.budget} />
+        </div>
+
         {error && <p className="text-[13px] font-bold text-red-500">{error}</p>}
+
         <Button className="bg-[#F5CA50] font-bold text-[#111111] hover:brightness-95" disabled={isGenerating} onClick={generate}>
           {isGenerating ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
           Generate proposal
@@ -222,7 +513,7 @@ export default function CrmPage() {
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <LeadForm onCreated={(lead) => setLeads((prev) => [lead, ...prev])} />
-          <ProposalGenerator />
+          <ProposalGenerator qualifiedLeads={leads} />
         </div>
 
         <Card>

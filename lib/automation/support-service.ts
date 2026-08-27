@@ -136,6 +136,7 @@ export async function generateResolutionReply(options: GenerateReplyOptions): Pr
       },
       { role: 'user', content: `Subject: ${options.subject}\n\nMessage: ${options.message}` },
     ],
+    task: 'support-reply',
     maxTokens: 400,
   })
 
@@ -151,6 +152,7 @@ export async function translateMessage(text: string, targetLanguage: string): Pr
       },
       { role: 'user', content: text },
     ],
+    task: 'support-translate',
     maxTokens: 500,
     temperature: 0,
   })

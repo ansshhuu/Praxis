@@ -100,6 +100,7 @@ export async function generateInterviewQuestions(
         content: `Job description: ${options.jobDescription}\n\nCandidate resume: ${options.resumeExcerpt}`,
       },
     ],
+    task: 'hr-interview-questions',
     maxTokens: 500,
   })
 
@@ -164,6 +165,7 @@ export async function generateOfferLetter(options: GenerateOfferLetterOptions): 
         ].join('\n'),
       },
     ],
+    task: 'hr-offer-letter',
     maxTokens: 1200,
   })
   return text.trim()

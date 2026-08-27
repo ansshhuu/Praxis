@@ -14,7 +14,7 @@ const PUBLIC_ROUTES = ['/', '/login', '/register']
  */
 const OPEN_ROUTES = ['/privacy', '/terms', '/api/contact', '/api/health']
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   if (pathname.startsWith('/api/auth')) {

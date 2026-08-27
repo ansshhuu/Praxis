@@ -122,6 +122,7 @@ export async function parseVoiceCommand(transcript: string): Promise<VoiceComman
       { role: 'system', content: VOICE_COMMAND_SCHEMA_PROMPT },
       { role: 'user', content: trimmed },
     ],
+    task: 'voice-command',
     maxTokens: 512,
     temperature: 0,
   })
