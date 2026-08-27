@@ -1,15 +1,14 @@
 'use client'
 
-import { Loader2, Play, Search, X } from 'lucide-react'
+import { Loader2, Workflow as WorkflowIcon, Search } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 import { useEffect, useMemo, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { StatusBadge } from '@/components/ui/status-badge'
 import { cn } from '@/lib/utils'
 
-import { ExecutionTraceTree } from './execution-trace-tree'
-import { WORKFLOW_CATEGORIES, type NodeExecutionRecordView, type WorkflowTemplateView } from './types'
+import { WORKFLOW_CATEGORIES, type WorkflowTemplateView } from './types'
 
 const CATEGORY_COLORS: Record<string, string> = {
   HR: 'bg-purple-50 text-purple-700 border-purple-100',
@@ -20,15 +19,15 @@ const CATEGORY_COLORS: Record<string, string> = {
   Support: 'bg-emerald-50 text-emerald-700 border-emerald-100',
 }
 
-interface ExecuteState {
+function TemplateCard({
+  template,
+  isLoading,
+  onUse,
+}: {
   template: WorkflowTemplateView
-  isRunning: boolean
-  error: string | null
-  status: 'success' | 'failed' | 'queued' | null
-  steps: NodeExecutionRecordView[]
-}
-
-function TemplateCard({ template, onExecute }: { template: WorkflowTemplateView; onExecute: () => void }) {
+  isLoading: boolean
+  onUse: () => void
+}) {
   return (
     <Card className="flex h-full flex-col">
       <CardHeader className="pb-2">
@@ -49,8 +48,14 @@ function TemplateCard({ template, onExecute }: { template: WorkflowTemplateView;
             </span>
           ))}
         </div>
-        <Button size="sm" className="bg-[#F5CA50] font-bold text-[#111111] hover:brightness-95" onClick={onExecute}>
-          <Play className="size-3.5" /> Run template
+        <Button
+          size="sm"
+          className="bg-[#F5CA50] font-bold text-[#111111] hover:brightness-95"
+          onClick={onUse}
+          disabled={isLoading}
+        >
+          {isLoading ? <Loader2 className="size-3.5 animate-spin" /> : <WorkflowIcon className="size-3.5" />}
+          Use workflow
         </Button>
       </CardContent>
     </Card>
@@ -58,11 +63,12 @@ function TemplateCard({ template, onExecute }: { template: WorkflowTemplateView;
 }
 
 export function TemplateMarketplace() {
+  const router = useRouter()
   const [templates, setTemplates] = useState<WorkflowTemplateView[] | null>(null)
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState<string>('')
   const [error, setError] = useState<string | null>(null)
-  const [execution, setExecution] = useState<ExecuteState | null>(null)
+  const [creatingId, setCreatingId] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -88,23 +94,24 @@ export function TemplateMarketplace() {
 
   const grouped = useMemo(() => templates ?? [], [templates])
 
-  async function execute(template: WorkflowTemplateView) {
-    setExecution({ template, isRunning: true, error: null, status: null, steps: [] })
+  async function createFromTemplate(template: WorkflowTemplateView) {
+    setCreatingId(template.id)
+    setError(null)
     try {
-      const response = await fetch('/api/workflows/execute', {
+      const response = await fetch('/api/workflows/from-template', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ templateId: template.id, mode: 'immediate', input: {} }),
+        body: JSON.stringify({ templateId: template.id }),
       })
       const body = await response.json().catch(() => null)
-      if (!response.ok && response.status !== 502) {
-        setExecution({ template, isRunning: false, error: (body as { error?: string } | null)?.error ?? 'Execution failed', status: null, steps: [] })
-        return
+      if (!response.ok) {
+        throw new Error((body as { error?: string } | null)?.error ?? 'Could not create workflow from template')
       }
-      const parsed = body as { status: 'success' | 'failed'; steps: NodeExecutionRecordView[]; error: string | null }
-      setExecution({ template, isRunning: false, error: parsed.error, status: parsed.status, steps: parsed.steps })
-    } catch (runError) {
-      setExecution({ template, isRunning: false, error: (runError as Error).message, status: null, steps: [] })
+      const { workflow } = body as { workflow: { id: string } }
+      router.push(`/workflows?id=${workflow.id}`)
+    } catch (useError) {
+      setError((useError as Error).message)
+      setCreatingId(null)
     }
   }
 
@@ -156,41 +163,15 @@ export function TemplateMarketplace() {
           <p className="text-[12.5px] font-medium text-gray-500">{grouped.length} templates</p>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {grouped.map((template) => (
-              <TemplateCard key={template.id} template={template} onExecute={() => execute(template)} />
+              <TemplateCard
+                key={template.id}
+                template={template}
+                isLoading={creatingId === template.id}
+                onUse={() => createFromTemplate(template)}
+              />
             ))}
           </div>
         </>
-      )}
-
-      {execution && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-gray-900/40 backdrop-blur-sm" onClick={() => setExecution(null)} />
-          <div className="relative flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
-            <div className="flex items-center justify-between border-b border-gray-100 p-5">
-              <div>
-                <h3 className="text-base font-bold text-gray-900">{execution.template.name}</h3>
-                <p className="text-[12.5px] font-medium text-gray-500">Execution trace</p>
-              </div>
-              <Button variant="ghost" size="icon" onClick={() => setExecution(null)} aria-label="Close">
-                <X className="size-5" />
-              </Button>
-            </div>
-            <div className="flex-1 overflow-y-auto p-5">
-              {execution.isRunning ? (
-                <div className="flex items-center gap-2 py-10 justify-center text-gray-500">
-                  <Loader2 className="size-4 animate-spin" />
-                  <span className="text-[13px] font-medium">Running workflow…</span>
-                </div>
-              ) : (
-                <div className="flex flex-col gap-4">
-                  {execution.status && <StatusBadge status={execution.status} />}
-                  {execution.error && <p className="text-[13px] font-bold text-red-500">{execution.error}</p>}
-                  <ExecutionTraceTree nodes={execution.steps} />
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
       )}
     </div>
   )

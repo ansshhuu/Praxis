@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 
+import { AuthTransitionOverlay } from '@/components/auth/auth-transition-overlay'
 import { CREDENTIALS_ERRORS } from '@/lib/auth/errors'
 
 function PraxisIcon({ size = 24, color = '#D4A017' }: { size?: number; color?: string }) {
@@ -60,6 +61,7 @@ export default function LoginPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [oauthLoading, setOauthLoading] = useState(false)
+  const [navigating, setNavigating] = useState(false)
 
   useEffect(() => { router.prefetch('/dashboard') }, [router])
 
@@ -77,6 +79,7 @@ export default function LoginPage() {
       setError('Invalid email or password. Please try again.')
       return
     }
+    setNavigating(true)
     router.replace('/dashboard')
   }
 
@@ -194,6 +197,8 @@ export default function LoginPage() {
           </div>
         </div>
       </div>
+
+      {navigating && <AuthTransitionOverlay label="Signing you in…" />}
     </div>
   )
 }

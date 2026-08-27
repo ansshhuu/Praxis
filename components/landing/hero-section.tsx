@@ -9,7 +9,7 @@ import {
   UserCircle, Mail, Shield,
 } from 'lucide-react'
 
-import DotField from '@/components/DotField'
+import DotField from '@/components/landing/DotField'
 import { CountUp, WordReveal, useTypewriter } from '@/components/motion/primitives'
 
 function PraxisIcon({ size = 22, color = '#F5CA50' }: { size?: number; color?: string }) {

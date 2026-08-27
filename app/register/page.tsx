@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation'
 import { signIn } from 'next-auth/react'
 import { useEffect, useState } from 'react'
 
+import { AuthTransitionOverlay } from '@/components/auth/auth-transition-overlay'
+
 function PraxisIcon({ size = 24, color = '#D4A017' }: { size?: number; color?: string }) {
   const c = size / 2
   const rays = 8
@@ -60,6 +62,7 @@ export default function RegisterPage() {
   const [loading,  setLoading]  = useState(false)
   const [oauthLoading, setOauthLoading] = useState(false)
   const [notice,   setNotice]   = useState('')
+  const [navigating, setNavigating] = useState(false)
 
   useEffect(() => { router.prefetch('/dashboard') }, [router])
 
@@ -97,6 +100,7 @@ export default function RegisterPage() {
       return
     }
 
+    setNavigating(true)
     router.replace('/dashboard')
   }
 
@@ -241,6 +245,8 @@ export default function RegisterPage() {
           </div>
         </div>
       </div>
+
+      {navigating && <AuthTransitionOverlay label="Setting up your workspace…" />}
     </div>
   )
 }

@@ -36,7 +36,8 @@ Thumbs.db
 
 # IDEs and editors
 .idea/
-.vscode/
+.vscode/*
+!.vscode/settings.json
 *.suo
 *.ntvs*
 *.njsproj
@@ -59,3 +60,7 @@ bun.lockb
 
 # Test coverage output
 coverage/
+
+# Agent instruction files
+AGENTS.md
+CLAUDE.md

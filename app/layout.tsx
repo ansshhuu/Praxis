@@ -1,8 +1,10 @@
 import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
+import { Suspense } from 'react'
 
-import { Providers } from '@/components/providers'
+import { NavigationProgress } from '@/components/layout/navigation-progress'
+import { Providers } from '@/components/layout/providers'
 
 import './globals.css'
 
@@ -49,6 +51,9 @@ export default function RootLayout({
   return (
     <html lang="en" className={`light ${inter.variable} bg-background`}>
       <body className="font-sans antialiased">
+        <Suspense fallback={null}>
+          <NavigationProgress />
+        </Suspense>
         <Providers>{children}</Providers>
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>

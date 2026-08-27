@@ -3,7 +3,7 @@
 import { ArrowRight, Check, Loader2 } from 'lucide-react'
 import { useState } from 'react'
 
-import DotField from '@/components/DotField'
+import DotField from '@/components/landing/DotField'
 import { Reveal, ScaleIn } from '@/components/motion/primitives'
 import { cn } from '@/lib/utils'
 
