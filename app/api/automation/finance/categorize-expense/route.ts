@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 
 import { getCurrentUserId } from '@/lib/auth/session'
-import { recordFinanceEntry } from '@/lib/automation/finance-service'
+import { DuplicateInvoiceError, recordFinanceEntry } from '@/lib/automation/finance-service'
 import { toSafeErrorMessage } from '@/lib/security/error-handler'
 
 export const dynamic = 'force-dynamic'
@@ -20,6 +20,8 @@ export async function POST(request: Request) {
     dueDate?: unknown
     budgetThreshold?: unknown
     historicalAverage?: unknown
+    invoiceHash?: unknown
+    allowDuplicate?: unknown
   }
   try {
     body = await request.json()
@@ -38,6 +40,8 @@ export async function POST(request: Request) {
   const dueDate = typeof body.dueDate === 'string' && body.dueDate.trim() ? new Date(body.dueDate) : null
   const budgetThreshold = typeof body.budgetThreshold === 'number' ? body.budgetThreshold : Infinity
   const historicalAverage = typeof body.historicalAverage === 'number' ? body.historicalAverage : 0
+  const invoiceHash = typeof body.invoiceHash === 'string' ? body.invoiceHash : null
+  const allowDuplicate = body.allowDuplicate === true
 
   try {
     const record = await recordFinanceEntry({
@@ -50,9 +54,17 @@ export async function POST(request: Request) {
       budgetThreshold,
       historicalAverage,
       type: 'expense',
+      invoiceHash,
+      allowDuplicate,
     })
     return NextResponse.json({ record }, { status: 201 })
   } catch (error) {
+    if (error instanceof DuplicateInvoiceError) {
+      return NextResponse.json(
+        { duplicate: true, error: 'This invoice appears to already be uploaded — add anyway?' },
+        { status: 409 },
+      )
+    }
     return NextResponse.json(
       { error: toSafeErrorMessage(error, 'Failed to categorize expense') },
       { status: 502 },

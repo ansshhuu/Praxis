@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server'
 
 import { getCurrentUserId } from '@/lib/auth/session'
-import { ingestTicket } from '@/lib/automation/support-service'
-import { toSafeErrorMessage } from '@/lib/security/error-handler'
+import { ingestTicket, TicketIngestError } from '@/lib/automation/support-service'
+import { toClassifiedErrorMessage } from '@/lib/security/error-handler'
 
 export const dynamic = 'force-dynamic'
 
@@ -37,9 +37,17 @@ export async function POST(request: Request) {
     const ticket = await ingestTicket({ userId, subject, message })
     return NextResponse.json({ ticket }, { status: 201 })
   } catch (error) {
-    return NextResponse.json(
-      { error: toSafeErrorMessage(error, 'Failed to ingest ticket') },
-      { status: 502 },
-    )
+    const message = toClassifiedErrorMessage(error, 'Failed to ingest ticket', (err) => {
+      if (err instanceof TicketIngestError) {
+        switch (err.code) {
+          case 'classification_failed':
+            return 'Failed to ingest ticket: classification service timeout'
+          case 'db_insert_failed':
+            return 'Failed to ingest ticket: could not save to database'
+        }
+      }
+      return null
+    })
+    return NextResponse.json({ error: message }, { status: 502 })
   }
 }

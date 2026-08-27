@@ -1,3 +1,5 @@
+import { ObjectId } from 'mongodb'
+
 import { applyGuardrails } from '@/lib/ai/guardrails'
 import { generateText } from '@/lib/ai/llm-gateway'
 import {
@@ -49,14 +51,23 @@ export function computeSentimentScore(text: string): SentimentResult {
   return { score, label }
 }
 
-const URGENT_WORDS = ['urgent', 'asap', 'immediately', 'critical', 'emergency', 'down', 'outage']
+const CRITICAL_WORDS = ['outage', 'down', 'emergency', 'critical', 'all users affected', 'system down', 'unusable', 'data loss']
+const HIGH_URGENCY_WORDS = ['urgent', 'asap', 'immediately', 'blocked', 'blocking', 'cannot access', "can't access", 'unable to access']
 
+/**
+ * Urgency is a measure of how time-critical the underlying issue is, kept
+ * independent of sentiment — a calmly-worded outage report is still critical,
+ * and an angry but low-stakes complaint isn't. Sentiment only escalates a
+ * tie (medium) up one level, never overrides an explicit severity signal.
+ */
 export function computeUrgency(text: string, sentiment: SentimentResult): TicketUrgency {
   const lower = text.toLowerCase()
-  const hasUrgentWord = URGENT_WORDS.some((word) => lower.includes(word))
-  if (hasUrgentWord && sentiment.label === 'negative') return 'critical'
-  if (hasUrgentWord || sentiment.label === 'negative') return 'high'
-  if (sentiment.label === 'neutral') return 'medium'
+  const hasCriticalWord = CRITICAL_WORDS.some((word) => lower.includes(word))
+  const hasHighWord = HIGH_URGENCY_WORDS.some((word) => lower.includes(word))
+
+  if (hasCriticalWord) return 'critical'
+  if (hasHighWord) return 'high'
+  if (sentiment.label === 'negative') return 'medium'
   return 'low'
 }
 
@@ -85,9 +96,20 @@ export function classifyTicket(input: ClassifyTicketInput): ClassifyTicketResult
   return { category, sentiment, urgency, escalate }
 }
 
+export class TicketIngestError extends Error {
+  constructor(public readonly code: 'classification_failed' | 'db_insert_failed', message: string) {
+    super(message)
+    this.name = 'TicketIngestError'
+  }
+}
+
 export async function ingestTicket(input: IngestTicketInput): Promise<SupportTicket> {
-  const classification = classifyTicket(input)
-  const collection = await getSupportTicketsCollection()
+  let classification: ClassifyTicketResult
+  try {
+    classification = classifyTicket(input)
+  } catch (error) {
+    throw new TicketIngestError('classification_failed', `Ticket classification failed: ${(error as Error).message}`)
+  }
 
   const ticket: SupportTicket = {
     userId: input.userId,
@@ -100,11 +122,18 @@ export async function ingestTicket(input: IngestTicketInput): Promise<SupportTic
     urgency: classification.urgency,
     escalate: classification.escalate,
     status: classification.escalate ? 'escalated' : 'open',
+    reply: null,
+    replyStatus: 'none',
     createdAt: new Date(),
   }
 
-  const result = await collection.insertOne(ticket)
-  return { ...ticket, _id: result.insertedId }
+  try {
+    const collection = await getSupportTicketsCollection()
+    const result = await collection.insertOne(ticket)
+    return { ...ticket, _id: result.insertedId }
+  } catch (error) {
+    throw new TicketIngestError('db_insert_failed', `Failed to save ticket: ${(error as Error).message}`)
+  }
 }
 
 export interface GenerateReplyOptions {
@@ -141,6 +170,34 @@ export async function generateResolutionReply(options: GenerateReplyOptions): Pr
   })
 
   return { reply: text, escalate: false }
+}
+
+const URGENCY_RANK: Record<TicketUrgency, number> = { critical: 3, high: 2, medium: 1, low: 0 }
+
+export async function listTickets(userId: string): Promise<SupportTicket[]> {
+  const collection = await getSupportTicketsCollection()
+  const tickets = await collection.find({ userId }).sort({ createdAt: -1 }).toArray()
+  return tickets.sort((a, b) => URGENCY_RANK[b.urgency] - URGENCY_RANK[a.urgency])
+}
+
+export class TicketNotFoundError extends Error {
+  constructor() {
+    super('Ticket not found')
+    this.name = 'TicketNotFoundError'
+  }
+}
+
+export async function sendTicketReply(userId: string, ticketId: string, reply: string): Promise<SupportTicket> {
+  const collection = await getSupportTicketsCollection()
+  const result = await collection.findOneAndUpdate(
+    { _id: new ObjectId(ticketId), userId },
+    { $set: { reply, replyStatus: 'sent', repliedAt: new Date() } },
+    { returnDocument: 'after' },
+  )
+  if (!result) {
+    throw new TicketNotFoundError()
+  }
+  return result
 }
 
 export async function translateMessage(text: string, targetLanguage: string): Promise<string> {

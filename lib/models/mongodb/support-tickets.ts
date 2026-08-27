@@ -7,6 +7,8 @@ export type TicketUrgency = 'low' | 'medium' | 'high' | 'critical'
 
 export type TicketSentimentLabel = 'positive' | 'neutral' | 'negative'
 
+export type TicketReplyStatus = 'none' | 'sent'
+
 export interface SupportTicket {
   _id?: ObjectId
   userId: string
@@ -19,6 +21,9 @@ export interface SupportTicket {
   urgency: TicketUrgency
   escalate: boolean
   status: string
+  reply: string | null
+  replyStatus: TicketReplyStatus
+  repliedAt?: Date
   createdAt: Date
 }
 

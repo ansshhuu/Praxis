@@ -1,7 +1,7 @@
 'use client'
 
 import { Headset, Loader2, Send, Sparkles } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import { DashboardShell } from '@/components/dashboard/dashboard-shell'
 import { Button } from '@/components/ui/button'
@@ -12,8 +12,10 @@ import { cn } from '@/lib/utils'
 
 type Urgency = 'low' | 'medium' | 'high' | 'critical'
 type Sentiment = 'positive' | 'neutral' | 'negative'
+type ReplyStatus = 'none' | 'sent'
 
 interface Ticket {
+  _id: string
   subject: string
   message: string
   category: string
@@ -22,6 +24,8 @@ interface Ticket {
   urgency: Urgency
   escalate: boolean
   status: string
+  reply: string | null
+  replyStatus: ReplyStatus
   createdAt: string
 }
 
@@ -43,9 +47,22 @@ async function readError(response: Response, fallback: string): Promise<string> 
   return (body as { error?: string } | null)?.error ?? fallback
 }
 
-function TicketCard({ ticket, onGenerateReply }: { ticket: Ticket; onGenerateReply: (ticket: Ticket) => void }) {
+function TicketCard({
+  ticket,
+  isActive,
+  onGenerateReply,
+}: {
+  ticket: Ticket
+  isActive: boolean
+  onGenerateReply: (ticket: Ticket) => void
+}) {
   return (
-    <div className="flex flex-col gap-3 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+    <div
+      className={cn(
+        'flex flex-col gap-3 rounded-2xl border bg-white p-4 shadow-sm',
+        isActive ? 'border-[#F5CA50]' : 'border-gray-100',
+      )}
+    >
       <div className="flex items-start justify-between gap-2">
         <div>
           <p className="text-[13.5px] font-bold text-gray-900">{ticket.subject}</p>
@@ -61,6 +78,9 @@ function TicketCard({ ticket, onGenerateReply }: { ticket: Ticket; onGenerateRep
           {ticket.sentimentLabel}
         </span>
         {ticket.escalate && <span className="rounded-md bg-red-100 px-2 py-0.5 text-[11px] font-bold text-red-700">Escalated</span>}
+        {ticket.replyStatus === 'sent' && (
+          <span className="rounded-md bg-green-100 px-2 py-0.5 text-[11px] font-bold text-green-700">Replied</span>
+        )}
       </div>
       <Button variant="outline" size="sm" onClick={() => onGenerateReply(ticket)}>
         <Sparkles className="size-3.5" /> Generate reply
@@ -69,15 +89,43 @@ function TicketCard({ ticket, onGenerateReply }: { ticket: Ticket; onGenerateRep
   )
 }
 
+function urgencyRank(urgency: Urgency): number {
+  return { critical: 3, high: 2, medium: 1, low: 0 }[urgency]
+}
+
+function sortByUrgency(list: Ticket[]): Ticket[] {
+  return [...list].sort((a, b) => urgencyRank(b.urgency) - urgencyRank(a.urgency))
+}
+
 export default function SupportPage() {
   const [form, setForm] = useState({ subject: '', message: '' })
   const [tickets, setTickets] = useState<Ticket[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const [activeTicket, setActiveTicket] = useState<Ticket | null>(null)
+  const [activeTicketId, setActiveTicketId] = useState<string | null>(null)
   const [reply, setReply] = useState('')
   const [isGenerating, setIsGenerating] = useState(false)
+  const [isSending, setIsSending] = useState(false)
+  const generationTokenRef = useRef(0)
+
+  const activeTicket = tickets.find((t) => t._id === activeTicketId) ?? null
+
+  useEffect(() => {
+    let cancelled = false
+    async function load() {
+      try {
+        const response = await fetch('/api/automation/support/tickets')
+        if (!response.ok || cancelled) return
+        const { tickets: data } = (await response.json()) as { tickets: Ticket[] }
+        if (!cancelled) setTickets(sortByUrgency(data))
+      } catch {}
+    }
+    void load()
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   async function submitTicket() {
     if (!form.subject.trim() || !form.message.trim() || isSubmitting) return
@@ -94,7 +142,7 @@ export default function SupportPage() {
         return
       }
       const { ticket } = (await response.json()) as { ticket: Ticket }
-      setTickets((prev) => [ticket, ...prev].sort((a, b) => urgencyRank(b.urgency) - urgencyRank(a.urgency)))
+      setTickets((prev) => sortByUrgency([ticket, ...prev]))
       setForm({ subject: '', message: '' })
     } catch (submitError) {
       setError((submitError as Error).message)
@@ -103,30 +151,55 @@ export default function SupportPage() {
     }
   }
 
-  function urgencyRank(urgency: Urgency): number {
-    return { critical: 3, high: 2, medium: 1, low: 0 }[urgency]
-  }
-
   async function generateReply(ticket: Ticket) {
-    setActiveTicket(ticket)
+    const token = ++generationTokenRef.current
+    setActiveTicketId(ticket._id)
     setIsGenerating(true)
     setReply('')
+    setError(null)
     try {
       const response = await fetch('/api/automation/support/reply', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ subject: ticket.subject, message: ticket.message, category: ticket.category, escalate: ticket.escalate }),
       })
+      if (token !== generationTokenRef.current) return
       if (!response.ok) {
         setError(await readError(response, 'Could not generate reply'))
         return
       }
       const { reply: text } = (await response.json()) as { reply: string }
+      if (token !== generationTokenRef.current) return
       setReply(text)
     } catch (replyError) {
+      if (token !== generationTokenRef.current) return
       setError((replyError as Error).message)
     } finally {
-      setIsGenerating(false)
+      if (token === generationTokenRef.current) setIsGenerating(false)
+    }
+  }
+
+  async function sendReply() {
+    if (!activeTicket || !reply.trim() || isSending) return
+    const ticketId = activeTicket._id
+    setIsSending(true)
+    setError(null)
+    try {
+      const response = await fetch('/api/automation/support/reply/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ticketId, reply: reply.trim() }),
+      })
+      if (!response.ok) {
+        setError(await readError(response, 'Could not send reply'))
+        return
+      }
+      const { ticket: updated } = (await response.json()) as { ticket: Ticket }
+      setTickets((prev) => sortByUrgency(prev.map((t) => (t._id === ticketId ? updated : t))))
+    } catch (sendError) {
+      setError((sendError as Error).message)
+    } finally {
+      setIsSending(false)
     }
   }
 
@@ -176,8 +249,12 @@ export default function SupportPage() {
                   disabled={!activeTicket}
                 />
               )}
-              <Button variant="outline" disabled={!reply}>
-                <Send className="size-3.5" /> Send reply
+              {activeTicket?.replyStatus === 'sent' && (
+                <p className="text-[12.5px] font-bold text-green-600">Reply sent — this ticket is marked Replied.</p>
+              )}
+              <Button variant="outline" disabled={!reply.trim() || !activeTicket || isSending} onClick={sendReply}>
+                {isSending ? <Loader2 className="size-3.5 animate-spin" /> : <Send className="size-3.5" />}
+                Send reply
               </Button>
             </CardContent>
           </Card>
@@ -193,8 +270,13 @@ export default function SupportPage() {
               <p className="py-8 text-center text-[13px] font-medium text-gray-400">No tickets submitted yet.</p>
             ) : (
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {tickets.map((ticket, i) => (
-                  <TicketCard key={i} ticket={ticket} onGenerateReply={generateReply} />
+                {tickets.map((ticket) => (
+                  <TicketCard
+                    key={ticket._id}
+                    ticket={ticket}
+                    isActive={ticket._id === activeTicketId}
+                    onGenerateReply={generateReply}
+                  />
                 ))}
               </div>
             )}

@@ -17,6 +17,8 @@ export interface ParsedInvoice {
   tax: number
   dueDate: string | null
   total: number
+  lowConfidence: boolean
+  warnings: string[]
 }
 
 const INVOICE_SCHEMA_PROMPT = [
@@ -25,21 +27,46 @@ const INVOICE_SCHEMA_PROMPT = [
   'Use ISO 8601 (YYYY-MM-DD) for dueDate, or null if not present.',
 ].join('\n')
 
+const MIN_OCR_CONFIDENCE = 55
+const MIN_OCR_WORDS = 4
+
+export class InvoiceParseError extends Error {
+  constructor(public readonly code: 'ocr_failed' | 'ocr_empty' | 'llm_failed' | 'unparseable_response', message: string) {
+    super(message)
+    this.name = 'InvoiceParseError'
+  }
+}
+
 export async function parseInvoice(options: { buffer: Buffer; mimeType: string }): Promise<ParsedInvoice> {
-  const ocr = await ocrImage({ buffer: options.buffer, mimeType: options.mimeType })
-  const { text } = await generateText({
-    messages: [
-      { role: 'system', content: INVOICE_SCHEMA_PROMPT },
-      { role: 'user', content: ocr.text },
-    ],
-    task: 'finance-invoice',
-    maxTokens: 700,
-    temperature: 0,
-  })
+  let ocr: Awaited<ReturnType<typeof ocrImage>>
+  try {
+    ocr = await ocrImage({ buffer: options.buffer, mimeType: options.mimeType })
+  } catch (error) {
+    throw new InvoiceParseError('ocr_failed', `OCR failed to process the image: ${(error as Error).message}`)
+  }
+
+  if (!ocr.text || ocr.words < MIN_OCR_WORDS) {
+    throw new InvoiceParseError('ocr_empty', 'OCR could not read any text from this image — it may be blank, too blurry, or not an invoice')
+  }
+
+  let text: string
+  try {
+    ;({ text } = await generateText({
+      messages: [
+        { role: 'system', content: INVOICE_SCHEMA_PROMPT },
+        { role: 'user', content: ocr.text },
+      ],
+      task: 'finance-invoice',
+      maxTokens: 700,
+      temperature: 0,
+    }))
+  } catch (error) {
+    throw new InvoiceParseError('llm_failed', `OCR service timeout or failure while extracting invoice fields: ${(error as Error).message}`)
+  }
 
   const parsed = parseJsonObject(text)
   if (!parsed) {
-    throw new Error('Invoice parsing returned an unparseable response')
+    throw new InvoiceParseError('unparseable_response', 'Invoice parsing returned an unparseable response')
   }
 
   const lineItems: ParsedInvoiceLineItem[] = Array.isArray(parsed.lineItems)
@@ -51,12 +78,24 @@ export async function parseInvoice(options: { buffer: Buffer; mimeType: string }
         }))
     : []
 
+  const vendor = typeof parsed.vendor === 'string' ? parsed.vendor : ''
+  const total = typeof parsed.total === 'number' ? parsed.total : 0
+  const dueDate = typeof parsed.dueDate === 'string' ? parsed.dueDate : null
+
+  const warnings: string[] = []
+  if (!vendor) warnings.push('vendor')
+  if (!total) warnings.push('amount')
+  if (lineItems.length === 0) warnings.push('line items')
+  const lowConfidence = ocr.confidence < MIN_OCR_CONFIDENCE || warnings.length > 0
+
   return {
-    vendor: typeof parsed.vendor === 'string' ? parsed.vendor : '',
+    vendor,
     lineItems,
     tax: typeof parsed.tax === 'number' ? parsed.tax : 0,
-    dueDate: typeof parsed.dueDate === 'string' ? parsed.dueDate : null,
-    total: typeof parsed.total === 'number' ? parsed.total : 0,
+    dueDate,
+    total,
+    lowConfidence,
+    warnings,
   }
 }
 
@@ -111,12 +150,27 @@ export interface RecordFinanceEntryInput {
   budgetThreshold: number
   historicalAverage: number
   type: FinanceRecord['type']
+  invoiceHash?: string | null
+  allowDuplicate?: boolean
+}
+
+export async function findFinanceRecordByHash(userId: string, invoiceHash: string): Promise<FinanceRecord | null> {
+  const collection = await getFinanceRecordsCollection()
+  return collection.findOne({ userId, invoiceHash })
 }
 
 export async function recordFinanceEntry(input: RecordFinanceEntryInput): Promise<FinanceRecord> {
   const category = categorizeExpense(input.description)
   const anomaly = detectBudgetAnomaly(input.amount, input.budgetThreshold, input.historicalAverage)
   const collection = await getFinanceRecordsCollection()
+  const invoiceHash = input.invoiceHash ?? null
+
+  if (invoiceHash && !input.allowDuplicate) {
+    const existing = await collection.findOne({ userId: input.userId, invoiceHash })
+    if (existing) {
+      throw new DuplicateInvoiceError(existing)
+    }
+  }
 
   const record: FinanceRecord = {
     userId: input.userId,
@@ -129,11 +183,24 @@ export async function recordFinanceEntry(input: RecordFinanceEntryInput): Promis
     dueDate: input.dueDate,
     description: input.description,
     anomaly: anomaly.isAnomaly,
+    invoiceHash,
     createdAt: new Date(),
   }
 
   const result = await collection.insertOne(record)
   return { ...record, _id: result.insertedId }
+}
+
+export class DuplicateInvoiceError extends Error {
+  constructor(public readonly existing: FinanceRecord) {
+    super('This invoice appears to already be uploaded')
+    this.name = 'DuplicateInvoiceError'
+  }
+}
+
+export async function listFinanceRecords(userId: string, since: Date): Promise<FinanceRecord[]> {
+  const collection = await getFinanceRecordsCollection()
+  return collection.find({ userId, createdAt: { $gte: since } }).sort({ createdAt: -1 }).toArray()
 }
 
 export interface BudgetReport {

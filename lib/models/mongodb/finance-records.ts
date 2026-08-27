@@ -17,6 +17,7 @@ export interface FinanceRecord {
   dueDate: Date | null
   description: string
   anomaly: boolean
+  invoiceHash: string | null
   createdAt: Date
 }
 
@@ -31,5 +32,6 @@ export async function ensureFinanceRecordsIndexes(): Promise<void> {
     { key: { userId: 1, createdAt: -1 } },
     { key: { type: 1, createdAt: -1 } },
     { key: { category: 1 } },
+    { key: { userId: 1, invoiceHash: 1 } },
   ])
 }
