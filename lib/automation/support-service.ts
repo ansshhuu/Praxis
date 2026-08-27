@@ -54,12 +54,6 @@ export function computeSentimentScore(text: string): SentimentResult {
 const CRITICAL_WORDS = ['outage', 'down', 'emergency', 'critical', 'all users affected', 'system down', 'unusable', 'data loss']
 const HIGH_URGENCY_WORDS = ['urgent', 'asap', 'immediately', 'blocked', 'blocking', 'cannot access', "can't access", 'unable to access']
 
-/**
- * Urgency is a measure of how time-critical the underlying issue is, kept
- * independent of sentiment — a calmly-worded outage report is still critical,
- * and an angry but low-stakes complaint isn't. Sentiment only escalates a
- * tie (medium) up one level, never overrides an explicit severity signal.
- */
 export function computeUrgency(text: string, sentiment: SentimentResult): TicketUrgency {
   const lower = text.toLowerCase()
   const hasCriticalWord = CRITICAL_WORDS.some((word) => lower.includes(word))

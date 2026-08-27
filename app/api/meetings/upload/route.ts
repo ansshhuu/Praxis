@@ -6,7 +6,7 @@ import { getCurrentUserId } from '@/lib/auth/session'
 import { prisma } from '@/lib/db/prisma'
 import { toSummary } from '@/lib/meetings/serialize'
 import { MAX_AUDIO_BYTES } from '@/lib/meetings/transcribe'
-import { toSafeErrorMessage } from '@/lib/security/error-handler'
+import { toClassifiedErrorMessage } from '@/lib/security/error-handler'
 import { MEETINGS_BUCKET, uploadDocument } from '@/lib/storage/supabase'
 
 export const dynamic = 'force-dynamic'
@@ -68,10 +68,27 @@ export async function POST(request: Request) {
   try {
     stored = await uploadDocument(userId, file, undefined, MEETINGS_BUCKET)
   } catch (error) {
-    return NextResponse.json(
-      { error: toSafeErrorMessage(error, 'Failed to upload the meeting audio') },
-      { status: 502 },
+    const message = toClassifiedErrorMessage(
+      error,
+      'Failed to upload the meeting audio',
+      (err) => {
+        if (!(err instanceof Error)) return null
+        if (/not configured/i.test(err.message)) {
+          return 'Upload failed: file storage is not configured. Contact support.'
+        }
+        if (/bucket not found/i.test(err.message)) {
+          return 'Upload failed: storage bucket is not set up. Contact support.'
+        }
+        if (/(fetch failed|ENOTFOUND|ECONNREFUSED|network)/i.test(err.message)) {
+          return 'Upload failed: could not reach storage service. Please try again.'
+        }
+        if (/(row-level security|permission|unauthorized|403)/i.test(err.message)) {
+          return 'Upload failed: not permitted to store this file. Contact support.'
+        }
+        return `Upload failed: ${err.message}`
+      },
     )
+    return NextResponse.json({ error: message }, { status: 502 })
   }
 
   try {

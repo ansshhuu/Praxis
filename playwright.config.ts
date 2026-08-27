@@ -24,7 +24,13 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'npm run build && npm run start',
+    // `next start` cannot serve an `output: standalone` build (see next.config.mjs) —
+    // run the standalone server.js directly, same as Dockerfile's production CMD, with
+    // static assets copied alongside it the way the Dockerfile does for the image.
+    command:
+      'npm run build && ' +
+      'node -e "require(\'fs\').cpSync(\'public\',\'.next/standalone/public\',{recursive:true}); require(\'fs\').cpSync(\'.next/static\',\'.next/standalone/.next/static\',{recursive:true})" && ' +
+      'node .next/standalone/server.js',
     url: BASE_URL,
     reuseExistingServer: !process.env.CI,
     timeout: 180_000,

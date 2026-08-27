@@ -3,12 +3,13 @@ import { NextResponse } from 'next/server'
 import { enforceRateLimit } from '@/lib/security/rate-limit'
 import { getCurrentUserId } from '@/lib/auth/session'
 import { ingestDocument } from '@/lib/ai/rag-engine'
-import { toSafeErrorMessage } from '@/lib/security/error-handler'
+import { toClassifiedErrorMessage } from '@/lib/security/error-handler'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
 const MAX_TEXT_LENGTH = 200_000
+const MIN_TEXT_LENGTH = 50
 const DEFAULT_COLLECTION = 'agent_knowledge_base'
 const RAG_INGEST_RATE_LIMIT = 20
 const RAG_INGEST_RATE_WINDOW_SECONDS = 60
@@ -24,7 +25,7 @@ export async function POST(request: Request) {
     return NextResponse.json(denied.body, { status: denied.status })
   }
 
-  let body: { text?: unknown; documentId?: unknown; collection?: unknown; metadata?: unknown }
+  let body: { text?: unknown; documentId?: unknown; collection?: unknown; metadata?: unknown; title?: unknown }
   try {
     body = await request.json()
   } catch {
@@ -33,11 +34,19 @@ export async function POST(request: Request) {
 
   const text = typeof body.text === 'string' ? body.text.trim() : ''
   if (!text) {
-    return NextResponse.json({ error: 'text is required' }, { status: 400 })
+    return NextResponse.json({ error: 'Paste or write content to ingest.' }, { status: 400 })
+  }
+  if (text.length < MIN_TEXT_LENGTH) {
+    return NextResponse.json(
+      { error: 'Document too short to ingest meaningfully.' },
+      { status: 400 },
+    )
   }
   if (text.length > MAX_TEXT_LENGTH) {
     return NextResponse.json(
-      { error: `text must be ${MAX_TEXT_LENGTH} characters or fewer` },
+      {
+        error: `Document too long — split into smaller sections (max ${MAX_TEXT_LENGTH.toLocaleString()} characters).`,
+      },
       { status: 413 },
     )
   }
@@ -57,18 +66,34 @@ export async function POST(request: Request) {
       ? (body.metadata as Record<string, string | number | boolean>)
       : undefined
 
+  const title = typeof body.title === 'string' && body.title.trim() ? body.title.trim().slice(0, 200) : undefined
+
   try {
     const result = await ingestDocument({
       collectionName: collection,
       documentId,
       text,
+      title,
       metadata: { ...metadata, userId },
     })
     return NextResponse.json(result, { status: 201 })
   } catch (error) {
-    return NextResponse.json(
-      { error: toSafeErrorMessage(error, 'Failed to ingest document') },
-      { status: 502 },
-    )
+    const message = toClassifiedErrorMessage(error, 'Failed to ingest document', (err) => {
+      if (!(err instanceof Error)) return null
+      if (/No embedding provider configured/i.test(err.message)) {
+        return 'Failed to ingest: embedding service is not configured. Contact support.'
+      }
+      if (/(fetch failed|ECONNREFUSED|ENOTFOUND|network)/i.test(err.message)) {
+        return 'Failed to ingest: vector database connection failed.'
+      }
+      if (/(quota|rate limit|429)/i.test(err.message)) {
+        return 'Failed to ingest: embedding service rate limit exceeded. Try again shortly.'
+      }
+      if (/produced no chunks/i.test(err.message)) {
+        return 'Failed to ingest: document could not be split into chunks — try different content.'
+      }
+      return `Failed to ingest: ${err.message}`
+    })
+    return NextResponse.json({ error: message }, { status: 502 })
   }
 }

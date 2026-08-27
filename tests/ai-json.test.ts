@@ -138,9 +138,9 @@ describe('parseJsonObject', () => {
   })
 
   it('returns only the FIRST object when given a bare array of objects', () => {
-    // Documents current behaviour, which is probably not what was intended:
-    // extractBalanced finds the first {...} before the action_items fallback can
-    // run, so the remaining items are dropped. See the note in the handover doc.
+    
+    
+    
     expect(parseJsonObject('[{"task":"a"},{"task":"b"}]')).toEqual({ task: 'a' })
   })
 

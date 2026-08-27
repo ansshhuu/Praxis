@@ -6,8 +6,8 @@ import { getCurrentUserId } from '@/lib/auth/session'
 import { prisma } from '@/lib/db/prisma'
 import { analyzeAndSave } from '@/lib/meetings/process'
 import { toDetail } from '@/lib/meetings/serialize'
-import { transcribeAudio } from '@/lib/meetings/transcribe'
-import { toSafeErrorMessage } from '@/lib/security/error-handler'
+import { TranscriptionError, transcribeAudio } from '@/lib/meetings/transcribe'
+import { toClassifiedErrorMessage } from '@/lib/security/error-handler'
 import { MEETINGS_BUCKET, createReadUrl } from '@/lib/storage/supabase'
 
 export const dynamic = 'force-dynamic'
@@ -58,7 +58,11 @@ export async function POST(_request: Request, { params }: RouteContext) {
       : existing.fileUrl
     transcript = await transcribeAudio(readUrl)
   } catch (error) {
-    const safeMessage = toSafeErrorMessage(error, 'Transcription failed for this meeting')
+    const safeMessage = toClassifiedErrorMessage(
+      error,
+      'Transcription failed for this meeting',
+      (err) => (err instanceof TranscriptionError ? err.message : null),
+    )
     const meeting = await prisma.meeting.update({
       where: { id },
       data: {

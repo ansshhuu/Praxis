@@ -117,7 +117,7 @@ const HELP_TOPICS: HelpTopic[] = [
       'Open AI Assistant and type a question, or pick a suggested prompt — Shift+Enter inserts a newline instead of sending.',
       'Open Meetings to upload a recording or paste a transcript and get a summary, attendees and action items.',
       'Open Knowledge Base to ingest text or files, then query it and get an answer grounded in cited snippets.',
-      'Open Multimodal Lab to record and transcribe voice, synthesize speech, or run OCR and object detection on an image.',
+      'Open Multimodal Lab to record and transcribe voice, or run OCR and object detection on an image.',
     ],
   },
   {

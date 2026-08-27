@@ -1,7 +1,7 @@
 'use client'
 
 import { Eye, EyeOff } from 'lucide-react'
-import { signIn } from 'next-auth/react'
+import { getSession, signIn } from 'next-auth/react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
@@ -78,6 +78,10 @@ export default function LoginPage() {
       return
     }
     setNavigating(true)
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      if (await getSession()) break
+      await new Promise((resolve) => setTimeout(resolve, 100))
+    }
     window.location.assign('/dashboard')
   }
 

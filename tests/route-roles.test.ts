@@ -71,8 +71,8 @@ describe('canAccessRoute', () => {
   })
 
   it('is case sensitive — lowercase roles must not pass', () => {
-    // Guards compare against the Prisma enum, which is uppercase. A lowercase
-    // value silently matching would grant access to everyone.
+    
+    
     expect(canAccessRoute('/hr', 'admin')).toBe(false)
     expect(canAccessRoute('/settings/users', 'admin')).toBe(false)
   })
@@ -80,8 +80,8 @@ describe('canAccessRoute', () => {
 
 describe('guard configuration', () => {
   it('keeps the page and API guards in sync for HR', () => {
-    // The API guard was originally missing, leaving the data reachable while the
-    // UI link was hidden. These two must not drift apart again.
+    
+    
     expect(requiredRolesFor('/hr')).toEqual(requiredRolesFor('/api/resumes'))
   })
 

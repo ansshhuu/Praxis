@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto'
+
 import { GoogleGenerativeAI } from '@google/generative-ai'
 
 import { applyGuardrails } from '@/lib/ai/guardrails'
@@ -8,7 +10,7 @@ const DEFAULT_CHUNK_SIZE = 800
 const DEFAULT_CHUNK_OVERLAP = 100
 const DEFAULT_TOP_K = 5
 const DEFAULT_SIMILARITY_THRESHOLD = 0.55
-const GEMINI_EMBEDDING_MODEL = 'text-embedding-004'
+const GEMINI_EMBEDDING_MODEL = 'gemini-embedding-001'
 
 export function chunkText(
   text: string,
@@ -55,6 +57,7 @@ export interface IngestDocumentOptions {
   collectionName: string
   documentId: string
   text: string
+  title?: string
   metadata?: Record<string, string | number | boolean>
   chunkSize?: number
   chunkOverlap?: number
@@ -63,6 +66,11 @@ export interface IngestDocumentOptions {
 export interface IngestDocumentResult {
   documentId: string
   chunkCount: number
+  duplicate: boolean
+}
+
+export function hashDocumentText(text: string): string {
+  return createHash('sha256').update(text.trim()).digest('hex')
 }
 
 export async function ingestDocument(options: IngestDocumentOptions): Promise<IngestDocumentResult> {
@@ -72,8 +80,26 @@ export async function ingestDocument(options: IngestDocumentOptions): Promise<In
     throw new Error('Document produced no chunks — text may be empty')
   }
 
-  const embeddings = await embedTexts(chunks)
+  const contentHash = hashDocumentText(sanitizedText)
   const collection = await getCollection(options.collectionName)
+
+  const existing = await collection.get({
+    where: { contentHash },
+    limit: 1,
+  })
+  if (existing.ids.length > 0) {
+    const existingDocumentId = (existing.metadatas?.[0] as Record<string, unknown> | null)
+      ?.documentId as string | undefined
+    return {
+      documentId: existingDocumentId ?? options.documentId,
+      chunkCount: 0,
+      duplicate: true,
+    }
+  }
+
+  const embeddings = await embedTexts(chunks)
+  const title = options.title?.trim() || `${sanitizedText.slice(0, 60).trim()}…`
+  const createdAt = new Date().toISOString()
 
   await collection.add({
     ids: chunks.map((_, index) => `${options.documentId}::${index}`),
@@ -83,10 +109,65 @@ export async function ingestDocument(options: IngestDocumentOptions): Promise<In
       ...options.metadata,
       documentId: options.documentId,
       chunkIndex: index,
+      contentHash,
+      title,
+      createdAt,
+      charCount: sanitizedText.length,
     })),
   })
 
-  return { documentId: options.documentId, chunkCount: chunks.length }
+  return { documentId: options.documentId, chunkCount: chunks.length, duplicate: false }
+}
+
+export interface KnowledgeBaseDocument {
+  documentId: string
+  title: string
+  createdAt: string | null
+  chunkCount: number
+  charCount: number | null
+}
+
+export async function listDocuments(
+  collectionName: string,
+  userId: string,
+): Promise<KnowledgeBaseDocument[]> {
+  const collection = await getCollection(collectionName)
+  const result = await collection.get({ where: { userId } })
+
+  const byDocument = new Map<string, KnowledgeBaseDocument>()
+  const metadatas = result.metadatas ?? []
+  for (const raw of metadatas) {
+    const metadata = raw as Record<string, unknown> | null
+    const documentId = metadata?.documentId as string | undefined
+    if (!documentId) continue
+
+    const existing = byDocument.get(documentId)
+    if (existing) {
+      existing.chunkCount += 1
+      continue
+    }
+
+    byDocument.set(documentId, {
+      documentId,
+      title: (metadata?.title as string | undefined) ?? documentId,
+      createdAt: (metadata?.createdAt as string | undefined) ?? null,
+      chunkCount: 1,
+      charCount: (metadata?.charCount as number | undefined) ?? null,
+    })
+  }
+
+  return Array.from(byDocument.values()).sort((a, b) =>
+    (b.createdAt ?? '').localeCompare(a.createdAt ?? ''),
+  )
+}
+
+export async function deleteDocument(
+  collectionName: string,
+  userId: string,
+  documentId: string,
+): Promise<void> {
+  const collection = await getCollection(collectionName)
+  await collection.delete({ where: { $and: [{ userId }, { documentId }] } })
 }
 
 export interface QueryKnowledgeBaseOptions {

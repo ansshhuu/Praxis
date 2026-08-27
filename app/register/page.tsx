@@ -3,7 +3,7 @@
 import { Eye, EyeOff } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { signIn } from 'next-auth/react'
+import { getSession, signIn } from 'next-auth/react'
 import { useEffect, useState } from 'react'
 
 import { AuthTransitionOverlay } from '@/components/auth/auth-transition-overlay'
@@ -99,6 +99,10 @@ export default function RegisterPage() {
     }
 
     setNavigating(true)
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      if (await getSession()) break
+      await new Promise((resolve) => setTimeout(resolve, 100))
+    }
     window.location.assign('/dashboard')
   }
 

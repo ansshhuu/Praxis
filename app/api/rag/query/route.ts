@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server'
 import { enforceRateLimit } from '@/lib/security/rate-limit'
 import { getCurrentUserId } from '@/lib/auth/session'
 import { queryKnowledgeBase } from '@/lib/ai/rag-engine'
-import { toSafeErrorMessage } from '@/lib/security/error-handler'
+import { toClassifiedErrorMessage } from '@/lib/security/error-handler'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -72,9 +72,16 @@ export async function POST(request: Request) {
     })
     return NextResponse.json(result)
   } catch (error) {
-    return NextResponse.json(
-      { error: toSafeErrorMessage(error, 'Failed to query knowledge base') },
-      { status: 502 },
-    )
+    const message = toClassifiedErrorMessage(error, 'Failed to query knowledge base', (err) => {
+      if (!(err instanceof Error)) return null
+      if (/No embedding provider configured/i.test(err.message)) {
+        return 'Failed to query: embedding service is not configured. Contact support.'
+      }
+      if (/(fetch failed|ECONNREFUSED|ENOTFOUND|network)/i.test(err.message)) {
+        return 'Failed to query: vector database connection failed.'
+      }
+      return null
+    })
+    return NextResponse.json({ error: message }, { status: 502 })
   }
 }

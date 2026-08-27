@@ -1,12 +1,11 @@
 'use client'
 
-import { Camera, Loader2, Mic, ScanLine, Square, Volume2 } from 'lucide-react'
+import { Camera, Loader2, Mic, ScanLine, Square } from 'lucide-react'
 import { useRef, useState } from 'react'
 
 import { DashboardShell } from '@/components/dashboard/dashboard-shell'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'
 
 interface VoiceCommand {
@@ -40,9 +39,6 @@ function VoiceLab() {
   const [isTranscribing, setIsTranscribing] = useState(false)
   const [transcript, setTranscript] = useState('')
   const [command, setCommand] = useState<VoiceCommand | null>(null)
-  const [ttsText, setTtsText] = useState('')
-  const [isSynthesizing, setIsSynthesizing] = useState(false)
-  const [audioUrl, setAudioUrl] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
@@ -110,31 +106,8 @@ function VoiceLab() {
     }
   }
 
-  async function synthesize() {
-    if (!ttsText.trim() || isSynthesizing) return
-    setIsSynthesizing(true)
-    setError(null)
-    try {
-      const response = await fetch('/api/voice/synthesize', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: ttsText }),
-      })
-      if (!response.ok) {
-        setError(await readError(response, 'Synthesis failed'))
-        return
-      }
-      const blob = await response.blob()
-      setAudioUrl(URL.createObjectURL(blob))
-    } catch (synthesizeError) {
-      setError((synthesizeError as Error).message)
-    } finally {
-      setIsSynthesizing(false)
-    }
-  }
-
   return (
-    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+    <div className="mx-auto w-full max-w-2xl">
       <Card>
         <CardHeader className="pb-3">
           <CardTitle>Voice Recorder & Transcriber</CardTitle>
@@ -170,21 +143,6 @@ function VoiceLab() {
             </div>
           )}
           {error && <p className="text-[13px] font-bold text-red-500">{error}</p>}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle>Text-to-Speech Preview</CardTitle>
-          <CardDescription>Synthesize and preview speech from text.</CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-3">
-          <Textarea value={ttsText} onChange={(e) => setTtsText(e.target.value)} placeholder="Type something to hear it spoken…" rows={5} />
-          <Button className="self-start bg-[#F5CA50] font-bold text-[#111111] hover:brightness-95" disabled={!ttsText.trim() || isSynthesizing} onClick={synthesize}>
-            {isSynthesizing ? <Loader2 className="size-4 animate-spin" /> : <Volume2 className="size-4" />}
-            Synthesize speech
-          </Button>
-          {audioUrl && <audio controls src={audioUrl} className="w-full" />}
         </CardContent>
       </Card>
     </div>
@@ -261,7 +219,7 @@ function VisionLab() {
             className="flex cursor-pointer flex-col items-center gap-3 rounded-2xl border-2 border-dashed border-gray-200 bg-gray-50 py-8 transition-colors hover:border-[#F5CA50]/50 hover:bg-[#FFFAEC]"
           >
             {preview ? (
-              // eslint-disable-next-line @next/next/no-img-element
+
               <img src={preview} alt="Selected preview" className="max-h-40 rounded-lg object-contain" />
             ) : (
               <Camera className="size-6 text-gray-400" />
@@ -319,7 +277,7 @@ export default function MultimodalPage() {
           <h1 className="flex items-center gap-2.5 text-2xl font-bold tracking-tight text-gray-900">
             <Camera className="size-6 text-[#D4A017]" /> Multimodal Lab
           </h1>
-          <p className="mt-1 text-sm font-medium text-gray-500">Voice transcription, text-to-speech and computer vision in one place.</p>
+          <p className="mt-1 text-sm font-medium text-gray-500">Voice transcription and computer vision in one place.</p>
         </div>
 
         <VoiceLab />

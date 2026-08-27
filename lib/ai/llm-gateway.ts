@@ -11,11 +11,6 @@ export interface LLMMessage {
   content: string
 }
 
-/**
- * Names a call site's job so load can be split across providers instead of
- * always hammering the same one first. Each task has a primary provider
- * (below in TASK_PROVIDER_ORDER) and still falls back to the other on failure.
- */
 export type LLMTask =
   | 'crm-proposal'
   | 'crm-follow-up'
@@ -64,11 +59,6 @@ const DEFAULT_MODELS: Record<LLMProvider, string> = {
 const DEFAULT_MAX_TOKENS = 2048
 const DEFAULT_TEMPERATURE = 0.3
 
-/**
- * Which provider goes first per task, so everyday traffic doesn't pile onto
- * one free-tier quota. Each list still ends with the other provider as a
- * fallback if the primary fails or is unconfigured.
- */
 const TASK_PROVIDER_ORDER: Record<LLMTask, LLMProvider[]> = {
   'crm-proposal': ['groq', 'gemini'],
   'crm-follow-up': ['groq', 'gemini'],

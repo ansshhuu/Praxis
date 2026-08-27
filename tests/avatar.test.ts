@@ -22,8 +22,8 @@ describe('effectiveAvatar', () => {
   })
 
   it('serves an uploaded photo through the authenticated proxy route', () => {
-    // The avatars bucket is private, so a Supabase public URL is never fetchable.
-    // Everything must resolve to /api/avatars/[userId].
+    
+    
     const url = effectiveAvatar(source({ avatarPath: 'user-1/abcd1234-photo.jpg' }))
     expect(url).toMatch(/^\/api\/avatars\/user-1\?v=/)
   })
@@ -73,7 +73,7 @@ describe('effectiveAvatar', () => {
   })
 
   it('selects the columns the resolver actually reads', () => {
-    // A select that omits avatarPath silently degrades every avatar to initials.
+    
     expect(avatarSelect).toMatchObject({
       id: true,
       avatarPath: true,

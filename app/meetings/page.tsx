@@ -275,6 +275,11 @@ function NewMeetingModal({
                 Paste notes or a transcript from any source — the same AI summary and action
                 items are generated, with no audio needed.
               </p>
+              {transcript.trim().length > 0 && transcript.trim().length < 40 && (
+                <p className="text-[12px] font-bold text-amber-600">
+                  Paste a transcript to continue — at least 40 characters are needed.
+                </p>
+              )}
             </div>
           </div>
         )}

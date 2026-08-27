@@ -21,10 +21,7 @@ const INTERESTS = [
 const fieldClass =
   'w-full rounded-xl border border-neutral-200 bg-[#FAF8F5] px-3.5 py-2.5 text-sm text-neutral-900 transition placeholder:text-neutral-400 focus:border-amber-400 focus:bg-white focus:ring-2 focus:ring-amber-200/50 focus:outline-none'
 
-/**
- * Reaching hand, index finger extended — the Creation of Adam gesture.
- * Authored in a 400x200 space, wrist entering from the left edge.
- */
+
 
 function ContactForm() {
   const [name, setName] = useState('')

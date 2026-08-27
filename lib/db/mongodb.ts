@@ -18,10 +18,6 @@ function createClient(): MongoClient {
   })
 }
 
-/**
- * Cached across hot reloads in dev (mirrors lib/db/prisma.ts) so repeated
- * module loads reuse one pooled client instead of opening a new one each time.
- */
 export async function getMongoClient(): Promise<MongoClient> {
   if (!globalForMongo.mongoClient) {
     globalForMongo.mongoClient = createClient()
@@ -38,7 +34,6 @@ export async function getMongoDb(): Promise<Db> {
   return client.db(dbName)
 }
 
-/** Call from a shutdown hook (e.g. process 'SIGTERM') — not needed per-request. */
 export async function closeMongoClient(): Promise<void> {
   if (globalForMongo.mongoClient) {
     await globalForMongo.mongoClient.close()

@@ -12,9 +12,9 @@ function createClient(): ChromaClient {
   if (host) {
     return new ChromaClient({ path: host })
   }
-  // Falls back to the local default (http://localhost:8000) — Chroma's JS
-  // client always talks to a server; CHROMA_PERSIST_DIR configures that
-  // server's on-disk storage (see docker-compose.yml), not the client here.
+
+
+
   return new ChromaClient()
 }
 
@@ -25,7 +25,6 @@ export function getChromaClient(): ChromaClient {
   return globalForChroma.chromaClient
 }
 
-/** Idempotently ensures the default collections exist. Safe to call repeatedly. */
 export async function ensureDefaultCollections(): Promise<void> {
   if (!globalForChroma.chromaReady) {
     globalForChroma.chromaReady = (async () => {
@@ -40,7 +39,7 @@ export async function ensureDefaultCollections(): Promise<void> {
 
 export async function getCollection(name: string): Promise<Collection> {
   const client = getChromaClient()
-  return client.getOrCreateCollection({ name })
+  return client.getOrCreateCollection({ name, metadata: { 'hnsw:space': 'cosine' } })
 }
 
 export async function pingChroma(): Promise<boolean> {

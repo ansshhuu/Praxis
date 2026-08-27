@@ -47,54 +47,6 @@ export async function transcribeAudio(options: TranscribeAudioOptions): Promise<
   return { transcript, language: options.language }
 }
 
-export interface SynthesizeSpeechOptions {
-  text: string
-  voiceId?: string
-  modelId?: string
-}
-
-export interface SynthesizeSpeechResult {
-  audio: ArrayBuffer
-  contentType: string
-}
-
-export async function synthesizeSpeech(options: SynthesizeSpeechOptions): Promise<SynthesizeSpeechResult> {
-  const apiKey = process.env.ELEVENLABS_API_KEY?.trim()
-  if (!apiKey) {
-    throw new Error('ELEVENLABS_API_KEY is not configured — required for text-to-speech synthesis')
-  }
-
-  const trimmed = options.text.trim()
-  if (!trimmed) {
-    throw new Error('synthesizeSpeech requires non-empty text')
-  }
-
-  const voiceId = options.voiceId?.trim() || process.env.ELEVENLABS_VOICE_ID?.trim()
-  if (!voiceId) {
-    throw new Error('No ElevenLabs voiceId provided and ELEVENLABS_VOICE_ID is not configured')
-  }
-
-  const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'xi-api-key': apiKey,
-    },
-    body: JSON.stringify({
-      text: trimmed,
-      model_id: options.modelId ?? 'eleven_multilingual_v2',
-    }),
-  })
-
-  if (!response.ok) {
-    const detail = await response.text().catch(() => '')
-    throw new Error(`ElevenLabs request failed (${response.status}): ${detail.slice(0, 300)}`)
-  }
-
-  const audio = await response.arrayBuffer()
-  return { audio, contentType: response.headers.get('content-type') ?? 'audio/mpeg' }
-}
-
 export interface VoiceCommand {
   intent: string
   action: string

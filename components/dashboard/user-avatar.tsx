@@ -29,8 +29,8 @@ export function UserAvatar({
   const [failed, setFailed] = useState(false)
   const [loadedSrc, setLoadedSrc] = useState(src)
 
-  // Reset the fallback when the photo changes — React's documented
-  // "adjusting state when a prop changes" pattern, not an effect.
+  
+  
   if (loadedSrc !== src) {
     setLoadedSrc(src)
     setFailed(false)
@@ -38,9 +38,9 @@ export function UserAvatar({
 
   if (src && !failed) {
     return (
-      // eslint-disable-next-line @next/next/no-img-element -- avatars are <=96px, sized by an
-      // arbitrary caller className, and may come from an external OAuth host; next/image would
-      // need `fill` plus a positioned parent at every call site for no meaningful LCP gain.
+      
+      
+      
       <img
         src={src}
         alt=""

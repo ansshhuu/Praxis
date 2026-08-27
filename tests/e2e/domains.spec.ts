@@ -32,7 +32,7 @@ test.describe('domain automation flows', () => {
     await page.goto('/crm')
     await expect(page.getByRole('heading', { name: /CRM Automation/i })).toBeVisible()
 
-    // Qualify Person A.
+
     await page.getByPlaceholder('Contact name').fill('Rahul Sharma')
     await page.getByPlaceholder('Email').fill('rahul.sharma@example.com')
     await page.getByPlaceholder('Company').first().fill('Sharma Textiles')
@@ -47,19 +47,19 @@ test.describe('domain automation flows', () => {
     await expect(cardList.getByText('Sharma Textiles')).toBeVisible({ timeout: 20_000 })
     await expect(page.getByText(/1 leads qualified this session/i)).toBeVisible()
 
-    // Generate a proposal for a different person without touching the qualify form again.
+
     await page.getByPlaceholder('Lead name').fill('Priya Patel')
     await page.getByPlaceholder('Company').last().fill('Patel Freight')
     await page.getByPlaceholder(/Requirements/i).fill('Needs a logistics dashboard with real-time tracking.')
     await page.getByPlaceholder('Budget ($)').last().fill('90000')
     await page.getByRole('button', { name: /Generate proposal/i }).click()
 
-    // The qualification card list must still show only Person A, not overwritten by Person B.
+
     await expect(cardList.getByText('Sharma Textiles')).toBeVisible()
     await expect(cardList.getByText('Patel Freight')).not.toBeVisible()
     await expect(page.getByText(/1 leads qualified this session/i)).toBeVisible()
 
-    // The proposal form must retain Person B's own input, not Person A's qualified data.
+
     await expect(page.getByPlaceholder('Lead name')).toHaveValue('Priya Patel')
     await expect(page.getByPlaceholder('Company').last()).toHaveValue('Patel Freight')
   })
@@ -102,7 +102,7 @@ test.describe('domain automation flows', () => {
 
     const invoiceImage = path.join(__dirname, 'fixtures', 'sample-invoice.png')
 
-    await page.locator('input[type="file"][accept="image/*"]').setInputFiles(invoiceImage)
+    await page.locator('input[type="file"]').setInputFiles(invoiceImage)
 
     await expect(
       page.getByText(/Record as expense/i).or(page.locator('text=/failed to parse invoice/i')),

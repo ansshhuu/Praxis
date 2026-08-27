@@ -56,12 +56,10 @@ services:
       - '8000:8000'
     volumes:
       - chroma_data:/chroma/chroma
-    healthcheck:
-      test: ['CMD-SHELL', 'curl -f http://localhost:8000/api/v1/heartbeat || exit 1']
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 15s
+    # No healthcheck: this image ships neither curl/wget nor a bare python3 on
+    # PATH (it runs a bundled `chroma` binary), so no in-container HTTP probe
+    # is available. Verify readiness from the host instead:
+    #   curl http://localhost:8000/api/v2/heartbeat
 
 volumes:
   postgres_data:
