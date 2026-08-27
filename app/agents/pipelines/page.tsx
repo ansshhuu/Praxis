@@ -11,10 +11,12 @@ import { Skeleton } from '@/components/ui/skeleton'
 export default function AgentPipelinesPage() {
   const [agents, setAgents] = useState<AgentView[] | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [retryCount, setRetryCount] = useState(0)
 
   useEffect(() => {
     let cancelled = false
     async function load() {
+      setError(null)
       try {
         const response = await fetch('/api/agents')
         const body = await response.json().catch(() => null)
@@ -28,7 +30,7 @@ export default function AgentPipelinesPage() {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [retryCount])
 
   return (
     <DashboardShell>
@@ -43,17 +45,26 @@ export default function AgentPipelinesPage() {
         </div>
 
         {error && (
-          <div role="alert" className="flex items-center gap-2.5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-[13px] font-medium text-red-700">
-            <AlertCircle className="size-4 shrink-0" />
-            {error}
+          <div role="alert" className="flex items-center justify-between gap-2.5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-[13px] font-medium text-red-700">
+            <span className="flex items-center gap-2.5">
+              <AlertCircle className="size-4 shrink-0" />
+              {error}
+            </span>
+            <button
+              type="button"
+              onClick={() => setRetryCount((count) => count + 1)}
+              className="shrink-0 rounded-lg border border-red-300 bg-white px-3 py-1.5 text-[13px] font-semibold text-red-700 hover:bg-red-100"
+            >
+              Retry
+            </button>
           </div>
         )}
 
-        {!agents ? (
+        {!agents && !error ? (
           <Skeleton className="h-96 w-full rounded-2xl" />
-        ) : (
+        ) : agents ? (
           <PipelineBuilder agents={agents} />
-        )}
+        ) : null}
       </div>
     </DashboardShell>
   )

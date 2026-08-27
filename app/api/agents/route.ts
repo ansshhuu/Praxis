@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server'
 import { getAgentRegistry } from '@/lib/agents/agent-registry'
 import { aggregateAgentLogs } from '@/lib/agents/metrics'
 import { getCurrentUserId } from '@/lib/auth/session'
-import { getAgentLogsCollection } from '@/lib/models/mongodb/agent-logs'
+import { getAgentLogsCollection, type AgentLog } from '@/lib/models/mongodb/agent-logs'
 
 export const dynamic = 'force-dynamic'
 
@@ -16,8 +16,13 @@ export async function GET() {
   const registry = getAgentRegistry()
   const snapshot = registry.listSnapshot()
 
-  const collection = await getAgentLogsCollection()
-  const recentLogs = await collection.find({ userId }).sort({ createdAt: -1 }).limit(500).toArray()
+  let recentLogs: AgentLog[] = []
+  try {
+    const collection = await getAgentLogsCollection()
+    recentLogs = await collection.find({ userId }).sort({ createdAt: -1 }).limit(500).toArray()
+  } catch {
+    recentLogs = []
+  }
   const metricsByAgent = new Map(aggregateAgentLogs(recentLogs).map((metric) => [metric.agentId, metric]))
 
   const agents = snapshot.map(({ metadata, capabilities, health }) => ({

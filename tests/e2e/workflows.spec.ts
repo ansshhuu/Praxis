@@ -8,28 +8,25 @@ test.describe('workflows and marketplace', () => {
   })
 
   test('filters the template marketplace by category', async ({ page }) => {
-    await page.goto('/marketplace')
+    await page.goto('/workflows/templates')
 
-    const cards = page.locator('[id^="use-template-"]')
+    const cards = page.getByRole('button', { name: 'Use workflow' })
     await expect(cards.first()).toBeVisible({ timeout: 15_000 })
     const totalCount = await cards.count()
     expect(totalCount).toBeGreaterThan(0)
 
-    await page.locator('#filter-finance').click()
-    await expect(page.locator('#filter-finance')).toHaveAttribute('aria-pressed', 'true')
+    await page.getByRole('button', { name: 'HR', exact: true }).click()
+    const hrCount = await page.getByRole('button', { name: 'Use workflow' }).count()
+    expect(hrCount).toBeLessThanOrEqual(totalCount)
 
-    const financeCount = await page.locator('[id^="use-template-"]').count()
-    expect(financeCount).toBeLessThanOrEqual(totalCount)
-
-    await page.locator('#filter-all').click()
-    await expect(page.locator('#filter-all')).toHaveAttribute('aria-pressed', 'true')
-    await expect(page.locator('[id^="use-template-"]')).toHaveCount(totalCount)
+    await page.getByRole('button', { name: 'All', exact: true }).click()
+    await expect(page.getByRole('button', { name: 'Use workflow' })).toHaveCount(totalCount)
   })
 
   test('creates a workflow from a template and inspects its execution trace', async ({ page }) => {
-    await page.goto('/marketplace')
+    await page.goto('/workflows/templates')
 
-    const firstTemplateButton = page.locator('[id^="use-template-"]').first()
+    const firstTemplateButton = page.getByRole('button', { name: 'Use workflow' }).first()
     await expect(firstTemplateButton).toBeVisible({ timeout: 15_000 })
     await firstTemplateButton.click()
 

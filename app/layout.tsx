@@ -15,9 +15,8 @@ const inter = Inter({
 })
 
 export const metadata: Metadata = {
-  title: 'EAWMP — AI Automation Dashboard',
-  description:
-    'Enterprise AI workflow management platform. Monitor workflows, AI usage, and system health in real time.',
+  title: { default: 'Praxis — Enterprise AI Automation Ecosystem', template: '%s | Praxis' },
+  description: 'Production-grade multi-agent orchestration and workflow automation platform.',
   generator: 'v0.app',
   icons: {
     icon: [

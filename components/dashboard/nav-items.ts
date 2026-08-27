@@ -46,12 +46,11 @@ export const navSections: NavSection[] = [
     label: 'Workflows',
     icon: Workflow,
     href: '/workflows',
-    match: ['/scheduler', '/marketplace'],
+    match: ['/scheduler'],
     items: [
       { label: 'All Workflows', icon: Workflow, href: '/workflows', hint: 'Build and run pipelines' },
-      { label: 'Template Library', icon: LibraryBig, href: '/workflows/templates', hint: '102 prebuilt automations' },
       { label: 'Scheduler', icon: CalendarClock, href: '/scheduler', hint: 'Cron jobs and retries' },
-      { label: 'Marketplace', icon: Store, href: '/marketplace', hint: 'Prebuilt templates' },
+      { label: 'Marketplace', icon: Store, href: '/workflows/templates', hint: '102 prebuilt automations' },
     ],
   },
   {
