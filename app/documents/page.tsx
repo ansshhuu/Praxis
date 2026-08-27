@@ -21,6 +21,7 @@ import {
 import { AnimatePresence, motion } from 'framer-motion'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import React from 'react'
+import ReactMarkdown from 'react-markdown'
 
 import { EASE_OUT } from '@/components/motion/primitives'
 import { DashboardShell } from '@/components/dashboard/dashboard-shell'
@@ -221,19 +222,23 @@ function DocumentDetailView({
   const [inputValue, setInputValue] = useState('')
   const [isAsking, setIsAsking] = useState(false)
   const [activeTab, setActiveTab] = useState<'summary' | 'ocr' | 'qa'>('summary')
+  const [isRetryingSummary, setIsRetryingSummary] = useState(false)
 
   const status = statusLabels[doc?.status ?? summary.status]
-  const isProcessing = status === 'Processing' || status === 'Pending'
+  const isProcessing = status === 'Processing' || status === 'Pending' || isRetryingSummary
+
+  const fetchDoc = useCallback(async (): Promise<ApiDocumentDetail | null> => {
+    const response = await fetch(`/api/documents/${documentId}`)
+    if (!response.ok) return null
+    const { document } = (await response.json()) as { document: ApiDocumentDetail }
+    return document
+  }, [documentId])
 
   useEffect(() => {
     let cancelled = false
     async function load() {
-      try {
-        const response = await fetch(`/api/documents/${documentId}`)
-        if (!response.ok || cancelled) return
-        const { document } = (await response.json()) as { document: ApiDocumentDetail }
-        if (!cancelled) setDoc(document)
-      } catch {}
+      const document = await fetchDoc().catch(() => null)
+      if (!cancelled && document) setDoc(document)
     }
     void load()
     const interval = isProcessing ? setInterval(load, 3000) : null
@@ -241,7 +246,19 @@ function DocumentDetailView({
       cancelled = true
       if (interval) clearInterval(interval)
     }
-  }, [documentId, isProcessing])
+  }, [fetchDoc, isProcessing])
+
+  async function retrySummary() {
+    if (isRetryingSummary) return
+    setIsRetryingSummary(true)
+    try {
+      await fetch(`/api/documents/${documentId}/process`, { method: 'POST' })
+      const document = await fetchDoc()
+      if (document) setDoc(document)
+    } catch {} finally {
+      setIsRetryingSummary(false)
+    }
+  }
 
   async function sendQuestion(e: React.FormEvent) {
     e.preventDefault()
@@ -349,10 +366,25 @@ function DocumentDetailView({
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ duration: 0.25 }}
-                  className="flex flex-col items-center justify-center py-10 text-center opacity-50"
+                  className="flex flex-col items-center justify-center py-10 text-center"
                 >
-                  <Bot className="size-8 mb-3 text-gray-400" />
-                  <p className="text-sm text-gray-500 font-medium">Summary not available</p>
+                  <Bot className="size-8 mb-3 text-gray-400 opacity-50" />
+                  <p className="text-sm text-gray-500 font-medium">
+                    {doc?.statusMessage ? "Couldn't generate summary" : 'Summary not available'}
+                  </p>
+                  {doc?.statusMessage && (
+                    <p className="mt-1 max-w-xs text-[12px] text-gray-400">{doc.statusMessage}</p>
+                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-4"
+                    onClick={retrySummary}
+                    disabled={isRetryingSummary}
+                  >
+                    {isRetryingSummary && <Loader2 className="size-3.5 animate-spin mr-1.5" />}
+                    Retry
+                  </Button>
                 </motion.div>
               )}
             </AnimatePresence>
@@ -408,17 +440,34 @@ function DocumentDetailView({
                  </div>
                )}
                {messages.map((msg) => (
-                  <div
-                    key={msg.id}
-                    className={cn(
-                      'rounded-2xl px-4 py-2.5 text-[13px] leading-relaxed max-w-[85%]',
-                      msg.role === 'user'
-                        ? 'ml-auto bg-[#FFFAEC] text-gray-900 font-medium border border-[#F5CA50]/30 rounded-tr-sm'
-                        : 'mr-auto bg-gray-50 border border-gray-100 text-gray-800 rounded-tl-sm',
-                    )}
-                  >
-                    {msg.content}
-                  </div>
+                  msg.role === 'user' ? (
+                    <div
+                      key={msg.id}
+                      className="ml-auto max-w-[85%] rounded-2xl rounded-tr-sm border border-[#F5CA50]/30 bg-[#FFFAEC] px-4 py-2.5 text-[13px] leading-relaxed font-medium text-gray-900"
+                    >
+                      {msg.content}
+                    </div>
+                  ) : (
+                    <div
+                      key={msg.id}
+                      className="mr-auto max-w-[85%] rounded-2xl rounded-tl-sm border border-gray-100 bg-gray-50 px-4 py-3 text-[13px] text-gray-800"
+                    >
+                      <div
+                        className={cn(
+                          'leading-relaxed [&>*:not(:last-child)]:mb-3',
+                          '[&_ul]:my-1.5 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:space-y-1',
+                          '[&_ol]:my-1.5 [&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:space-y-1',
+                          '[&_strong]:font-bold [&_strong]:text-gray-900',
+                          '[&_h1]:text-[14px] [&_h1]:font-bold [&_h1]:text-gray-900',
+                          '[&_h2]:text-[13.5px] [&_h2]:font-bold [&_h2]:text-gray-900',
+                          '[&_h3]:text-[13px] [&_h3]:font-bold [&_h3]:text-gray-900',
+                          '[&_p]:leading-relaxed',
+                        )}
+                      >
+                        <ReactMarkdown>{msg.content}</ReactMarkdown>
+                      </div>
+                    </div>
+                  )
                 ))}
                 {isAsking && (
                   <div className="mr-auto bg-gray-50 border border-gray-100 rounded-2xl rounded-tl-sm px-4 py-2.5">

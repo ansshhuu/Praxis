@@ -127,23 +127,44 @@ export interface GenerateOfferLetterOptions {
   candidateName: string
   role: string
   salary: number
+  currency?: string
+  salaryPeriod?: string
   startDate: string
   company: string
 }
 
 export async function generateOfferLetter(options: GenerateOfferLetterOptions): Promise<string> {
+  const formattedStartDate = new Date(options.startDate).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  })
+  const formattedSalary = `${options.currency ?? '$'}${options.salary.toLocaleString('en-US')} ${options.salaryPeriod ?? 'per year'}`
+
   const { text } = await generateText({
     messages: [
       {
         role: 'system',
-        content: 'You write formal, warm offer letters with clear compensation and start-date details.',
+        content:
+          'You write formal, warm offer letters with clear compensation and start-date details. ' +
+          'Output the complete letter with no placeholders, brackets, or template variables of any kind (e.g. never write things like [Date], [Company Letterhead], [Your Name]) — ' +
+          'use only the exact values given to you. Always end with a full closing: a sign-off line, a signature block naming the company, and an acceptance line for the candidate to sign and date. ' +
+          'Never truncate — finish every sentence and the entire letter.',
       },
       {
         role: 'user',
-        content: `Write an offer letter from ${options.company} to ${options.candidateName} for the role of ${options.role}, salary $${options.salary}, starting ${options.startDate}.`,
+        content: [
+          `Write a complete, ready-to-send offer letter with these exact details:`,
+          `Company: ${options.company}`,
+          `Candidate: ${options.candidateName}`,
+          `Role: ${options.role}`,
+          `Compensation: ${formattedSalary}`,
+          `Start date: ${formattedStartDate}`,
+          `Today's date: ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`,
+        ].join('\n'),
       },
     ],
-    maxTokens: 700,
+    maxTokens: 1200,
   })
-  return text
+  return text.trim()
 }

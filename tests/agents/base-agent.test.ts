@@ -38,8 +38,8 @@ describe('BaseAgent', () => {
   it('starts idle and turns active then idle again on a successful run', async () => {
     const generate: GenerateTextFn = (async () => ({
       text: 'response text',
-      provider: 'openai',
-      model: 'gpt-4o-mini',
+      provider: 'gemini',
+      model: 'gemini-2.5-flash',
     })) as GenerateTextFn
 
     const agent = new BaseAgent(DEFINITION, generate)

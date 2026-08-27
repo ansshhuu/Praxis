@@ -13,13 +13,13 @@ export function StatusBadge({ status, className }: StatusBadgeProps) {
   let variantClass = "bg-gray-100 text-gray-600"
   let dotClass = "bg-gray-400"
 
-  if (["success", "active", "completed"].includes(s)) {
+  if (["success", "active", "completed", "processed"].includes(s)) {
     variantClass = "bg-green-100 text-green-700"
     dotClass = "bg-green-500"
   } else if (["failed", "error"].includes(s)) {
     variantClass = "bg-red-100 text-red-700"
     dotClass = "bg-red-500"
-  } else if (["running", "pending"].includes(s)) {
+  } else if (["running", "pending", "processing"].includes(s)) {
     variantClass = "bg-amber-100 text-amber-700"
     dotClass = "bg-amber-500 animate-pulse"
   } else if (s === "needs_input") {

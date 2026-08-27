@@ -1,5 +1,4 @@
 import { GoogleGenerativeAI } from '@google/generative-ai'
-import OpenAI from 'openai'
 
 import { applyGuardrails } from '@/lib/ai/guardrails'
 import { generateText } from '@/lib/ai/llm-gateway'
@@ -10,7 +9,6 @@ const DEFAULT_CHUNK_OVERLAP = 100
 const DEFAULT_TOP_K = 5
 const DEFAULT_SIMILARITY_THRESHOLD = 0.55
 const GEMINI_EMBEDDING_MODEL = 'text-embedding-004'
-const OPENAI_EMBEDDING_MODEL = 'text-embedding-3-small'
 
 export function chunkText(
   text: string,
@@ -39,30 +37,18 @@ export async function embedTexts(texts: string[]): Promise<number[][]> {
   if (texts.length === 0) return []
 
   const geminiKey = process.env.GEMINI_API_KEY?.trim()
-  if (geminiKey) {
-    try {
-      const genAI = new GoogleGenerativeAI(geminiKey)
-      const model = genAI.getGenerativeModel({ model: GEMINI_EMBEDDING_MODEL })
-      const results = await Promise.all(
-        texts.map(async (text) => {
-          const result = await model.embedContent(text)
-          return result.embedding.values
-        }),
-      )
-      return results
-    } catch (error) {
-      console.error('[rag-engine] Gemini embeddings failed, trying OpenAI:', error)
-    }
+  if (!geminiKey) {
+    throw new Error('No embedding provider configured — set GEMINI_API_KEY')
   }
 
-  const openaiKey = process.env.OPENAI_API_KEY?.trim()
-  if (openaiKey) {
-    const client = new OpenAI({ apiKey: openaiKey })
-    const response = await client.embeddings.create({ model: OPENAI_EMBEDDING_MODEL, input: texts })
-    return response.data.map((entry) => entry.embedding)
-  }
-
-  throw new Error('No embedding provider configured — set GEMINI_API_KEY or OPENAI_API_KEY')
+  const genAI = new GoogleGenerativeAI(geminiKey)
+  const model = genAI.getGenerativeModel({ model: GEMINI_EMBEDDING_MODEL })
+  return Promise.all(
+    texts.map(async (text) => {
+      const result = await model.embedContent(text)
+      return result.embedding.values
+    }),
+  )
 }
 
 export interface IngestDocumentOptions {

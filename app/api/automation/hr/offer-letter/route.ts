@@ -17,6 +17,8 @@ export async function POST(request: Request) {
     candidateName?: unknown
     role?: unknown
     salary?: unknown
+    currency?: unknown
+    salaryPeriod?: unknown
     startDate?: unknown
     company?: unknown
   }
@@ -31,6 +33,8 @@ export async function POST(request: Request) {
   const company = typeof body.company === 'string' ? body.company.trim() : ''
   const startDate = typeof body.startDate === 'string' ? body.startDate.trim() : ''
   const salary = typeof body.salary === 'number' ? body.salary : 0
+  const currency = typeof body.currency === 'string' && body.currency.trim() ? body.currency.trim() : '$'
+  const salaryPeriod = typeof body.salaryPeriod === 'string' && body.salaryPeriod.trim() ? body.salaryPeriod.trim() : 'per year'
 
   if (!candidateName || !role || !company || !startDate) {
     return NextResponse.json(
@@ -40,7 +44,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const letter = await generateOfferLetter({ candidateName, role, salary, startDate, company })
+    const letter = await generateOfferLetter({ candidateName, role, salary, currency, salaryPeriod, startDate, company })
     return NextResponse.json({ letter })
   } catch (error) {
     return NextResponse.json(

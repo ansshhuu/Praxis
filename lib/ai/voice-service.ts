@@ -1,8 +1,8 @@
-import OpenAI from 'openai'
-import { toFile } from 'openai/uploads'
-
 import { generateText } from '@/lib/ai/llm-gateway'
 import { parseJsonObject } from '@/lib/ai/json'
+
+const GROQ_WHISPER_MODEL = 'whisper-large-v3'
+const GROQ_TRANSCRIPTIONS_URL = 'https://api.groq.com/openai/v1/audio/transcriptions'
 
 export interface TranscribeAudioOptions {
   buffer: Buffer
@@ -17,21 +17,29 @@ export interface TranscribeAudioResult {
 }
 
 export async function transcribeAudio(options: TranscribeAudioOptions): Promise<TranscribeAudioResult> {
-  const apiKey = process.env.OPENAI_API_KEY?.trim()
+  const apiKey = process.env.GROQ_API_KEY?.trim()
   if (!apiKey) {
-    throw new Error('OPENAI_API_KEY is not configured — required for speech-to-text transcription')
+    throw new Error('GROQ_API_KEY is not configured — required for speech-to-text transcription')
   }
 
-  const client = new OpenAI({ apiKey })
-  const file = await toFile(options.buffer, options.fileName, { type: options.mimeType })
+  const form = new FormData()
+  form.append('file', new Blob([options.buffer as BlobPart], { type: options.mimeType }), options.fileName)
+  form.append('model', GROQ_WHISPER_MODEL)
+  if (options.language) form.append('language', options.language)
 
-  const response = await client.audio.transcriptions.create({
-    file,
-    model: 'whisper-1',
-    language: options.language,
+  const response = await fetch(GROQ_TRANSCRIPTIONS_URL, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${apiKey}` },
+    body: form,
   })
 
-  const transcript = response.text?.trim()
+  if (!response.ok) {
+    const detail = await response.text().catch(() => '')
+    throw new Error(`Groq transcription request failed (${response.status}): ${detail.slice(0, 300)}`)
+  }
+
+  const payload = (await response.json()) as { text?: string }
+  const transcript = payload.text?.trim()
   if (!transcript) {
     throw new Error('Transcription returned no text')
   }

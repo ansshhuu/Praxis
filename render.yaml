@@ -26,11 +26,9 @@ services:
 
       - key: GEMINI_API_KEY
         sync: false
-      - key: OPENAI_API_KEY
+      - key: GROQ_API_KEY
         sync: false
       - key: HUGGINGFACE_API_KEY
-        sync: false
-      - key: ANTHROPIC_API_KEY
         sync: false
       - key: OLLAMA_BASE_URL
         sync: false
