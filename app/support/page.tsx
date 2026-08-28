@@ -244,13 +244,13 @@ export default function SupportPage() {
                 <Textarea
                   value={reply}
                   onChange={(e) => setReply(e.target.value)}
-                  placeholder="Generated reply will appear here — fully editable before sending."
+                  placeholder="Generated reply will appear here - fully editable before sending."
                   rows={9}
                   disabled={!activeTicket}
                 />
               )}
               {activeTicket?.replyStatus === 'sent' && (
-                <p className="text-[12.5px] font-bold text-green-600">Reply sent — this ticket is marked Replied.</p>
+                <p className="text-[12.5px] font-bold text-green-600">Reply sent - this ticket is marked Replied.</p>
               )}
               <Button variant="outline" disabled={!reply.trim() || !activeTicket || isSending} onClick={sendReply}>
                 {isSending ? <Loader2 className="size-3.5 animate-spin" /> : <Send className="size-3.5" />}
@@ -263,7 +263,7 @@ export default function SupportPage() {
         <Card>
           <CardHeader className="pb-3">
             <CardTitle>Ticket Sentiment Queue</CardTitle>
-            <CardDescription>Sorted by urgency — critical and escalated tickets surface first.</CardDescription>
+            <CardDescription>Sorted by urgency - critical and escalated tickets surface first.</CardDescription>
           </CardHeader>
           <CardContent>
             {tickets.length === 0 ? (

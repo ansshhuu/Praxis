@@ -13,14 +13,14 @@ export class TranscriptionError extends Error {
 }
 
 export const STT_UNAVAILABLE_NOTE =
-  'Audio transcription requires a hosted STT model — none currently available on free tier. Paste the transcript manually to continue.'
+  'Audio transcription requires a hosted STT model - none currently available on free tier. Paste the transcript manually to continue.'
 
 function describeCause(error: unknown): string {
   if (error instanceof Error && error.name === 'AbortError') {
     return `transcription timed out after ${TRANSCRIBE_TIMEOUT_MS / 1000}s`
   }
   const cause = (error as { cause?: { code?: string; message?: string } })?.cause
-  if (cause?.code) return cause.message ? `${cause.code} — ${cause.message}` : cause.code
+  if (cause?.code) return cause.message ? `${cause.code} - ${cause.message}` : cause.code
   return error instanceof Error ? error.message : String(error)
 }
 
@@ -47,7 +47,7 @@ async function fetchAudio(fileUrl: string): Promise<Buffer> {
   }
   if (buffer.length > MAX_AUDIO_BYTES) {
     throw new TranscriptionError(
-      `Audio is ${(buffer.length / 1024 / 1024).toFixed(1)} MB — the transcription provider caps uploads at ${MAX_AUDIO_BYTES / 1024 / 1024} MB`,
+      `Audio is ${(buffer.length / 1024 / 1024).toFixed(1)} MB - the transcription provider caps uploads at ${MAX_AUDIO_BYTES / 1024 / 1024} MB`,
     )
   }
   return buffer
@@ -95,7 +95,7 @@ export async function transcribeAudio(fileUrl: string): Promise<string> {
     }
     if (response.status === 403) {
       throw new TranscriptionError(
-        'Transcription rejected (403) — check HUGGINGFACE_API_KEY has the "Make calls to Inference Providers" scope',
+        'Transcription rejected (403) - check HUGGINGFACE_API_KEY has the "Make calls to Inference Providers" scope',
       )
     }
     if (response.status === 503) {
@@ -120,7 +120,7 @@ export async function transcribeAudio(fileUrl: string): Promise<string> {
   const text = payload?.text?.trim()
   if (!text) {
     throw new TranscriptionError(
-      'The audio produced no speech — check the recording actually contains audible dialogue.',
+      'The audio produced no speech - check the recording actually contains audible dialogue.',
     )
   }
 

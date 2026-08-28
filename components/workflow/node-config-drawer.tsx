@@ -148,7 +148,7 @@ const fieldsByType: Partial<Record<NodeTypeKey, Field[]>> = {
       kind: 'textarea',
       key: 'body',
       label: 'Body',
-      value: 'Thanks for reaching out — a specialist will reply shortly.',
+      value: 'Thanks for reaching out - a specialist will reply shortly.',
     },
   ],
   condition: [

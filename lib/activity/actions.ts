@@ -51,7 +51,7 @@ export function describeActivity(
 
     case ACTIVITY_ACTIONS.workflowRunFailed:
       return {
-        text: `workflow “${text(meta, 'name', 'Untitled')}” failed — ${text(meta, 'error', 'unknown error')}`,
+        text: `workflow “${text(meta, 'name', 'Untitled')}” failed - ${text(meta, 'error', 'unknown error')}`,
         tone: 'failed',
       }
 
@@ -61,7 +61,7 @@ export function describeActivity(
     case ACTIVITY_ACTIONS.documentProcessed:
       return status === 'FAILED'
         ? {
-            text: `document “${text(meta, 'name', 'a file')}” failed to process — ${text(meta, 'error', 'unknown error')}`,
+            text: `document “${text(meta, 'name', 'a file')}” failed to process - ${text(meta, 'error', 'unknown error')}`,
             tone: 'failed',
           }
         : { text: `processed document “${text(meta, 'name', 'a file')}”`, tone: 'success' }
@@ -78,7 +78,7 @@ export function describeActivity(
     case ACTIVITY_ACTIONS.meetingProcessed:
       return status === 'FAILED'
         ? {
-            text: `meeting “${text(meta, 'name', 'a recording')}” failed to process — ${text(meta, 'error', 'unknown error')}`,
+            text: `meeting “${text(meta, 'name', 'a recording')}” failed to process - ${text(meta, 'error', 'unknown error')}`,
             tone: 'failed',
           }
         : { text: `analysed meeting “${text(meta, 'name', 'a recording')}”`, tone: 'success' }
@@ -92,7 +92,7 @@ export function describeActivity(
     case ACTIVITY_ACTIONS.notificationSent:
       return status === 'FAILED'
         ? {
-            text: `notification email failed — ${text(meta, 'error', 'unknown error')}`,
+            text: `notification email failed - ${text(meta, 'error', 'unknown error')}`,
             tone: 'failed',
           }
         : { text: `sent a notification to ${text(meta, 'to', 'a recipient')}`, tone: 'success' }

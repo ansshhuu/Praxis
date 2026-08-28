@@ -36,7 +36,7 @@ describe('tryParse', () => {
 
 describe('extractBalanced', () => {
   it('pulls an array out of surrounding prose', () => {
-    expect(extractBalanced('Here you go: [1, 2, 3] — hope that helps', '[')).toBe('[1, 2, 3]')
+    expect(extractBalanced('Here you go: [1, 2, 3] - hope that helps', '[')).toBe('[1, 2, 3]')
   })
 
   it('pulls an object out of surrounding prose', () => {

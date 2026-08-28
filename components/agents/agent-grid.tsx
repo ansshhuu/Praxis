@@ -12,14 +12,14 @@ import { cn } from '@/lib/utils'
 import { AGENT_CATEGORY_LABELS, type AgentView } from './types'
 
 function LatencyCell({ ms }: { ms: number | null }) {
-  if (ms === null) return <span className="text-[13px] font-medium text-gray-400">—</span>
+  if (ms === null) return <span className="text-[13px] font-medium text-gray-400">-</span>
   const color = ms < 1000 ? 'text-green-600' : ms < 3000 ? 'text-amber-600' : 'text-red-600'
   return <span className={cn('text-[13px] font-bold tabular-nums', color)}>{ms}ms</span>
 }
 
 function CapabilityChips({ capabilities }: { capabilities: string[] }) {
   const [visible, ...rest] = capabilities
-  if (!visible) return <span className="text-[12px] font-medium text-gray-400">—</span>
+  if (!visible) return <span className="text-[12px] font-medium text-gray-400">-</span>
 
   return (
     <div className="flex max-w-[220px] items-center gap-1.5">
@@ -72,13 +72,13 @@ function AgentDetailPanel({ agent }: { agent: AgentView }) {
         <div>
           <p className="text-[11px] font-bold tracking-wide text-gray-400 uppercase">Error rate</p>
           <p className="text-[13.5px] font-bold text-gray-900">
-            {agent.metrics.runCount > 0 ? `${Math.round(agent.metrics.errorRate * 100)}%` : '—'}
+            {agent.metrics.runCount > 0 ? `${Math.round(agent.metrics.errorRate * 100)}%` : '-'}
           </p>
         </div>
         <div>
           <p className="text-[11px] font-bold tracking-wide text-gray-400 uppercase">Avg latency</p>
           <p className="text-[13.5px] font-bold text-gray-900">
-            {agent.metrics.runCount > 0 ? `${Math.round(agent.metrics.avgLatencyMs)}ms` : '—'}
+            {agent.metrics.runCount > 0 ? `${Math.round(agent.metrics.avgLatencyMs)}ms` : '-'}
           </p>
         </div>
         <div>
@@ -157,7 +157,7 @@ export function AgentGrid({
                     </TableCell>
                     <TableCell className="hidden lg:table-cell">
                       <span className="text-[13px] font-bold tabular-nums text-gray-700">
-                        {agent.metrics.runCount > 0 ? `${Math.round(agent.metrics.errorRate * 100)}%` : '—'}
+                        {agent.metrics.runCount > 0 ? `${Math.round(agent.metrics.errorRate * 100)}%` : '-'}
                       </span>
                     </TableCell>
                     <TableCell className="sticky right-0 bg-white pr-6 text-right">

@@ -61,7 +61,7 @@ export async function POST(request: Request) {
   } catch (error) {
     if (error instanceof DuplicateInvoiceError) {
       return NextResponse.json(
-        { duplicate: true, error: 'This invoice appears to already be uploaded — add anyway?' },
+        { duplicate: true, error: 'This invoice appears to already be uploaded - add anyway?' },
         { status: 409 },
       )
     }

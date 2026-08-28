@@ -2,6 +2,7 @@
 
 import { Loader2, Sparkles, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
+import ReactMarkdown from 'react-markdown'
 
 import { Button } from '@/components/ui/button'
 import { StatusBadge } from '@/components/ui/status-badge'
@@ -160,14 +161,26 @@ export function AgentRunnerDrawer({ agent, onClose }: { agent: AgentView; onClos
                   {result.latencyMs}ms · {result.provider}/{result.model}
                 </span>
               </div>
-              <p
-                className={cn(
-                  'whitespace-pre-wrap text-[13.5px] leading-relaxed font-medium text-gray-800',
-                  revealing.length < (result.output.length ?? 0) && 'after:ml-0.5 after:inline-block after:h-4 after:w-[2px] after:animate-pulse after:bg-gray-400 after:align-middle after:content-[""]',
-                )}
-              >
-                {result.output ? revealing : result.error}
-              </p>
+              {result.output ? (
+                <div
+                  className={cn(
+                    'text-[13.5px] leading-relaxed font-medium text-gray-800',
+                    'leading-relaxed [&>*:not(:last-child)]:mb-3',
+                    '[&_ul]:my-1.5 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:space-y-1',
+                    '[&_ol]:my-1.5 [&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:space-y-1',
+                    '[&_strong]:font-bold [&_strong]:text-gray-900',
+                    '[&_h1]:text-[15px] [&_h1]:font-bold [&_h1]:text-gray-900',
+                    '[&_h2]:text-[14px] [&_h2]:font-bold [&_h2]:text-gray-900',
+                    '[&_h3]:text-[13.5px] [&_h3]:font-bold [&_h3]:text-gray-900',
+                    '[&_p]:leading-relaxed',
+                    revealing.length < result.output.length && 'after:ml-0.5 after:inline-block after:h-4 after:w-[2px] after:animate-pulse after:bg-gray-400 after:align-middle after:content-[""]',
+                  )}
+                >
+                  <ReactMarkdown>{revealing}</ReactMarkdown>
+                </div>
+              ) : (
+                <p className="text-[13.5px] leading-relaxed font-medium text-gray-800">{result.error}</p>
+              )}
             </div>
           )}
         </div>

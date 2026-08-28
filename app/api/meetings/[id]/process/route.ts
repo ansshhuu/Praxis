@@ -34,7 +34,7 @@ export async function POST(_request: Request, { params }: RouteContext) {
 
   if (!existing.storagePath && !existing.fileUrl) {
     return NextResponse.json(
-      { error: 'This meeting has no audio — paste a transcript instead' },
+      { error: 'This meeting has no audio - paste a transcript instead' },
       { status: 400 },
     )
   }

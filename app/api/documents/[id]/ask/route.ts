@@ -63,7 +63,7 @@ export async function POST(request: Request, { params }: RouteContext) {
         error:
           document.status === 'FAILED'
             ? 'Text extraction failed for this document, so it cannot answer questions.'
-            : 'This document has no extracted text yet — process it first.',
+            : 'This document has no extracted text yet - process it first.',
       },
       { status: 409 },
     )
@@ -77,7 +77,7 @@ export async function POST(request: Request, { params }: RouteContext) {
 
   const prompt = [
     `Answer the question using only the document context below. If the answer is not in the context, say so plainly.`,
-    `Be direct and concise — no preamble.`,
+    `Be direct and concise - no preamble.`,
     '',
     `Document: ${document.fileName}`,
     `${contextLabel}:`,

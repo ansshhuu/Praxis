@@ -34,7 +34,7 @@ function buildSummaryPrompt(text: string): string {
     truncated
       ? 'Summarise this partial excerpt from the beginning of a document in 2-3 sentences.'
       : 'Summarise this document in 2-3 sentences.',
-    'Reply with the summary only — no preamble, no bullet points.',
+    'Reply with the summary only - no preamble, no bullet points.',
     '',
     excerpt,
   ].join('\n')

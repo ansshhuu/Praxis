@@ -3,7 +3,7 @@ import type { Metadata } from 'next'
 import { LegalPage, type LegalSection } from '@/components/landing/legal-page'
 
 export const metadata: Metadata = {
-  title: 'Privacy Policy — Praxis',
+  title: 'Privacy Policy - Praxis',
   description:
     'How Praxis collects, uses, and protects your data, including our commitments around AI and customer content.',
 }
@@ -38,6 +38,27 @@ const SECTIONS: LegalSection[] = [
     body: [
       'Workspace content is retained until you delete it or your organisation closes its account. Deleting a record removes it from the application and schedules the underlying file for removal from storage.',
       'You may request access to, correction of, or deletion of your personal data by contacting us. Where your organisation controls the workspace, we may direct your request to its administrators.',
+    ],
+  },
+  {
+    heading: 'Cookies & Sessions',
+    body: [
+      'Praxis uses a session cookie to keep you signed in and to identify your account on each request. This cookie is required for the service to function and is not used for advertising or cross-site tracking.',
+      'The session cookie is cleared when you sign out or when your session expires. We do not use third-party advertising cookies.',
+    ],
+  },
+  {
+    heading: 'Transactional Email',
+    body: [
+      'We use a third-party transactional email provider (Brevo) to deliver account-related emails, such as password reset links and workflow notifications. These emails include only the content needed to complete the relevant action, such as a time-limited reset link.',
+      'Your email address and the content of these messages are shared with our email provider solely to deliver them, and are subject to that provider’s own security and processing terms.',
+    ],
+  },
+  {
+    heading: 'Account Termination',
+    body: [
+      'You may close your account at any time by contacting us or, where available, through your account settings. Where your organisation controls the workspace, closing the account may require action by its administrators.',
+      'On termination, your access to the workspace ends and your data is scheduled for deletion in line with the retention practices described above, except where we are required to retain it for legal, security, or billing reasons.',
     ],
   },
   {

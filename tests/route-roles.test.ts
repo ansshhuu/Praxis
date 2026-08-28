@@ -51,7 +51,7 @@ describe('canAccessRoute', () => {
     expect(canAccessRoute('/hr', 'MANAGER')).toBe(true)
   })
 
-  it('blocks EMPLOYEE from HR — page and API alike', () => {
+  it('blocks EMPLOYEE from HR - page and API alike', () => {
     expect(canAccessRoute('/hr', 'EMPLOYEE')).toBe(false)
     expect(canAccessRoute('/api/resumes', 'EMPLOYEE')).toBe(false)
     expect(canAccessRoute('/api/resumes/screen', 'EMPLOYEE')).toBe(false)
@@ -70,7 +70,7 @@ describe('canAccessRoute', () => {
     }
   })
 
-  it('is case sensitive — lowercase roles must not pass', () => {
+  it('is case sensitive - lowercase roles must not pass', () => {
     
     
     expect(canAccessRoute('/hr', 'admin')).toBe(false)

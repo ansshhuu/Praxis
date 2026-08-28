@@ -182,7 +182,7 @@ function UploadModal({
                   ? files[0].name
                   : `${files.length} files selected`}
             </p>
-            <p className="mt-1 text-xs text-gray-500">PDF, DOCX, XLSX, CSV, TXT, PNG — max 50 MB</p>
+            <p className="mt-1 text-xs text-gray-500">PDF, DOCX, XLSX, CSV, TXT, PNG - max 50 MB</p>
           </div>
           <input
             ref={inputRef}

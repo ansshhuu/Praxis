@@ -394,7 +394,7 @@ export const SEED_TEMPLATES: SeedTemplate[] = [
           emailAction(
             'Welcome Email',
             'Welcome to the team!',
-            'Welcome aboard — here is everything you need for your first day. Your accounts are being provisioned and your training schedule will follow shortly.',
+            'Welcome aboard - here is everything you need for your first day. Your accounts are being provisioned and your training schedule will follow shortly.',
           ),
         ),
         at(
@@ -404,7 +404,7 @@ export const SEED_TEMPLATES: SeedTemplate[] = [
           notify(
             'Raise IT Setup Task',
             '#ops-alerts',
-            'A new hire starts today — laptop, accounts and access need to be provisioned.',
+            'A new hire starts today - laptop, accounts and access need to be provisioned.',
           ),
         ),
         at(
@@ -528,7 +528,7 @@ export const SEED_TEMPLATES: SeedTemplate[] = [
           emailAction(
             'Send Auto-Reply',
             'We received your request',
-            'Thanks for reaching out — we have received your message and a specialist will reply shortly.',
+            'Thanks for reaching out - we have received your message and a specialist will reply shortly.',
           ),
         ),
         at(

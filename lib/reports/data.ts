@@ -19,11 +19,11 @@ export const REPORT_TITLES: Record<ReportType, string> = {
 }
 
 function formatDate(date: Date | null): string {
-  return date ? date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'
+  return date ? date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '-'
 }
 
 function formatDuration(ms: number | null): string {
-  if (ms === null) return '—'
+  if (ms === null) return '-'
   return ms < 1000 ? `${Math.round(ms)} ms` : `${(ms / 1000).toFixed(1)} s`
 }
 
@@ -98,7 +98,7 @@ async function collectWorkflow(userId: string): Promise<ReportData> {
       runs.length,
       success,
       failed,
-      runs.length ? `${Math.round((success / runs.length) * 100)}%` : '—',
+      runs.length ? `${Math.round((success / runs.length) * 100)}%` : '-',
       formatDuration(avg),
       formatDate(lastRun),
     ]
@@ -113,7 +113,7 @@ async function collectWorkflow(userId: string): Promise<ReportData> {
       { label: 'Failed', value: String(totalFailed) },
       {
         label: 'Overall Success Rate',
-        value: totalRuns ? `${Math.round((totalSuccess / totalRuns) * 100)}%` : '—',
+        value: totalRuns ? `${Math.round((totalSuccess / totalRuns) * 100)}%` : '-',
       },
     ],
     columns: ['Workflow', 'Status', 'Runs', 'Success', 'Failed', 'Success Rate', 'Avg Duration', 'Last Run'],
@@ -143,7 +143,7 @@ async function collectSales(userId: string): Promise<ReportData> {
       doc.fileName,
       doc.fileType,
       doc.status,
-      doc.tags.join(', ') || '—',
+      doc.tags.join(', ') || '-',
       formatDate(doc.createdAt),
     ]),
     note:
@@ -176,17 +176,17 @@ async function collectHr(userId: string): Promise<ReportData> {
     title: REPORT_TITLES.HR,
     highlights: [
       { label: 'Candidates Screened', value: String(resumes.length) },
-      { label: 'Average Match Score', value: resumes.length ? `${averageScore.toFixed(1)}%` : '—' },
+      { label: 'Average Match Score', value: resumes.length ? `${averageScore.toFixed(1)}%` : '-' },
       { label: 'Strong Matches (75%+)', value: String(strongMatches) },
     ],
     columns: ['Rank', 'Candidate', 'Current Role', 'Experience', 'Match Score', 'Top Skills', 'Screened'],
     rows: resumes.map((resume) => [
       resume.ranking,
       resume.candidateName,
-      resume.currentRole ?? '—',
-      resume.yearsExperience !== null ? `${resume.yearsExperience} yrs` : '—',
+      resume.currentRole ?? '-',
+      resume.yearsExperience !== null ? `${resume.yearsExperience} yrs` : '-',
       `${resume.jdMatchScore.toFixed(1)}%`,
-      resume.skills.slice(0, 5).join(', ') || '—',
+      resume.skills.slice(0, 5).join(', ') || '-',
       formatDate(resume.createdAt),
     ]),
   }
@@ -216,11 +216,11 @@ async function collectAiUsage(userId: string): Promise<ReportData> {
     columns: ['Module', 'Operation', 'Count', 'Spends an AI call'],
     rows: [
       ['Documents', 'Documents uploaded', documentsTotal, 'No'],
-      ['Documents', 'Documents summarised', documentsProcessed, 'Yes — 1 per document'],
-      ['Resumes', 'Candidates scored', resumes, 'Yes — 1 per screening batch'],
-      ['Chat', 'Assistant replies', assistantMessages, 'Yes — 1 per message'],
+      ['Documents', 'Documents summarised', documentsProcessed, 'Yes - 1 per document'],
+      ['Resumes', 'Candidates scored', resumes, 'Yes - 1 per screening batch'],
+      ['Chat', 'Assistant replies', assistantMessages, 'Yes - 1 per message'],
       ['Workflows', 'Runs executed', runs, 'Only for AI nodes'],
-      ['Workflows', 'Runs failed', runsFailed, '—'],
+      ['Workflows', 'Runs failed', runsFailed, '-'],
     ],
     note:
       'The platform does not record a per-call usage ledger, so AI call counts are derived from the operations known to spend exactly one model call each.',

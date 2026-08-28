@@ -93,7 +93,7 @@ export async function POST(request: Request) {
     body: [
       `Name: ${name}`,
       `Email: ${email}`,
-      `Interested in: ${interests.length ? interests.join(', ') : '—'}`,
+      `Interested in: ${interests.length ? interests.join(', ') : '-'}`,
       '',
       message,
     ].join('\n'),

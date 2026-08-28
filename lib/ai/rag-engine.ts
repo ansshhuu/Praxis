@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 
-import { GoogleGenerativeAI } from '@google/generative-ai'
+import { GoogleGenAI } from '@google/genai'
 
 import { applyGuardrails } from '@/lib/ai/guardrails'
 import { generateText } from '@/lib/ai/llm-gateway'
@@ -40,15 +40,16 @@ export async function embedTexts(texts: string[]): Promise<number[][]> {
 
   const geminiKey = process.env.GEMINI_API_KEY?.trim()
   if (!geminiKey) {
-    throw new Error('No embedding provider configured — set GEMINI_API_KEY')
+    throw new Error('No embedding provider configured - set GEMINI_API_KEY')
   }
 
-  const genAI = new GoogleGenerativeAI(geminiKey)
-  const model = genAI.getGenerativeModel({ model: GEMINI_EMBEDDING_MODEL })
+  const ai = new GoogleGenAI({ apiKey: geminiKey })
   return Promise.all(
     texts.map(async (text) => {
-      const result = await model.embedContent(text)
-      return result.embedding.values
+      const result = await ai.models.embedContent({ model: GEMINI_EMBEDDING_MODEL, contents: text })
+      const values = result.embeddings?.[0]?.values
+      if (!values) throw new Error('Gemini embedding response contained no values')
+      return values
     }),
   )
 }
@@ -77,7 +78,7 @@ export async function ingestDocument(options: IngestDocumentOptions): Promise<In
   const { sanitizedText } = applyGuardrails(options.text)
   const chunks = chunkText(sanitizedText, options.chunkSize, options.chunkOverlap)
   if (chunks.length === 0) {
-    throw new Error('Document produced no chunks — text may be empty')
+    throw new Error('Document produced no chunks - text may be empty')
   }
 
   const contentHash = hashDocumentText(sanitizedText)

@@ -45,7 +45,7 @@ export function validateLeadForm(values: LeadFormValues): LeadFieldErrors {
     min: 0,
     rejectZero: true,
     max: LEAD_BUDGET_MAX,
-    maxMessage: `Budget seems unrealistically high — enter a value under $${LEAD_BUDGET_MAX.toLocaleString('en-US')}.`,
+    maxMessage: `Budget seems unrealistically high - enter a value under $${LEAD_BUDGET_MAX.toLocaleString('en-US')}.`,
   })
 
   const timelineError = validateNumericField(values.timelineDays, { label: 'Urgency', min: 0 })

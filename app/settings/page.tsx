@@ -263,7 +263,7 @@ function ProfileTab() {
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-medium">Role</label>
               <input
-                value={sessionUser?.role ? roleLabels[sessionUser.role as UserRole] : '—'}
+                value={sessionUser?.role ? roleLabels[sessionUser.role as UserRole] : '-'}
                 disabled
                 className="rounded-lg border border-input bg-muted px-3 py-2 text-sm text-muted-foreground"
               />
@@ -437,7 +437,7 @@ function AddUserModal({
               className={fieldClass}
             />
             <p className="text-[12px] font-medium text-gray-500">
-              The user signs in with this password — share it with them directly.
+              The user signs in with this password - share it with them directly.
             </p>
           </div>
 

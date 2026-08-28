@@ -15,7 +15,7 @@ const inter = Inter({
 })
 
 export const metadata: Metadata = {
-  title: { default: 'Praxis — Enterprise AI Automation Ecosystem', template: '%s | Praxis' },
+  title: { default: 'Praxis - Enterprise AI Automation Ecosystem', template: '%s | Praxis' },
   description: 'Production-grade multi-agent orchestration and workflow automation platform.',
   generator: 'v0.app',
   icons: {

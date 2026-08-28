@@ -68,7 +68,7 @@ export async function POST(request: Request, { params }: RouteContext) {
 
   const prompt = [
     `Write ${QUESTION_COUNT} interview questions for this candidate, tailored to the gaps and strengths in their resume relative to the job description.`,
-    `Reply with ONE JSON array of ${QUESTION_COUNT} strings only — no prose, no numbering, no markdown fences.`,
+    `Reply with ONE JSON array of ${QUESTION_COUNT} strings only - no prose, no numbering, no markdown fences.`,
     '',
     `JOB DESCRIPTION:`,
     excerpt(jobDescription, MAX_JD_CHARS),

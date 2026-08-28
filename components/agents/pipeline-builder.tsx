@@ -2,6 +2,7 @@
 
 import { CheckCircle2, HelpCircle, Loader2, Plus, Trash2, Workflow, XCircle } from 'lucide-react'
 import { useState } from 'react'
+import ReactMarkdown from 'react-markdown'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -203,7 +204,25 @@ function StepResultCard({ result }: { result: PipelineStepResultView }) {
           stage {result.stageIndex + 1} · {result.attempts} attempt{result.attempts === 1 ? '' : 's'} · {result.latencyMs}ms
         </span>
       </div>
-      <p className={cn('text-[12.5px] font-medium text-gray-600', !expanded && 'line-clamp-3')}>{text}</p>
+      {result.output ? (
+        <div
+          className={cn(
+            'text-[12.5px] font-medium text-gray-600',
+            '[&>*:not(:last-child)]:mb-2',
+            '[&_ul]:my-1 [&_ul]:list-disc [&_ul]:pl-4 [&_ul]:space-y-0.5',
+            '[&_ol]:my-1 [&_ol]:list-decimal [&_ol]:pl-4 [&_ol]:space-y-0.5',
+            '[&_strong]:font-bold [&_strong]:text-gray-900',
+            '[&_h1]:text-[13.5px] [&_h1]:font-bold [&_h1]:text-gray-900',
+            '[&_h2]:text-[13px] [&_h2]:font-bold [&_h2]:text-gray-900',
+            '[&_h3]:text-[12.5px] [&_h3]:font-bold [&_h3]:text-gray-900',
+            !expanded && 'max-h-[4.5em] overflow-hidden',
+          )}
+        >
+          <ReactMarkdown>{text}</ReactMarkdown>
+        </div>
+      ) : (
+        <p className={cn('text-[12.5px] font-medium text-gray-600', !expanded && 'line-clamp-3')}>{text}</p>
+      )}
       {isLong && (
         <button
           type="button"

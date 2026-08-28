@@ -46,7 +46,7 @@ export async function parseInvoice(options: { buffer: Buffer; mimeType: string }
   }
 
   if (!ocr.text || ocr.words < MIN_OCR_WORDS) {
-    throw new InvoiceParseError('ocr_empty', 'OCR could not read any text from this image — it may be blank, too blurry, or not an invoice')
+    throw new InvoiceParseError('ocr_empty', 'OCR could not read any text from this image - it may be blank, too blurry, or not an invoice')
   }
 
   let text: string

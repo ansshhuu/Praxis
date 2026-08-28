@@ -51,7 +51,7 @@ export async function POST(request: Request) {
   if (!ALLOWED_EXTENSIONS.has(extension)) {
     return NextResponse.json(
       {
-        error: `Unsupported audio type ".${extension || 'unknown'}" — upload MP3, WAV or M4A`,
+        error: `Unsupported audio type ".${extension || 'unknown'}" - upload MP3, WAV or M4A`,
       },
       { status: 415 },
     )

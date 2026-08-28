@@ -458,7 +458,7 @@ export async function executeWorkflow(
           status: 'ok',
           message: emailResult.success
             ? `Notification created (${channel}); email sent to ${to}${usedFallback ? ' (workflow owner)' : ''}`
-            : `Notification created (${channel}); email not sent — ${emailResult.error}`,
+            : `Notification created (${channel}); email not sent - ${emailResult.error}`,
           output: {
             notificationId: notification.id,
             message,
@@ -551,7 +551,7 @@ export async function executeWorkflow(
           data: {
             userId,
             type: 'EMAIL',
-            message: `${subject} — ${body}`,
+            message: `${subject} - ${body}`,
             recipient: to,
             status: 'PENDING',
           },
@@ -569,8 +569,8 @@ export async function executeWorkflow(
           data: {
             status: emailResult.success ? 'SENT' : 'FAILED',
             message: emailResult.success
-              ? `${subject} — ${body}`
-              : `${subject} — ${body}\n\n[email failed: ${emailResult.error}]`,
+              ? `${subject} - ${body}`
+              : `${subject} - ${body}\n\n[email failed: ${emailResult.error}]`,
           },
         })
 
@@ -591,7 +591,7 @@ export async function executeWorkflow(
           status: emailResult.success ? 'ok' : 'error',
           message: emailResult.success
             ? `Email sent to ${to}${usedFallback ? ' (workflow owner)' : ''}`
-            : `Email not sent — ${emailResult.error}`,
+            : `Email not sent - ${emailResult.error}`,
           output: {
             notificationId: notification.id,
             to,
@@ -609,7 +609,7 @@ export async function executeWorkflow(
           label,
           kind,
           status: 'skipped',
-          message: `Unknown node type "${str(node.data?.typeKey, 'unset')}" — skipped`,
+          message: `Unknown node type "${str(node.data?.typeKey, 'unset')}" - skipped`,
         })
       }
     }

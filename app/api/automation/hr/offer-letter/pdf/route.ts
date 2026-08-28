@@ -15,7 +15,7 @@ function toWinAnsi(text: string): string {
   return text
     .replace(/[‘’]/g, "'")
     .replace(/[“”]/g, '"')
-    .replace(/[–—]/g, '-')
+    .replace(/[–-]/g, '-')
     .replace(/…/g, '...')
     .replace(/[^\x20-\x7E\xA0-\xFF]/g, '?')
 }

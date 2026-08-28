@@ -33,7 +33,7 @@ describe('sanitizeFileName', () => {
     expect(sanitizeFileName('report.pdf')).toBe('report.pdf')
   })
 
-  it('strips directory components — no path traversal into the bucket', () => {
+  it('strips directory components - no path traversal into the bucket', () => {
     expect(sanitizeFileName('../../etc/passwd')).toBe('passwd')
     expect(sanitizeFileName('C:\\Users\\me\\secret.txt')).toBe('secret.txt')
     expect(sanitizeFileName('nested/dir/file.pdf')).toBe('file.pdf')
@@ -74,8 +74,8 @@ describe('displayType', () => {
 
 describe('formatSize', () => {
   it('shows a dash when the size is unknown', () => {
-    expect(formatSize(null)).toBe('—')
-    expect(formatSize(Number.NaN)).toBe('—')
+    expect(formatSize(null)).toBe('-')
+    expect(formatSize(Number.NaN)).toBe('-')
   })
 
   it('shows bytes below one kilobyte', () => {
@@ -92,10 +92,10 @@ describe('formatSize', () => {
 
 describe('formatDuration', () => {
   it('shows a dash for missing or nonsensical durations', () => {
-    expect(formatDuration(null)).toBe('—')
-    expect(formatDuration(0)).toBe('—')
-    expect(formatDuration(-5)).toBe('—')
-    expect(formatDuration(Number.POSITIVE_INFINITY)).toBe('—')
+    expect(formatDuration(null)).toBe('-')
+    expect(formatDuration(0)).toBe('-')
+    expect(formatDuration(-5)).toBe('-')
+    expect(formatDuration(Number.POSITIVE_INFINITY)).toBe('-')
   })
 
   it('formats seconds, minutes and hours', () => {
@@ -118,7 +118,7 @@ describe('readActionItems', () => {
     ])
   })
 
-  it('drops entries without a usable task — AI output is not trusted', () => {
+  it('drops entries without a usable task - AI output is not trusted', () => {
     expect(readActionItems([{ task: '' }, { task: '   ' }, { notTask: 'x' }, null, 7])).toEqual([])
   })
 
@@ -136,7 +136,7 @@ describe('isDashboardRange', () => {
     expect(isDashboardRange(90)).toBe(true)
   })
 
-  it('rejects anything else — query params are untrusted', () => {
+  it('rejects anything else - query params are untrusted', () => {
     expect(isDashboardRange(1)).toBe(false)
     expect(isDashboardRange('abc')).toBe(false)
     expect(isDashboardRange(null)).toBe(false)

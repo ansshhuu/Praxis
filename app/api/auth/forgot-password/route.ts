@@ -40,7 +40,7 @@ export async function POST(request: Request) {
         to: user.email,
         subject: 'Reset your Praxis password',
         label: 'Password Reset',
-        body: `We received a request to reset your password. Click the link below to choose a new one — it expires in 15 minutes.\n\n${resetUrl}\n\nIf you didn't request this, you can safely ignore this email.`,
+        body: `We received a request to reset your password. Click the link below to choose a new one - it expires in 15 minutes.\n\n${resetUrl}\n\nIf you didn't request this, you can safely ignore this email.`,
       })
 
       if (!result.success) {

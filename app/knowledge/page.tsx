@@ -119,7 +119,7 @@ export default function KnowledgePage() {
     }
     if (trimmed.length > MAX_INGEST_CHARS) {
       setIngestError(
-        `Document too long — split into smaller sections (max ${MAX_INGEST_CHARS.toLocaleString()} characters).`,
+        `Document too long - split into smaller sections (max ${MAX_INGEST_CHARS.toLocaleString()} characters).`,
       )
       return
     }
@@ -319,7 +319,7 @@ export default function KnowledgePage() {
               <div className="flex flex-col items-center gap-2 py-10 text-center">
                 <FileText className="size-6 text-gray-300" />
                 <p className="text-[13px] font-medium text-gray-500">
-                  No documents ingested yet — paste text above to get started.
+                  No documents ingested yet - paste text above to get started.
                 </p>
               </div>
             ) : (

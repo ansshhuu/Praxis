@@ -110,7 +110,7 @@ export class BaseAgent implements IAgent {
           { role: 'system', content: this.definition.systemPrompt },
           { role: 'user', content: buildUserPrompt(input) },
         ],
-        maxTokens: 700,
+        maxTokens: 4096,
       })
     } catch (error) {
       const latencyMs = Date.now() - startedAt

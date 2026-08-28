@@ -24,7 +24,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    // `next start` cannot serve an `output: standalone` build (see next.config.mjs) —
+    // `next start` cannot serve an `output: standalone` build (see next.config.mjs) -
     // run the standalone server.js directly, same as Dockerfile's production CMD, with
     // static assets copied alongside it the way the Dockerfile does for the image.
     command:

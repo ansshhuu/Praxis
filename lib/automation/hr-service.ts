@@ -148,9 +148,9 @@ export async function generateOfferLetter(options: GenerateOfferLetterOptions): 
         role: 'system',
         content:
           'You write formal, warm offer letters with clear compensation and start-date details. ' +
-          'Output the complete letter with no placeholders, brackets, or template variables of any kind (e.g. never write things like [Date], [Company Letterhead], [Your Name]) — ' +
+          'Output the complete letter with no placeholders, brackets, or template variables of any kind (e.g. never write things like [Date], [Company Letterhead], [Your Name]) - ' +
           'use only the exact values given to you. Always end with a full closing: a sign-off line, a signature block naming the company, and an acceptance line for the candidate to sign and date. ' +
-          'Never truncate — finish every sentence and the entire letter.',
+          'Never truncate - finish every sentence and the entire letter.',
       },
       {
         role: 'user',

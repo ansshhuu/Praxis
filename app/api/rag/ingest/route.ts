@@ -45,7 +45,7 @@ export async function POST(request: Request) {
   if (text.length > MAX_TEXT_LENGTH) {
     return NextResponse.json(
       {
-        error: `Document too long — split into smaller sections (max ${MAX_TEXT_LENGTH.toLocaleString()} characters).`,
+        error: `Document too long - split into smaller sections (max ${MAX_TEXT_LENGTH.toLocaleString()} characters).`,
       },
       { status: 413 },
     )
@@ -90,7 +90,7 @@ export async function POST(request: Request) {
         return 'Failed to ingest: embedding service rate limit exceeded. Try again shortly.'
       }
       if (/produced no chunks/i.test(err.message)) {
-        return 'Failed to ingest: document could not be split into chunks — try different content.'
+        return 'Failed to ingest: document could not be split into chunks - try different content.'
       }
       return `Failed to ingest: ${err.message}`
     })

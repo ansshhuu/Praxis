@@ -46,7 +46,7 @@ function StatusPill({ status }: { status: RunStatus }) {
 }
 
 function formatDuration(ms: number | null): string {
-  if (ms === null) return '—'
+  if (ms === null) return '-'
   if (ms < 1000) return `${ms}ms`
   const seconds = Math.floor(ms / 1000)
   if (seconds < 60) return `${seconds}s`

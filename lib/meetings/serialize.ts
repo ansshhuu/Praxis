@@ -3,7 +3,7 @@ import type { Meeting, MeetingStatus } from '@prisma/client'
 import type { ActionItem } from '@/lib/meetings/analyze'
 
 export function formatDuration(seconds: number | null): string {
-  if (seconds === null || !Number.isFinite(seconds) || seconds <= 0) return '—'
+  if (seconds === null || !Number.isFinite(seconds) || seconds <= 0) return '-'
   const total = Math.round(seconds)
   const hours = Math.floor(total / 3600)
   const minutes = Math.floor((total % 3600) / 60)

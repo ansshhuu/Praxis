@@ -232,7 +232,7 @@ function NewMeetingModal({
               <p className="text-sm font-semibold text-gray-900">
                 {file ? file.name : 'Drop a recording here or click to browse'}
               </p>
-              <p className="mt-1 text-xs text-gray-500">MP3, WAV or M4A — max 25 MB</p>
+              <p className="mt-1 text-xs text-gray-500">MP3, WAV or M4A - max 25 MB</p>
             </div>
             <input
               ref={inputRef}
@@ -272,12 +272,12 @@ function NewMeetingModal({
                 className={cn(fieldClass, 'resize-y font-normal leading-relaxed')}
               />
               <p className="text-[12px] font-medium text-gray-500">
-                Paste notes or a transcript from any source — the same AI summary and action
+                Paste notes or a transcript from any source - the same AI summary and action
                 items are generated, with no audio needed.
               </p>
               {transcript.trim().length > 0 && transcript.trim().length < 40 && (
                 <p className="text-[12px] font-bold text-amber-600">
-                  Paste a transcript to continue — at least 40 characters are needed.
+                  Paste a transcript to continue - at least 40 characters are needed.
                 </p>
               )}
             </div>
@@ -713,7 +713,7 @@ export default function MeetingsPage() {
                   </div>
                   <h3 className="text-sm font-bold text-gray-900">No meetings yet</h3>
                   <p className="mt-1 max-w-xs text-[13px] font-medium text-gray-500">
-                    Upload a recording — or paste a transcript — to get an AI summary,
+                    Upload a recording - or paste a transcript - to get an AI summary,
                     action items and attendees.
                   </p>
                   <Button

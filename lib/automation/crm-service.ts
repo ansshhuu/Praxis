@@ -127,7 +127,7 @@ export async function generateProposal(options: GenerateProposalOptions): Promis
       },
     ],
     task: 'crm-proposal',
-    maxTokens: 900,
+    maxTokens: 2000,
   })
   return text
 }

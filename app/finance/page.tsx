@@ -93,7 +93,7 @@ export default function FinancePage() {
       return 'Please upload an image (JPG, PNG, or WebP) invoice'
     }
     if (file.size > MAX_FILE_BYTES) {
-      return 'File too large — max 15MB'
+      return 'File too large - max 15MB'
     }
     return null
   }
@@ -121,7 +121,7 @@ export default function FinancePage() {
       const response = await fetch(url, { method: 'POST', body: form, signal: controller.signal })
       if (response.status === 409) {
         setPendingDuplicateFile(file)
-        setDuplicateWarning(await readError(response, 'This invoice appears to already be uploaded — add anyway?'))
+        setDuplicateWarning(await readError(response, 'This invoice appears to already be uploaded - add anyway?'))
         return
       }
       if (!response.ok) {
@@ -167,7 +167,7 @@ export default function FinancePage() {
         }),
       })
       if (response.status === 409) {
-        setDuplicateWarning(await readError(response, 'This invoice appears to already be uploaded — add anyway?'))
+        setDuplicateWarning(await readError(response, 'This invoice appears to already be uploaded - add anyway?'))
         return
       }
       if (!response.ok) {
@@ -275,7 +275,7 @@ export default function FinancePage() {
 
               {invoice?.lowConfidence && (
                 <p className="text-[13px] font-bold text-amber-600">
-                  Some fields couldn&apos;t be read clearly — please verify {invoice.warnings.length > 0 ? invoice.warnings.join(', ') : 'the extracted values'} before saving.
+                  Some fields couldn&apos;t be read clearly - please verify {invoice.warnings.length > 0 ? invoice.warnings.join(', ') : 'the extracted values'} before saving.
                 </p>
               )}
 

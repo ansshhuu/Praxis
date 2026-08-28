@@ -33,7 +33,7 @@ export async function POST(request: Request, { params }: RouteContext) {
   if (transcript.length < MIN_TRANSCRIPT_CHARS) {
     return NextResponse.json(
       {
-        error: `Paste a longer transcript — at least ${MIN_TRANSCRIPT_CHARS} characters are needed to analyse it.`,
+        error: `Paste a longer transcript - at least ${MIN_TRANSCRIPT_CHARS} characters are needed to analyse it.`,
       },
       { status: 400 },
     )

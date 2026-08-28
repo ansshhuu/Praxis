@@ -13,7 +13,7 @@ export const PPT_UNSUPPORTED_NOTE =
   'PPT text extraction not supported in this demo'
 
 export const SCANNED_PDF_NOTE =
-  'This PDF contains no selectable text — it appears to be a scan. OCR is available for image uploads (PNG/JPG) in this demo, but not for scanned PDFs.'
+  'This PDF contains no selectable text - it appears to be a scan. OCR is available for image uploads (PNG/JPG) in this demo, but not for scanned PDFs.'
 
 function clean(text: string): string {
   const normalized = text
@@ -24,7 +24,7 @@ function clean(text: string): string {
     .trim()
 
   return normalized.length > MAX_TEXT_CHARS
-    ? `${normalized.slice(0, MAX_TEXT_CHARS)}\n\n[truncated — document exceeds ${MAX_TEXT_CHARS.toLocaleString()} characters]`
+    ? `${normalized.slice(0, MAX_TEXT_CHARS)}\n\n[truncated - document exceeds ${MAX_TEXT_CHARS.toLocaleString()} characters]`
     : normalized
 }
 
@@ -139,7 +139,7 @@ export async function extractText(fileUrl: string, fileType: string): Promise<st
       return clean(buffer.toString('utf8'))
     }
     if (kind === 'doc') {
-      return 'Legacy .doc text extraction not supported in this demo — re-save the file as .docx.'
+      return 'Legacy .doc text extraction not supported in this demo - re-save the file as .docx.'
     }
 
     throw new ExtractionError(`Unsupported file type for extraction: ${fileType}`)

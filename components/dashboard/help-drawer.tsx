@@ -75,7 +75,7 @@ const HELP_TOPICS: HelpTopic[] = [
     description:
       'Domain-specific automation hubs for CRM, HR & Recruitment, Finance & Invoices, and Support & Tickets.',
     steps: [
-      'Open CRM to qualify a lead — fill in contact, budget and timeline, then score it and plan the follow-up.',
+      'Open CRM to qualify a lead - fill in contact, budget and timeline, then score it and plan the follow-up.',
       'Open HR & Recruitment to upload resumes with a job description, screen and rank candidates, generate interview questions, and draft offer letters.',
       'Open Finance & Invoices to upload an invoice or receipt for OCR extraction, categorization and anomaly detection.',
       'Open Support & Tickets to triage an incoming ticket, translate it, and draft a reply.',
@@ -114,7 +114,7 @@ const HELP_TOPICS: HelpTopic[] = [
     description:
       'AI Assistant chat, meeting transcription, the RAG knowledge-base playground, and multimodal tools for voice and computer vision.',
     steps: [
-      'Open AI Assistant and type a question, or pick a suggested prompt — Shift+Enter inserts a newline instead of sending.',
+      'Open AI Assistant and type a question, or pick a suggested prompt - Shift+Enter inserts a newline instead of sending.',
       'Open Meetings to upload a recording or paste a transcript and get a summary, attendees and action items.',
       'Open Knowledge Base to ingest text or files, then query it and get an answer grounded in cited snippets.',
       'Open Multimodal Lab to record and transcribe voice, or run OCR and object detection on an image.',
@@ -130,7 +130,7 @@ const HELP_TOPICS: HelpTopic[] = [
       'Check the Notification Channels panel for how many messages each channel has sent or failed.',
       'Scan the Notification Log for individual messages.',
       'Read the Recipient column to see the address a message actually went to.',
-      'Check the Status pill — a Failed row carries the delivery error in its message text.',
+      'Check the Status pill - a Failed row carries the delivery error in its message text.',
     ],
   },
 ]

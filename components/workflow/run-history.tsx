@@ -22,7 +22,7 @@ const statusStyles: Record<WorkflowRunRecord['status'], string> = {
 }
 
 function duration(run: WorkflowRunRecord) {
-  if (!run.finishedAt) return '—'
+  if (!run.finishedAt) return '-'
   const ms = new Date(run.finishedAt).getTime() - new Date(run.startedAt).getTime()
   return ms < 1000 ? `${ms}ms` : `${(ms / 1000).toFixed(1)}s`
 }
@@ -147,7 +147,7 @@ export function RunHistory({
                   {run.output?.steps?.map((step, i) => (
                     <p key={i} className="text-xs text-muted-foreground">
                       <span className="font-medium text-foreground">{step.label}</span>
-                      {' — '}
+                      {' - '}
                       {step.message}
                     </p>
                   ))}

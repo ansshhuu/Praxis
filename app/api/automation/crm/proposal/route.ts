@@ -62,7 +62,7 @@ export async function POST(request: Request) {
   if (budgetRaw > PROPOSAL_BUDGET_MAX) {
     return NextResponse.json(
       {
-        error: `Failed to generate proposal: budget seems unrealistically high — enter a value under $${PROPOSAL_BUDGET_MAX.toLocaleString('en-US')}`,
+        error: `Failed to generate proposal: budget seems unrealistically high - enter a value under $${PROPOSAL_BUDGET_MAX.toLocaleString('en-US')}`,
       },
       { status: 400 },
     )

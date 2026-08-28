@@ -34,7 +34,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'No invoice file provided' }, { status: 400 })
   }
   if (file.size > MAX_FILE_BYTES) {
-    return NextResponse.json({ error: 'File too large — max 15MB' }, { status: 413 })
+    return NextResponse.json({ error: 'File too large - max 15MB' }, { status: 413 })
   }
   if (!ALLOWED_MIME_TYPES.has(file.type)) {
     return NextResponse.json(
@@ -53,7 +53,7 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           duplicate: true,
-          error: 'This invoice appears to already be uploaded — add anyway?',
+          error: 'This invoice appears to already be uploaded - add anyway?',
           existing: { vendor: existing.vendor, amount: existing.amount, createdAt: existing.createdAt },
         },
         { status: 409 },
@@ -71,7 +71,7 @@ export async function POST(request: Request) {
           case 'ocr_failed':
             return 'Failed to parse invoice: could not read the image'
           case 'ocr_empty':
-            return 'Failed to parse invoice: no readable text found — try a clearer photo or scan'
+            return 'Failed to parse invoice: no readable text found - try a clearer photo or scan'
           case 'llm_failed':
             return 'Failed to parse invoice: OCR service timeout'
           case 'unparseable_response':

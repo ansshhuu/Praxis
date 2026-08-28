@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI } from '@google/generative-ai'
+import { GoogleGenAI } from '@google/genai'
 
 import { applyGuardrails } from '@/lib/ai/guardrails'
 
@@ -106,25 +106,32 @@ function splitSystem(messages: LLMMessage[]): { system: string | undefined; rest
   return { system: systemParts.length ? systemParts.join('\n\n') : undefined, rest }
 }
 
+function getGeminiClient(): GoogleGenAI {
+  return new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY ?? '' })
+}
+
 async function callGemini(
   messages: LLMMessage[],
   model: string,
   temperature: number,
   maxTokens: number,
 ): Promise<string> {
-  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY ?? '')
+  const ai = getGeminiClient()
   const { system, rest } = splitSystem(messages)
-  const generativeModel = genAI.getGenerativeModel({
-    model,
-    systemInstruction: system,
-    generationConfig: { temperature, maxOutputTokens: maxTokens },
-  })
   const contents = rest.map((m) => ({
     role: m.role === 'assistant' ? 'model' : 'user',
     parts: [{ text: m.content }],
   }))
-  const result = await generativeModel.generateContent({ contents })
-  const text = result.response.text().trim()
+  const result = await ai.models.generateContent({
+    model,
+    contents,
+    config: {
+      systemInstruction: system,
+      temperature,
+      maxOutputTokens: maxTokens,
+    },
+  })
+  const text = result.text?.trim()
   if (!text) throw new Error('Gemini returned an empty response')
   return text
 }
@@ -135,20 +142,23 @@ async function* streamGemini(
   temperature: number,
   maxTokens: number,
 ): AsyncGenerator<string> {
-  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY ?? '')
+  const ai = getGeminiClient()
   const { system, rest } = splitSystem(messages)
-  const generativeModel = genAI.getGenerativeModel({
-    model,
-    systemInstruction: system,
-    generationConfig: { temperature, maxOutputTokens: maxTokens },
-  })
   const contents = rest.map((m) => ({
     role: m.role === 'assistant' ? 'model' : 'user',
     parts: [{ text: m.content }],
   }))
-  const result = await generativeModel.generateContentStream({ contents })
-  for await (const chunk of result.stream) {
-    const text = chunk.text()
+  const stream = await ai.models.generateContentStream({
+    model,
+    contents,
+    config: {
+      systemInstruction: system,
+      temperature,
+      maxOutputTokens: maxTokens,
+    },
+  })
+  for await (const chunk of stream) {
+    const text = chunk.text
     if (text) yield text
   }
 }
@@ -363,7 +373,7 @@ export async function generateText(options: GenerateTextOptions): Promise<Genera
     }
   }
 
-  throw new Error(`All configured LLM providers failed — ${failures.join(' | ')}`)
+  throw new Error(`All configured LLM providers failed - ${failures.join(' | ')}`)
 }
 
 export async function* generateStream(options: GenerateStreamOptions): AsyncGenerator<StreamChunk> {
@@ -396,5 +406,5 @@ export async function* generateStream(options: GenerateStreamOptions): AsyncGene
     }
   }
 
-  throw new Error(`All configured LLM providers failed to stream — ${failures.join(' | ')}`)
+  throw new Error(`All configured LLM providers failed to stream - ${failures.join(' | ')}`)
 }

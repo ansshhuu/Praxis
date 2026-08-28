@@ -8,9 +8,9 @@ import { PricingSection } from '@/components/landing/pricing-section'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'Praxis — No-Code AI Workflow Automation',
+  title: 'Praxis - No-Code AI Workflow Automation',
   description:
-    'Build, run, and monitor enterprise workflows with no-code AI. Document intelligence, resume screening, workflow automation, and AI chat assistant — all in one platform.',
+    'Build, run, and monitor enterprise workflows with no-code AI. Document intelligence, resume screening, workflow automation, and AI chat assistant - all in one platform.',
 }
 
 export default function LandingPage() {

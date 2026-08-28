@@ -39,7 +39,7 @@ export async function generatePost(options: GeneratePostOptions): Promise<Market
     messages: [
       {
         role: 'system',
-        content: `Write a ${options.platform} post in a ${options.tone} tone, under ${limit} characters, about the given topic. Do not include hashtags in the body — they are added separately.`,
+        content: `Write a ${options.platform} post in a ${options.tone} tone, under ${limit} characters, about the given topic. Do not include hashtags in the body - they are added separately.`,
       },
       { role: 'user', content: options.topic },
     ],

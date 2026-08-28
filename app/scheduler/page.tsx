@@ -1,6 +1,7 @@
 'use client'
 
 import { Loader2, Pause, Play, Plus, X, CalendarClock } from 'lucide-react'
+import Link from 'next/link'
 import { useEffect, useState } from 'react'
 
 import { DashboardShell } from '@/components/dashboard/dashboard-shell'
@@ -34,7 +35,7 @@ interface WorkflowOption {
 }
 
 function formatRunTime(iso: string | null): string {
-  if (!iso) return '—'
+  if (!iso) return '-'
   return new Date(iso).toLocaleString('en-US', {
     month: 'short',
     day: 'numeric',
@@ -144,10 +145,11 @@ function NewJobModal({
               id="new-job-workflow"
               value={workflowId}
               onChange={(e) => setWorkflowId(e.target.value)}
-              className="rounded-xl border border-gray-200 bg-white px-4 py-3 text-[14px] font-medium text-gray-700 outline-none focus:ring-1 focus:ring-[#F5CA50] focus:border-[#F5CA50] shadow-sm transition-all"
+              disabled={workflows.length === 0}
+              className="rounded-xl border border-gray-200 bg-white px-4 py-3 text-[14px] font-medium text-gray-700 outline-none focus:ring-1 focus:ring-[#F5CA50] focus:border-[#F5CA50] shadow-sm transition-all disabled:bg-gray-50 disabled:text-gray-400"
             >
               {workflows.length === 0 ? (
-                <option value="">No workflows available</option>
+                <option value="">No workflows yet</option>
               ) : (
                 workflows.map((workflow) => (
                   <option key={workflow.id} value={workflow.id}>
@@ -156,6 +158,15 @@ function NewJobModal({
                 ))
               )}
             </select>
+            {workflows.length === 0 && (
+              <p className="text-[12px] font-medium text-gray-500">
+                You haven&apos;t created any workflows yet.{' '}
+                <Link href="/workflows" className="font-bold text-[#8A6A0B] underline underline-offset-2">
+                  Create one first
+                </Link>{' '}
+                to schedule it.
+              </p>
+            )}
           </div>
 
           <div className="flex flex-col gap-2">
@@ -280,7 +291,7 @@ export default function SchedulerPage() {
               {error ??
                 (isLoading
                   ? 'Loading…'
-                  : `${jobs.length} jobs configured — ${jobs.filter((job) => job.isActive).length} active`)}
+                  : `${jobs.length} jobs configured - ${jobs.filter((job) => job.isActive).length} active`)}
             </CardDescription>
           </div>
           <div className="overflow-x-auto bg-white">

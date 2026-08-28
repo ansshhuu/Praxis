@@ -231,7 +231,7 @@ function NotificationLog({
             {!loading && notifications.length === 0 && (
               <TableRow>
                 <TableCell colSpan={5} className="py-10 text-center text-sm text-muted-foreground">
-                  No notifications yet — run a workflow with a Notify node to see them here.
+                  No notifications yet - run a workflow with a Notify node to see them here.
                 </TableCell>
               </TableRow>
             )}

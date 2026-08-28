@@ -32,7 +32,7 @@ export function validateProposalForm(values: ProposalFormValues): ProposalFieldE
     label: 'Budget',
     min: 0,
     max: PROPOSAL_BUDGET_MAX,
-    maxMessage: `Budget seems unrealistically high — enter a value under $${PROPOSAL_BUDGET_MAX.toLocaleString('en-US')}.`,
+    maxMessage: `Budget seems unrealistically high - enter a value under $${PROPOSAL_BUDGET_MAX.toLocaleString('en-US')}.`,
   })
 
   return errors

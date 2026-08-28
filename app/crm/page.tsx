@@ -2,6 +2,8 @@
 
 import { Briefcase, Loader2, Send, Sparkles } from 'lucide-react'
 import { useDeferredValue, useRef, useState } from 'react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 
 import { DashboardShell } from '@/components/dashboard/dashboard-shell'
 import { Button } from '@/components/ui/button'
@@ -219,7 +221,7 @@ function LeadForm({ onCreated }: { onCreated: (lead: LeadView) => void }) {
         <div className="flex flex-col gap-1">
           <Textarea
             ref={fitNotesRef}
-            placeholder="Fit notes — decision maker, budget approved, urgent…"
+            placeholder="Fit notes - decision maker, budget approved, urgent…"
             rows={3}
             className="max-h-48 overflow-y-auto"
             maxLength={FIT_NOTES_MAX_LENGTH}
@@ -441,8 +443,25 @@ function ProposalGenerator({ qualifiedLeads }: { qualifiedLeads: LeadView[] }) {
           Generate proposal
         </Button>
         {proposal && (
-          <div className="mt-2 max-h-64 overflow-y-auto rounded-xl border border-gray-100 bg-gray-50/60 p-4 text-[13px] leading-relaxed whitespace-pre-wrap text-gray-700">
-            {proposal}
+          <div className="mt-2 max-h-[32rem] overflow-y-auto rounded-xl border border-gray-100 bg-gray-50/60 p-4 text-[13px] text-gray-700">
+            <div
+              className={cn(
+                'leading-relaxed [&>*:not(:last-child)]:mb-3',
+                '[&_ul]:my-1.5 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:space-y-1',
+                '[&_ol]:my-1.5 [&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:space-y-1',
+                '[&_strong]:font-bold [&_strong]:text-gray-900',
+                '[&_h1]:text-[14px] [&_h1]:font-bold [&_h1]:text-gray-900',
+                '[&_h2]:text-[13.5px] [&_h2]:font-bold [&_h2]:text-gray-900',
+                '[&_h3]:text-[13px] [&_h3]:font-bold [&_h3]:text-gray-900',
+                '[&_p]:leading-relaxed',
+                '[&_table]:w-full [&_table]:border-collapse',
+                '[&_th]:border [&_th]:border-gray-200 [&_th]:bg-gray-100 [&_th]:px-2 [&_th]:py-1 [&_th]:text-left [&_th]:font-semibold',
+                '[&_td]:border [&_td]:border-gray-200 [&_td]:px-2 [&_td]:py-1 [&_td]:align-top',
+                '[&_hr]:my-3 [&_hr]:border-gray-200',
+              )}
+            >
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{proposal}</ReactMarkdown>
+            </div>
           </div>
         )}
       </CardContent>

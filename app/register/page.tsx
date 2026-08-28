@@ -68,7 +68,7 @@ export default function RegisterPage() {
     const params = new URLSearchParams(window.location.search)
     const prefill = params.get('email')
     if (prefill) setEmail(prefill)
-    if (params.get('reason') === 'no-account') setNotice('No account found — create one below.')
+    if (params.get('reason') === 'no-account') setNotice('No account found - create one below.')
   }, [])
 
   async function handleSubmit(e: React.FormEvent) {
@@ -166,9 +166,9 @@ export default function RegisterPage() {
                 style={{ width: 15, height: 15, accentColor: '#111111', cursor: 'pointer', flexShrink: 0, marginTop: 2 }} />
               <label htmlFor="agree-terms" style={{ fontSize: 13, color: '#66615B', cursor: 'pointer', lineHeight: 1.4 }}>
                 I agree to the{' '}
-                <a href="#" style={{ color: '#D4A017', textDecoration: 'none', fontWeight: 600 }}>Terms of Service</a>
+                <a href="/terms" target="_blank" rel="noopener noreferrer" style={{ color: '#D4A017', textDecoration: 'none', fontWeight: 600 }}>Terms of Service</a>
                 {' '}and{' '}
-                <a href="#" style={{ color: '#D4A017', textDecoration: 'none', fontWeight: 600 }}>Privacy Policy</a>
+                <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: '#D4A017', textDecoration: 'none', fontWeight: 600 }}>Privacy Policy</a>
               </label>
             </div>
 

@@ -3,7 +3,7 @@ import type { Metadata } from 'next'
 import { LegalPage, type LegalSection } from '@/components/landing/legal-page'
 
 export const metadata: Metadata = {
-  title: 'Terms of Service — Praxis',
+  title: 'Terms of Service - Praxis',
   description:
     'The terms governing use of the Praxis platform, including acceptable use, availability, intellectual property, and liability.',
 }
@@ -47,6 +47,14 @@ const SECTIONS: LegalSection[] = [
       'To the fullest extent permitted by law, Praxis is not liable for indirect, incidental, or consequential damages, or for lost profits, revenue, or data.',
       'Our total aggregate liability arising from the service is limited to the amounts you paid us in the twelve months preceding the claim.',
       'Nothing in these terms excludes liability that cannot lawfully be excluded.',
+    ],
+  },
+  {
+    heading: 'Account Termination',
+    body: [
+      'You may stop using Praxis and close your account at any time. We may suspend or terminate your access if you materially breach these terms, including the Acceptable Use provisions above, or if required to do so by law.',
+      'Where reasonably possible, we will give notice before suspending or terminating an account for breach, and an opportunity to remedy the issue, except where immediate action is needed to protect the service or other users.',
+      'On termination, your right to use the service ends immediately. Provisions that by their nature should survive termination - including Intellectual Property, Limitation of Liability, and this clause - remain in effect.',
     ],
   },
   {

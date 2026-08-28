@@ -53,7 +53,7 @@ describe('validateProposalForm', () => {
 
   it('caps an unrealistically large budget', () => {
     const errors = validateProposalForm({ ...VALID_FORM, budget: '999999999999999999' })
-    expect(errors.budget).toBe('Budget seems unrealistically high — enter a value under $100,000,000.')
+    expect(errors.budget).toBe('Budget seems unrealistically high - enter a value under $100,000,000.')
   })
 
   it('rejects requirements over the max length', () => {

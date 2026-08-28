@@ -30,7 +30,7 @@ function describeNetworkError(error: unknown): string {
 
   const cause = (error as { cause?: { code?: string; message?: string } })?.cause
   if (cause?.code) {
-    return cause.message ? `${cause.code} — ${cause.message}` : cause.code
+    return cause.message ? `${cause.code} - ${cause.message}` : cause.code
   }
   if (cause?.message) return cause.message
 
@@ -122,7 +122,7 @@ async function callHuggingFace(prompt: string, apiKey: string): Promise<string> 
     const detail = await response.text().catch(() => '')
     const hint =
       response.status === 403
-        ? ' — check HUGGINGFACE_API_KEY has the "Make calls to Inference Providers" scope'
+        ? ' - check HUGGINGFACE_API_KEY has the "Make calls to Inference Providers" scope'
         : ''
     throw new Error(
       `Hugging Face request failed (${response.status} ${response.statusText}): ${detail.slice(0, 300)}${hint}`,
@@ -195,7 +195,7 @@ export async function callAI(prompt: string, userId = ''): Promise<string> {
     failures.push('huggingface: HUGGINGFACE_API_KEY not configured')
   }
 
-  throw new Error(`AI service unavailable — ${failures.join(' | ')}`)
+  throw new Error(`AI service unavailable - ${failures.join(' | ')}`)
 }
 
 function rememberResponse(key: string, text: string) {

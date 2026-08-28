@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI } from '@google/generative-ai'
+import { GoogleGenAI } from '@google/genai'
 import Tesseract from 'tesseract.js'
 
 import { parseJsonObject } from '@/lib/ai/json'
@@ -54,13 +54,13 @@ const ANALYZE_SCHEMA_PROMPT = [
 export async function analyzeImage(options: AnalyzeImageOptions): Promise<AnalyzeImageResult> {
   const apiKey = process.env.GEMINI_API_KEY?.trim()
   if (!apiKey) {
-    throw new Error('GEMINI_API_KEY is not configured — required for image analysis')
+    throw new Error('GEMINI_API_KEY is not configured - required for image analysis')
   }
 
-  const genAI = new GoogleGenerativeAI(apiKey)
-  const model = genAI.getGenerativeModel({ model: GEMINI_VISION_MODEL })
+  const ai = new GoogleGenAI({ apiKey })
 
-  const result = await model.generateContent({
+  const result = await ai.models.generateContent({
+    model: GEMINI_VISION_MODEL,
     contents: [
       {
         role: 'user',
@@ -70,10 +70,10 @@ export async function analyzeImage(options: AnalyzeImageOptions): Promise<Analyz
         ],
       },
     ],
-    generationConfig: { temperature: 0, maxOutputTokens: 1024 },
+    config: { temperature: 0, maxOutputTokens: 2048 },
   })
 
-  const raw = result.response.text()
+  const raw = result.text ?? ''
   const parsed = parseJsonObject(raw)
   if (!parsed) {
     throw new Error('Image analysis returned an unparseable response')

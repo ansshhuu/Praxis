@@ -385,7 +385,7 @@ function Flow() {
       const stepCount = body.steps?.length ?? 0
       showToast(
         'success',
-        `Run completed — ${stepCount} node${stepCount === 1 ? '' : 's'} executed, ${body.aiCalls ?? 0} AI call${body.aiCalls === 1 ? '' : 's'}`,
+        `Run completed - ${stepCount} node${stepCount === 1 ? '' : 's'} executed, ${body.aiCalls ?? 0} AI call${body.aiCalls === 1 ? '' : 's'}`,
       )
     } catch (error) {
       setEdges((eds) => eds.map((e) => ({ ...e, animated: false })))

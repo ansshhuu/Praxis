@@ -84,7 +84,7 @@ export default function AgentsPage() {
               <StatCard title="Registered Agents" value={agents.length.toString()} icon={Bot} />
               <StatCard title="Currently Active" value={activeCount.toString()} icon={Zap} iconColor="text-green-600" iconBg="bg-green-50" />
               <StatCard title="Agents In Error" value={errorCount.toString()} icon={ShieldAlert} iconColor={errorCount > 0 ? 'text-red-600' : undefined} iconBg={errorCount > 0 ? 'bg-red-50' : undefined} />
-              <StatCard title="Avg Latency" value={avgLatency ? `${avgLatency}ms` : '—'} icon={Zap} />
+              <StatCard title="Avg Latency" value={avgLatency ? `${avgLatency}ms` : '-'} icon={Zap} />
             </div>
 
             <AgentGrid agents={agents} onRun={setRunningAgent} />

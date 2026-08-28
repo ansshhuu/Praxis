@@ -36,7 +36,7 @@ const modules = [
     category: 'Automation',
     icon: GitBranch,
     title: 'Workflow Automation',
-    desc: 'Build no-code automation pipelines with drag-and-drop AI nodes, branching logic, and real-time execution monitoring — all without writing a single line of code.',
+    desc: 'Build no-code automation pipelines with drag-and-drop AI nodes, branching logic, and real-time execution monitoring - all without writing a single line of code.',
     link: '/workflows',
   },
   {
@@ -355,7 +355,7 @@ function PreviewChat({ active = true }: PreviewProps) {
     { role: 'user', text: 'How many workflows ran today?' },
     { role: 'ai', text: '142 workflows ran today with a 94% success rate. Top performer: Invoice Approval at 100%.' },
     { role: 'user', text: 'Show me the failed ones.' },
-    { role: 'ai', text: '8 failures detected — mostly timeout errors on the Email Trigger node. Want me to auto-retry them?' },
+    { role: 'ai', text: '8 failures detected - mostly timeout errors on the Email Trigger node. Want me to auto-retry them?' },
   ]
   const lastIndex = messages.length - 1
   const { shown: streamed, done } = useTypewriter(messages[lastIndex].text, {

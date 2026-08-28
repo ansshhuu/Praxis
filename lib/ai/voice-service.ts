@@ -19,7 +19,7 @@ export interface TranscribeAudioResult {
 export async function transcribeAudio(options: TranscribeAudioOptions): Promise<TranscribeAudioResult> {
   const apiKey = process.env.GROQ_API_KEY?.trim()
   if (!apiKey) {
-    throw new Error('GROQ_API_KEY is not configured — required for speech-to-text transcription')
+    throw new Error('GROQ_API_KEY is not configured - required for speech-to-text transcription')
   }
 
   const form = new FormData()

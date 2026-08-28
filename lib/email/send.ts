@@ -152,7 +152,7 @@ export async function sendEmail({
     })
 
     if (!response.ok) {
-      return { success: false, error: `Brevo rejected the request — ${await readErrorMessage(response)}` }
+      return { success: false, error: `Brevo rejected the request - ${await readErrorMessage(response)}` }
     }
 
     const payload = (await response.json().catch(() => ({}))) as { messageId?: unknown }

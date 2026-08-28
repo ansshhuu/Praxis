@@ -4,12 +4,12 @@ import type { NextRequest } from 'next/server'
 
 import { ROLE_GUARDED_ROUTES } from '@/lib/auth/route-roles'
 
-/** Auth entry points: signed-out visitors only — a signed-in user is sent to the dashboard. */
-const PUBLIC_ROUTES = ['/', '/login', '/register']
+/** Auth entry points: signed-out visitors only - a signed-in user is sent to the dashboard. */
+const PUBLIC_ROUTES = ['/', '/login', '/register', '/forgot-password', '/reset-password']
 
 /**
  * Open to everyone, signed in or not, with no redirect either way.
- * `/api/health` must stay here — platform health checks are unauthenticated,
+ * `/api/health` must stay here - platform health checks are unauthenticated,
  * and a 401 or redirect makes the host mark the service permanently unhealthy.
  */
 const OPEN_ROUTES = ['/privacy', '/terms', '/api/contact', '/api/health']
