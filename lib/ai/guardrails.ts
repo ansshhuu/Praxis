@@ -2,7 +2,7 @@ const EMAIL_PATTERN = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g
 
 const SSN_PATTERN = /\b\d{3}-\d{2}-\d{4}\b/g
 
-const DIGIT_GROUP_PATTERN = /\+?\(?\d{2,4}\)?(?:[\s.-]?\d{2,4}){1,6}/g
+const DIGIT_GROUP_PATTERN = /\+?\(?\d{2,4}\)?(?:[\s.-]\d{2,4}){2,6}/g
 
 export type PiiKind = 'email' | 'phone' | 'credit_card' | 'ssn'
 

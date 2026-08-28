@@ -1,4 +1,4 @@
-import { GoogleGenAI } from '@google/genai'
+import { GoogleGenAI, ThinkingLevel } from '@google/genai'
 
 import { applyGuardrails } from '@/lib/ai/guardrails'
 
@@ -129,6 +129,7 @@ async function callGemini(
       systemInstruction: system,
       temperature,
       maxOutputTokens: maxTokens,
+      thinkingConfig: { thinkingLevel: ThinkingLevel.MINIMAL },
     },
   })
   const text = result.text?.trim()
@@ -155,6 +156,7 @@ async function* streamGemini(
       systemInstruction: system,
       temperature,
       maxOutputTokens: maxTokens,
+      thinkingConfig: { thinkingLevel: ThinkingLevel.MINIMAL },
     },
   })
   for await (const chunk of stream) {

@@ -1,4 +1,4 @@
-import { GoogleGenAI } from '@google/genai'
+import { GoogleGenAI, ThinkingLevel } from '@google/genai'
 import Tesseract from 'tesseract.js'
 
 import { parseJsonObject } from '@/lib/ai/json'
@@ -70,7 +70,7 @@ export async function analyzeImage(options: AnalyzeImageOptions): Promise<Analyz
         ],
       },
     ],
-    config: { temperature: 0, maxOutputTokens: 2048 },
+    config: { temperature: 0, maxOutputTokens: 2048, thinkingConfig: { thinkingLevel: ThinkingLevel.MINIMAL } },
   })
 
   const raw = result.text ?? ''
