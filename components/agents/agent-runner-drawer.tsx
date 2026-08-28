@@ -136,7 +136,10 @@ export function AgentRunnerDrawer({ agent, onClose }: { agent: AgentView; onClos
 
           {error && (
             <div className="flex items-start justify-between gap-3 rounded-xl border border-red-100 bg-red-50/60 p-3">
-              <p className="text-[13px] font-bold text-red-500">{error}</p>
+              <div>
+                <StatusBadge status="error" />
+                <p className="mt-1.5 text-[13px] font-bold text-red-500">{error}</p>
+              </div>
               <Button
                 variant="outline"
                 size="sm"
