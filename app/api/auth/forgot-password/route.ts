@@ -33,14 +33,19 @@ export async function POST(request: Request) {
         },
       })
 
-      const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${rawToken}`
+      const baseUrl = process.env.FRONTEND_URL || process.env.NEXTAUTH_URL
+      const resetUrl = `${baseUrl}/reset-password?token=${rawToken}`
 
-      await sendEmail({
+      const result = await sendEmail({
         to: user.email,
         subject: 'Reset your Praxis password',
         label: 'Password Reset',
         body: `We received a request to reset your password. Click the link below to choose a new one — it expires in 15 minutes.\n\n${resetUrl}\n\nIf you didn't request this, you can safely ignore this email.`,
       })
+
+      if (!result.success) {
+        console.error('forgot-password: failed to send reset email:', result.error)
+      }
     }
 
     return NextResponse.json(GENERIC_RESPONSE, { status: 200 })
