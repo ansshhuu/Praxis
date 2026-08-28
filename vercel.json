@@ -1,0 +1,10 @@
+{
+  "functions": {
+    "app/api/documents/[id]/process/route.ts": { "maxDuration": 60 },
+    "app/api/resumes/screen/route.ts": { "maxDuration": 60 },
+    "app/api/vision/analyze/route.ts": { "maxDuration": 60 },
+    "app/api/vision/ocr/route.ts": { "maxDuration": 60 },
+    "app/api/meetings/[id]/process/route.ts": { "maxDuration": 60 },
+    "app/api/voice/transcribe/route.ts": { "maxDuration": 60 }
+  }
+}
