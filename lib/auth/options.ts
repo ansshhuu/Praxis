@@ -85,12 +85,30 @@ if (googleClientId && googleClientSecret) {
   )
 }
 
+const useSecureCookies = process.env.NEXTAUTH_URL?.startsWith('https://') ?? false
+const cookiePrefix = useSecureCookies ? '__Secure-' : ''
+
 export const authOptions: NextAuthOptions = {
   session: {
     strategy: 'jwt',
   },
   pages: {
     signIn: '/login',
+  },
+  // Explicit cookie config instead of next-auth's auto-detection, which has
+  // been unreliable on Vercel across recent Next.js versions - see the
+  // [auth-debug] investigation: authorize()/jwt() succeed but no Set-Cookie
+  // header ever reaches the browser without this.
+  cookies: {
+    sessionToken: {
+      name: `${cookiePrefix}next-auth.session-token`,
+      options: {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        secure: useSecureCookies,
+      },
+    },
   },
   providers,
   callbacks: {
