@@ -166,16 +166,22 @@ export const authOptions: NextAuthOptions = {
       }
 
       if ((user || trigger === 'update') && token.id) {
-        const current = await prisma.user.findUnique({
-          where: { id: token.id },
-          select: { name: true, email: true, role: true, passwordHash: true, ...avatarSelect },
-        })
-        if (current) {
-          token.name = current.name
-          token.email = current.email
-          token.role = current.role
-          token.picture = effectiveAvatar(current)
-          token.hasPassword = Boolean(current.passwordHash)
+        try {
+          const current = await prisma.user.findUnique({
+            where: { id: token.id },
+            select: { name: true, email: true, role: true, passwordHash: true, ...avatarSelect },
+          })
+          console.log('[auth-debug] jwt callback lookup', { tokenId: token.id, found: Boolean(current) })
+          if (current) {
+            token.name = current.name
+            token.email = current.email
+            token.role = current.role
+            token.picture = effectiveAvatar(current)
+            token.hasPassword = Boolean(current.passwordHash)
+          }
+        } catch (error) {
+          console.error('[auth-debug] jwt callback error', error)
+          throw error
         }
       }
 
