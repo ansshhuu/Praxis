@@ -1,5 +1,18 @@
+// next-auth/react reads NEXTAUTH_URL at import time via `url ?? defaultUrl`,
+// which does not catch an empty string - an empty NEXTAUTH_URL crashes
+// `new URL('')` during static prerendering (e.g. /_not-found) before any
+// page code runs. Force a non-empty fallback so that can't happen.
+if (!process.env.NEXTAUTH_URL) {
+  process.env.NEXTAUTH_URL = process.env.VERCEL_URL
+    ? `https://${process.env.VERCEL_URL}`
+    : 'http://localhost:3000'
+}
+
 const nextConfig = {
-  output: 'standalone',
+  // Vercel's builder expects its own default output layout, not the
+  // standalone server bundle self-hosted platforms (Render, Docker) need.
+  // Guarded by Vercel's own env var so Render's build is unaffected.
+  ...(process.env.VERCEL ? {} : { output: 'standalone' }),
   serverExternalPackages: ['pdf-parse', 'mammoth', 'xlsx', 'tesseract.js', 'chromadb'],
   // tesseract.js spawns a worker_threads worker whose script does a runtime-relative
   // require('..'); Next's file tracer can't follow that, so it drops files from the
