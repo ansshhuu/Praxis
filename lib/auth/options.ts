@@ -24,8 +24,17 @@ const providers: NextAuthOptions['providers'] = [
         return null
       }
 
+      const normalizedEmail = credentials.email.trim().toLowerCase()
       const user = await prisma.user.findUnique({
-        where: { email: credentials.email.trim().toLowerCase() },
+        where: { email: normalizedEmail },
+      })
+
+      console.log('[auth-debug]', {
+        at: new Date().toISOString(),
+        queriedEmail: normalizedEmail,
+        found: Boolean(user),
+        dbUrlHost: process.env.DATABASE_URL?.split('@')[1]?.split('/')[0],
+        totalUserCount: await prisma.user.count(),
       })
 
       if (!user) {
