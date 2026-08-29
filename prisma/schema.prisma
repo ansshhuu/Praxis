@@ -4,13 +4,12 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  // DATABASE_URL: Supabase transaction pooler (6543, ?pgbouncer=true) on Vercel,
-  // where many short-lived serverless invocations need pooled connections; the
-  // session pooler (5432) on Render, where the worker is one persistent process.
-  // directUrl bypasses pgbouncer for `prisma migrate deploy`, which the
-  // transaction pooler cannot run DDL through.
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  // Session-pooled connection (port 5432) — serves both the app at runtime and
+  // migrations. Deliberately NOT the transaction pooler (6543): that cannot run
+  // DDL, which would require a separate directUrl. The app runs as a persistent
+  // Node process where Prisma manages its own pool, so transaction pooling adds
+  // little here beyond a second connection string to keep in sync.
+  url      = env("DATABASE_URL")
 }
 
 enum Role {

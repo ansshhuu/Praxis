@@ -13,8 +13,6 @@ services:
 
       - key: DATABASE_URL
         sync: false
-      - key: DIRECT_URL
-        sync: false
 
       - key: NEXTAUTH_URL
         sync: false
