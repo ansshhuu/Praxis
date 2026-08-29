@@ -1,5 +1,7 @@
 const nextConfig = {
-  output: 'standalone',
+  // Vercel's builder expects its own default output layout, not the
+  // standalone server bundle self-hosted platforms (Render, Docker) need.
+  ...(process.env.VERCEL ? {} : { output: 'standalone' }),
   serverExternalPackages: ['pdf-parse', 'mammoth', 'xlsx', 'tesseract.js', 'chromadb'],
   // tesseract.js spawns a worker_threads worker whose script does a runtime-relative
   // require('..'); Next's file tracer can't follow that, so it drops files from the
