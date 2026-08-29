@@ -42,10 +42,13 @@ const providers: NextAuthOptions['providers'] = [
       }
 
       if (!user.passwordHash) {
+        console.log('[auth-debug] no passwordHash set for user', normalizedEmail)
         return null
       }
 
       const isValid = await bcrypt.compare(credentials.password, user.passwordHash)
+
+      console.log('[auth-debug] password check', { email: normalizedEmail, isValid })
 
       if (!isValid) {
         return null
